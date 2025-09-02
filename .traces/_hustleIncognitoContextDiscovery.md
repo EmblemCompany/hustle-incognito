@@ -54,6 +54,8 @@ The Hustle Incognito SDK (also known as EmblemVault AI SDK) is a modern TypeScri
 - **Dual Module Support**: Works with both ESM and CommonJS projects
 - **Streaming Support**: Real-time response streaming for better UX  
 - **Tool Call Integration**: Access to 40+ tools for DeFi operations, token analysis, and more
+- **Tool Discovery**: Dynamic tool category discovery via `getTools()` API
+- **Tool Filtering**: Selective tool usage with `selectedToolCategories` parameter
 - **Debug Mode**: Comprehensive logging for troubleshooting
 - **Flexible Configuration**: Environment variables and runtime settings
 - **Conversation Management**: Client-side control over message history
@@ -88,14 +90,7 @@ Non-streaming chat interaction.
 ```typescript
 async chat(
   messages: ChatMessage[],
-  options?: {
-    vaultId: string;
-    userApiKey?: string;
-    externalWalletAddress?: string;
-    slippageSettings?: Record<string, number>;
-    safeMode?: boolean;
-    rawResponse?: boolean;
-  }
+  options?: ChatOptions
 ): Promise<ProcessedResponse | RawChunk[]>
 ```
 
@@ -113,12 +108,15 @@ Low-level streaming access for custom processing.
 
 ```typescript
 async *rawStream(
-  options: {
-    vaultId: string;
-    messages: ChatMessage[];
-    // ... other options
-  }
+  options: RawStreamOptions
 ): AsyncIterable<RawChunk>
+```
+
+##### getTools()
+Retrieve available tool categories from the API.
+
+```typescript
+async getTools(): Promise<ToolCategory[]>
 ```
 
 ## Authentication & Configuration
@@ -216,6 +214,21 @@ interface ProcessedResponse {
 }
 ```
 
+#### ChatOptions
+Configuration for non-streaming chat requests.
+
+```typescript
+interface ChatOptions {
+  vaultId: string;
+  userApiKey?: string;
+  externalWalletAddress?: string;
+  slippageSettings?: Record<string, number>;
+  safeMode?: boolean;
+  rawResponse?: boolean;
+  selectedToolCategories?: string[];  // Filter tool usage by category
+}
+```
+
 #### StreamOptions
 Configuration for streaming requests.
 
@@ -229,6 +242,38 @@ interface StreamOptions {
   safeMode?: boolean;
   currentPath?: string | null;
   processChunks?: boolean;  // Important for structured streaming
+  selectedToolCategories?: string[];  // Filter tool usage by category
+}
+```
+
+#### RawStreamOptions
+Configuration for raw streaming requests.
+
+```typescript
+interface RawStreamOptions {
+  vaultId: string;
+  messages: ChatMessage[];
+  userApiKey?: string;
+  externalWalletAddress?: string;
+  slippageSettings?: Record<string, number>;
+  safeMode?: boolean;
+  currentPath?: string | null;
+  selectedToolCategories?: string[];  // Filter tool usage by category
+}
+```
+
+#### ToolCategory
+Metadata for available tool categories.
+
+```typescript
+interface ToolCategory {
+  id: string;                    // Unique identifier
+  title: string;                 // Human-readable name
+  description: string;           // Detailed description
+  examples: string[];            // Example use cases
+  color: string;                 // UI color theme
+  type: "analyst" | "trader";    // Tool category type
+  premium?: boolean;             // Requires premium subscription
 }
 ```
 
@@ -310,7 +355,8 @@ const messages = [
 ];
 
 const response = await client.chat(messages, { 
-  vaultId: 'default' 
+  vaultId: 'default',
+  selectedToolCategories: ['standard-tools', 'solana-token-ecosystem']  // Optional: filter tools
 });
 
 console.log('Response:', response.content);
@@ -334,7 +380,8 @@ const messages = [
 for await (const chunk of client.chatStream({
   vaultId: 'default',
   messages,
-  processChunks: true  // Important: Enables structured chunks
+  processChunks: true,  // Important: Enables structured chunks
+  selectedToolCategories: ['standard-tools']  // Optional: filter tools
 })) {
   switch (chunk.type) {
     case 'text':
@@ -381,6 +428,112 @@ try {
     console.error('Error:', error.message);
   }
 }
+```
+
+## Tool Discovery and Management
+
+### Dynamic Tool Discovery
+
+The SDK provides a `getTools()` method to dynamically discover available tool categories:
+
+```javascript
+// Fetch all available tool categories
+const tools = await client.getTools();
+
+// Examine tool categories
+tools.forEach(tool => {
+  console.log(`${tool.title} (${tool.id})`);
+  console.log(`  Type: ${tool.type}`);
+  console.log(`  Premium: ${tool.premium ? 'Yes' : 'No'}`);
+  console.log(`  Description: ${tool.description}`);
+  console.log(`  Examples:`, tool.examples);
+});
+```
+
+### Tool Category Filtering
+
+Control which tools are available during chat interactions:
+
+```javascript
+// Use only specific tool categories
+const response = await client.chat(messages, {
+  vaultId: 'my-vault',
+  selectedToolCategories: ['standard-tools', 'solana-token-ecosystem']
+});
+
+// Filter by tool type
+const analystTools = tools.filter(t => t.type === 'analyst').map(t => t.id);
+const traderTools = tools.filter(t => t.type === 'trader').map(t => t.id);
+
+// Use only analyst tools for research
+const researchResponse = await client.chat(
+  [{ role: 'user', content: 'Analyze SOL token metrics' }],
+  { 
+    vaultId: 'research-vault',
+    selectedToolCategories: analystTools 
+  }
+);
+
+// Use trader tools for execution
+const tradingResponse = await client.chat(
+  [{ role: 'user', content: 'Buy 10 SOL' }],
+  { 
+    vaultId: 'trading-vault',
+    selectedToolCategories: traderTools 
+  }
+);
+```
+
+### Dynamic Tool Selection Based on Context
+
+```javascript
+// Intelligent tool selection based on user query
+async function selectRelevantTools(query, allTools) {
+  const queryLower = query.toLowerCase();
+  
+  // Keywords for different tool categories
+  const keywords = {
+    trading: ['buy', 'sell', 'swap', 'trade', 'exchange'],
+    analysis: ['analyze', 'check', 'research', 'metrics', 'info'],
+    liquidity: ['liquidity', 'pool', 'lp', 'provide', 'stake'],
+    pump: ['pump', 'pumpfun', 'launch'],
+  };
+  
+  const relevantCategories = new Set();
+  
+  // Match keywords to tool categories
+  for (const [category, words] of Object.entries(keywords)) {
+    if (words.some(word => queryLower.includes(word))) {
+      // Find matching tool categories
+      allTools.forEach(tool => {
+        if (tool.description.toLowerCase().includes(category) ||
+            tool.examples.some(ex => ex.toLowerCase().includes(category))) {
+          relevantCategories.add(tool.id);
+        }
+      });
+    }
+  }
+  
+  // Default to standard tools if no specific match
+  if (relevantCategories.size === 0) {
+    relevantCategories.add('standard-tools');
+  }
+  
+  return Array.from(relevantCategories);
+}
+
+// Use dynamic tool selection
+const userQuery = "I want to analyze and then buy some SOL";
+const tools = await client.getTools();
+const selectedTools = await selectRelevantTools(userQuery, tools);
+
+const response = await client.chat(
+  [{ role: 'user', content: userQuery }],
+  { 
+    vaultId: 'default',
+    selectedToolCategories: selectedTools 
+  }
+);
 ```
 
 ## Available Tools
@@ -656,30 +809,47 @@ for (const key of required) {
 
 ### 6. Testing and Evaluation
 
-Use the evaluation framework for comprehensive testing:
+The SDK includes comprehensive testing infrastructure with Vitest:
 
 ```javascript
-// Define test suites for different features
-{
-  "metadata": {
-    "name": "token-info-suite",
-    "description": "Tests token information queries"
-  },
-  "testCases": [
-    {
-      "id": "sol_price",
-      "userPrompt": "What is the current price of SOL?",
-      "expectedBehavior": {
-        "toolCalls": [
-          { "tool": "get_token_price", "parameters": { "symbol": "SOL" } }
-        ]
+// vitest.config.ts configuration
+export default defineConfig({
+  test: {
+    testTimeout: 60000,      // 60-second timeout for API calls
+    fileParallelism: false,  // Sequential execution to prevent rate limiting
+    pool: 'vmThreads',
+    poolOptions: {
+      vmThreads: {
+        maxThreads: 1,       // Single-threaded for integration tests
+        minThreads: 1
       }
     }
-  ]
-}
+  }
+});
 
-// Run evaluations regularly
-npm run eval:run token-info-suite
+// Integration test with tool categories
+test('should filter tools by category', async () => {
+  const client = new HustleIncognitoClient({ apiKey: API_KEY });
+  
+  // Get available tools
+  const tools = await client.getTools();
+  expect(tools).toBeInstanceOf(Array);
+  
+  // Test with filtered tools
+  const response = await client.chat(
+    [{ role: 'user', content: 'What is SOL?' }],
+    { 
+      vaultId: 'test-vault',
+      selectedToolCategories: ['standard-tools']
+    }
+  );
+  
+  expect(response.content).toBeDefined();
+});
+
+// Run tests
+npm test                    // Run all tests
+npm run test:integration   // Run integration tests only
 ```
 
 ### 7. Production Considerations
@@ -694,12 +864,13 @@ npm run eval:run token-info-suite
 
 ### API Methods to Examples
 
-| Method | Simple CLI Usage | Evaluation Framework Usage |
-|--------|-----------------|---------------------------|
-| `new HustleIncognitoClient()` | Initial setup | Evaluator & Scorer init |
-| `client.chat()` | Non-streaming mode | Fallback when streaming unavailable |
-| `client.chatStream()` | Main interaction loop | Test execution & scoring |
-| `client.rawStream()` | Not used | Not used (advanced feature) |
+| Method | Simple CLI Usage | Evaluation Framework Usage | New Features |
+|--------|-----------------|---------------------------|--------------|
+| `new HustleIncognitoClient()` | Initial setup | Evaluator & Scorer init | No changes |
+| `client.chat()` | Non-streaming mode | Fallback when streaming unavailable | Now accepts `ChatOptions` with `selectedToolCategories` |
+| `client.chatStream()` | Main interaction loop | Test execution & scoring | Now accepts `selectedToolCategories` in `StreamOptions` |
+| `client.rawStream()` | Not used | Not used (advanced feature) | Now accepts `selectedToolCategories` in `RawStreamOptions` |
+| `client.getTools()` | Not used yet | Tool discovery | **NEW METHOD** - Returns `ToolCategory[]` |
 
 ### Configuration Patterns
 
@@ -718,6 +889,10 @@ npm run eval:run token-info-suite
 | `StreamChunk` | Console output | Traced & processed | Real-time handling |
 | `ProcessedResponse` | Final display | Not directly used | Complete responses |
 | `ToolCall` | Logged & counted | Scored & validated | Tool usage tracking |
+| `ToolCategory` | **NEW** - Tool discovery | Tool filtering | Tool metadata and categorization |
+| `ChatOptions` | **NEW** - Chat configuration | Test options | Non-streaming chat options |
+| `StreamOptions` | Stream configuration | Test streaming | Streaming chat options |
+| `RawStreamOptions` | **NEW** - Raw stream config | Not used | Low-level streaming options |
 
 ### Common Patterns Reference
 
@@ -729,14 +904,23 @@ npm run eval:run token-info-suite
 
 ## Conclusion
 
-The Hustle Incognito SDK provides a powerful and flexible interface for interacting with the Hustle AI platform. By following the patterns demonstrated in the examples and adhering to best practices, developers can build robust applications that leverage the full capabilities of the platform.
+The Hustle Incognito SDK provides a powerful and flexible interface for interacting with the Hustle AI platform. Recent updates have enhanced the SDK with dynamic tool discovery and selective tool filtering capabilities, providing developers with fine-grained control over AI agent capabilities.
 
 Key takeaways:
 - Use streaming for interactive applications
+- Leverage `getTools()` for dynamic tool discovery
+- Filter tools with `selectedToolCategories` for context-specific interactions
 - Maintain proper conversation context
 - Handle errors gracefully
-- Leverage the evaluation framework for testing
+- Use Vitest framework for comprehensive testing
 - Follow security best practices with API keys
 - Choose appropriate vaults for different contexts
+- Implement intelligent tool selection based on user queries
+
+Recent enhancements (v1.3.0+):
+- **Tool Discovery API**: `getTools()` method for runtime tool category discovery
+- **Tool Filtering**: `selectedToolCategories` parameter across all chat methods
+- **Improved Type System**: Extracted `ChatOptions`, `StreamOptions`, and `RawStreamOptions` interfaces
+- **Enhanced Testing**: Vitest integration with optimized timeout and concurrency settings
 
 For the latest updates and additional examples, refer to the official repository and documentation.

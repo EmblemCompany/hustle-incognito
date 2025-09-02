@@ -98,6 +98,11 @@ let client = new HustleIncognitoClient({
    - `/settings`: Display current settings
    - `/stream on|off`: Toggle streaming mode
    - `/debug on|off`: Toggle debug mode
+   - `/tools`: Manage tool categories (NEW)
+   - `/tools add <id>`: Add a tool category to filter
+   - `/tools remove <id>`: Remove a tool category from filter
+   - `/tools clear`: Clear all filters (use all tools)
+   - `/tools list`: Show available tool categories
    - `/exit` or `/quit`: Exit application
 
 3. **Conversation Management**:
@@ -147,7 +152,62 @@ const response = await client.chat(
 console.log(`Agent: ${response.content}`);
 ```
 
-### 5. Key Design Patterns
+### 5. Tool Management System (NEW)
+
+The CLI now includes sophisticated tool category management:
+
+#### Tool Discovery
+```javascript
+// Fetch available tool categories from API
+const tools = await client.getTools();
+```
+
+#### Tool Category Interface
+Each tool category provides:
+- `id`: Unique identifier for filtering
+- `title`: Human-readable name
+- `description`: Detailed description of capabilities
+- `type`: "analyst" or "trader" classification
+- `premium`: Premium subscription requirement flag
+- `examples`: Usage examples
+- `color`: UI theme color
+
+#### Tool Selection State
+```javascript
+let settings = {
+  debug: initialDebugMode || ENV_DEBUG,
+  stream: initialStreamMode,
+  selectedTools: []  // Array of selected tool category IDs
+};
+```
+
+#### Dynamic Tool Filtering
+The CLI applies selected tool categories to both streaming and non-streaming requests:
+
+```javascript
+// Streaming with tool filters
+const streamOptions = {
+  vaultId: VAULT_ID,
+  messages,
+  processChunks: true,
+  selectedToolCategories: settings.selectedTools // Apply filter
+};
+
+// Non-streaming with tool filters
+const chatOptions = { 
+  vaultId: VAULT_ID,
+  selectedToolCategories: settings.selectedTools // Apply filter
+};
+```
+
+#### Interactive Tool Management
+The `/tools` command provides an interactive interface:
+- Visual status indicators (✅ selected, ⬜ available)
+- Premium tool indicators (💎)
+- Grouped by type (Analyst/Trader)
+- Real-time selection updates
+
+### 6. Key Design Patterns
 
 #### 1. Dynamic Client Reconfiguration
 The CLI can reinitialize the client when settings change:
@@ -228,17 +288,30 @@ From analyzing the client implementation:
    - Slippage settings for trading operations
    - Safe mode toggle
    - External wallet address support
+   - **NEW**: Tool category filtering via `selectedToolCategories`
 
 3. **Stream Processing**:
    - Raw stream access for custom processing
    - Processed chunks for easy consumption
    - Automatic chunk type detection
 
-4. **Extensibility**:
+4. **Tool Management** (NEW):
+   - Dynamic tool discovery via `getTools()` method
+   - Runtime tool category selection
+   - Filtered tool execution based on user preferences
+   - Support for both analyst and trader tool types
+
+5. **Extensibility**:
    - Override functions for testing
    - Custom fetch implementation support
    - Debug logging throughout
 
 ### Conclusion
 
-The simple-cli example effectively demonstrates the SDK's capabilities while providing a practical, user-friendly interface. It showcases both basic and advanced features of the client, making it an excellent reference implementation for SDK users.
+The simple-cli example effectively demonstrates the SDK's capabilities while providing a practical, user-friendly interface. With the addition of dynamic tool management, users can now:
+- Discover available tool categories at runtime
+- Selectively enable/disable specific tool categories
+- Optimize AI responses by filtering to relevant tools only
+- Distinguish between analyst and trader focused tools
+
+This enhanced CLI showcases both basic and advanced features of the client, including the new tool discovery and filtering capabilities introduced in SDK v1.3.0+, making it an excellent reference implementation for SDK users.

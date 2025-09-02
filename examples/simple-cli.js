@@ -30,8 +30,12 @@ async function main() {
     // Settings that can be toggled during runtime
     let settings = {
       debug: initialDebugMode || ENV_DEBUG,
-      stream: initialStreamMode
+      stream: initialStreamMode,
+      selectedTools: []  // Array of selected tool category IDs
     };
+    
+    // Store available tools
+    let availableTools = [];
     
     // Initialize the client
     let client = new HustleIncognitoClient({
@@ -56,11 +60,18 @@ async function main() {
       process.stdout.write('\nAgent: ');
       
       try {
-        for await (const chunk of client.chatStream({
+        const streamOptions = {
           vaultId: VAULT_ID,
           messages,
           processChunks: true
-        })) {
+        };
+        
+        // Add selected tools if any
+        if (settings.selectedTools.length > 0) {
+          streamOptions.selectedToolCategories = settings.selectedTools;
+        }
+        
+        for await (const chunk of client.chatStream(streamOptions)) {
           if ('type' in chunk) {
             switch (chunk.type) {
               case 'text':
@@ -103,6 +114,10 @@ async function main() {
       console.log('  /settings   - Show current settings');
       console.log('  /stream on|off - Toggle streaming mode');
       console.log('  /debug on|off  - Toggle debug mode');
+      console.log('  /tools      - Manage tool categories');
+      console.log('  /tools add <id> - Add a tool category');
+      console.log('  /tools remove <id> - Remove a tool category');
+      console.log('  /tools clear - Use all tools (no filter)');
       console.log('  /exit or /quit - Exit the application');
     }
     
@@ -111,10 +126,74 @@ async function main() {
       console.log('\nCurrent settings:');
       console.log(`  Streaming: ${settings.stream ? 'ON' : 'OFF'}`);
       console.log(`  Debug:     ${settings.debug ? 'ON' : 'OFF'}`);
+      console.log(`  Selected Tools: ${
+        settings.selectedTools.length > 0 
+          ? settings.selectedTools.join(', ')
+          : 'All tools (no filter)'
+      }`);
     }
     
-    // Process commands
-    function processCommand(command) {
+    // Manage tool categories
+    async function manageTools() {
+      try {
+        // Fetch available tools if not already loaded
+        if (availableTools.length === 0) {
+          console.log('\nFetching available tool categories...');
+          availableTools = await client.getTools();
+        }
+        
+        // Display available tools
+        console.log('\n=== Tool Categories ===');
+        console.log('Select tool categories to enable/disable:\n');
+        
+        // Group tools by type
+        const analystTools = availableTools.filter(t => t.type === 'analyst');
+        const traderTools = availableTools.filter(t => t.type === 'trader');
+        
+        if (analystTools.length > 0) {
+          console.log('📊 Analyst Tools:');
+          analystTools.forEach((tool) => {
+            const isSelected = settings.selectedTools.includes(tool.id);
+            const status = isSelected ? '✅' : '⬜';
+            const premium = tool.premium ? ' 💎' : '';
+            console.log(`  ${status} ${tool.title}${premium}`);
+            console.log(`     ID: ${tool.id}`);
+            console.log(`     ${tool.description}`);
+          });
+          console.log('');
+        }
+        
+        if (traderTools.length > 0) {
+          console.log('💹 Trader Tools:');
+          traderTools.forEach((tool) => {
+            const isSelected = settings.selectedTools.includes(tool.id);
+            const status = isSelected ? '✅' : '⬜';
+            const premium = tool.premium ? ' 💎' : '';
+            console.log(`  ${status} ${tool.title}${premium}`);
+            console.log(`     ID: ${tool.id}`);
+            console.log(`     ${tool.description}`);
+          });
+        }
+        
+        console.log('\nCurrently selected:', 
+          settings.selectedTools.length > 0 
+            ? settings.selectedTools.join(', ') 
+            : 'All tools (no filter)');
+        
+        console.log('\nCommands:');
+        console.log('  /tools add <id>     - Add a tool category');
+        console.log('  /tools remove <id>  - Remove a tool category');
+        console.log('  /tools clear        - Clear all selections (use all tools)');
+        console.log('  /tools list         - Show this list again');
+        console.log('  /tools <id>         - Toggle a specific tool category');
+        
+      } catch (error) {
+        console.error('Error fetching tools:', error.message);
+      }
+    }
+    
+    // Process commands (now async to handle /tools)
+    async function processCommand(command) {
       if (command === '/help') {
         showHelp();
         return true;
@@ -147,6 +226,76 @@ async function main() {
         } else {
           console.log(`Streaming is currently ${settings.stream ? 'ON' : 'OFF'}`);
         }
+        return true;
+      }
+      
+      if (command.startsWith('/tools')) {
+        const parts = command.split(' ');
+        
+        // If just "/tools", show the tool management interface
+        if (parts.length === 1) {
+          await manageTools();
+          return true;
+        }
+        
+        const subCommand = parts[1];
+        const toolId = parts[2];
+        
+        if (subCommand === 'list') {
+          await manageTools();
+          return true;
+        }
+        
+        if (subCommand === 'clear') {
+          settings.selectedTools = [];
+          console.log('Tool filter cleared. All tools are now available.');
+          return true;
+        }
+        
+        if (subCommand === 'add' && toolId) {
+          if (!settings.selectedTools.includes(toolId)) {
+            settings.selectedTools.push(toolId);
+            console.log(`Added tool category: ${toolId}`);
+            console.log('Current selection:', settings.selectedTools.join(', '));
+          } else {
+            console.log(`Tool category ${toolId} is already selected.`);
+          }
+          return true;
+        }
+        
+        if (subCommand === 'remove' && toolId) {
+          const index = settings.selectedTools.indexOf(toolId);
+          if (index > -1) {
+            settings.selectedTools.splice(index, 1);
+            console.log(`Removed tool category: ${toolId}`);
+            console.log('Current selection:', 
+              settings.selectedTools.length > 0 
+                ? settings.selectedTools.join(', ')
+                : 'All tools (no filter)');
+          } else {
+            console.log(`Tool category ${toolId} is not in selection.`);
+          }
+          return true;
+        }
+        
+        // If a tool ID is provided directly, toggle it
+        if (subCommand && !['add', 'remove', 'clear', 'list'].includes(subCommand)) {
+          const index = settings.selectedTools.indexOf(subCommand);
+          if (index > -1) {
+            settings.selectedTools.splice(index, 1);
+            console.log(`Removed tool category: ${subCommand}`);
+          } else {
+            settings.selectedTools.push(subCommand);
+            console.log(`Added tool category: ${subCommand}`);
+          }
+          console.log('Current selection:', 
+            settings.selectedTools.length > 0 
+              ? settings.selectedTools.join(', ')
+              : 'All tools (no filter)');
+          return true;
+        }
+        
+        console.log('Invalid tools command. Use /tools, /tools list, /tools add <id>, /tools remove <id>, or /tools clear');
         return true;
       }
       
@@ -186,7 +335,7 @@ async function main() {
       rl.question('\nYou: ', async (input) => {
         // Check if the input is a command
         if (input.startsWith('/')) {
-          const isCommand = processCommand(input);
+          const isCommand = await processCommand(input);
           if (isCommand) {
             chat();
             return;
@@ -215,9 +364,16 @@ async function main() {
             assistantResponse = await streamResponse([...messages]);
           } else {
             // Get response from the AI (non-streaming)
+            const chatOptions = { vaultId: VAULT_ID };
+            
+            // Add selected tools if any
+            if (settings.selectedTools.length > 0) {
+              chatOptions.selectedToolCategories = settings.selectedTools;
+            }
+            
             const response = await client.chat(
               messages,
-              { vaultId: VAULT_ID }
+              chatOptions
             );
             
             console.log(`\nAgent: ${response.content}`);
