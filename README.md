@@ -1,4 +1,4 @@
-# Emblem Vault Hustle Incognito SDK
+****# Emblem Vault Hustle Incognito SDK
 
 > **Power your applications with EmblemVault's AI Agent Hustle API – the secure, intelligent assistant for crypto & web3.**
 
@@ -152,6 +152,7 @@ for await (const rawChunk of client.rawStream({
 Agent Hustle API has access to 25+ powerful tool categories for comprehensive crypto trading, analysis, and DeFi operations.
 
 ### Available Tools
+*This list might not be exhaustive, use the getTools method to get the latest tools*
 
 #### Core Trading Tools
 
@@ -262,6 +263,28 @@ const tools = await client.getTools();
 ]
 ```
 
+#### Using Tool Categories
+
+You can filter and select specific tool categories when making requests:
+
+```typescript
+// Get all available tool categories
+const allTools = await client.getTools();
+
+// Filter for trader-focused tools
+const traderTools = allTools.filter(tool => tool.type === "trader");
+
+// Filter for free tools only
+const freeTools = allTools.filter(tool => !tool.premium);
+
+// Use specific tool categories in your chat requests
+const response = await client.chat([
+  { role: 'user', content: 'Analyze trending Solana tokens' }
+], { 
+  vaultId: 'my-vault',
+  selectedToolCategories: ['solana-token-ecosystem', 'standard-tools']
+});
+```
 
 ### Multiple Tool Execution
 
@@ -271,7 +294,10 @@ The API can execute multiple tools in a single conversation. For example, you ca
 // Request that uses multiple tools
 const response = await client.chat([
   { role: 'user', content: 'Check trending tokens and get token details for the top one' }
-], { vaultId: 'my-vault' });
+], { 
+  vaultId: 'my-vault',
+  selectedToolCategories: ['standard-tools']
+});
 
 // All tool calls are available in the response
 console.log(`Number of tools used: ${response.toolCalls.length}`);
@@ -290,13 +316,14 @@ For streaming interfaces, you can observe multiple tool calls in real-time:
 for await (const chunk of client.chatStream({ 
   messages: [{ role: 'user', content: 'Check trending tokens and get token details for the top one' }],
   vaultId: 'my-vault',
+  selectedToolCategories: ['standard-tools'],
   processChunks: true 
 })) {
   if (chunk.type === 'tool_call') {
-    console.log(`Tool called: ${chunk.value.name}`);
+    console.log(`Tool called: ${chunk.value.toolCallId} (${chunk.value.toolName})`);
     // You can track which tools are being used
   } else if (chunk.type === 'tool_result') {
-    console.log(`Tool result received for: ${chunk.value.tool_call_id}`);
+    console.log(`Tool result received for: ${chunk.value.toolCallId}`);
     // Match results to their corresponding tool calls
   }
 }
@@ -308,19 +335,23 @@ for await (const chunk of client.chatStream({
 // Get a complete response with tool calls and results
 const response = await client.chat([
   { role: 'user', content: 'What is the current price of SOL in USD?' }
-], { vaultId: 'my-vault' });
+], {
+  vaultId: 'my-vault',
+  selectedToolCategories: ['standard-tools']
+});
 
 // Tool calls and results are available in the response
 console.log('Tools called:', response.toolCalls);
 console.log('Tool results:', response.toolResults);
 ```
 
-For streaming interfaces, you can observe tool activity in real-time:
+For streaming interfaces, you can observe tool activity in real-time:****
 
 ```typescript
 for await (const chunk of client.chatStream({ 
   messages: [{ role: 'user', content: 'Check the price of SOL in USD' }],
   vaultId: 'my-vault',
+  selectedToolCategories: ['standard-tools'],
   processChunks: true 
 })) {
   if (chunk.type === 'tool_call') {

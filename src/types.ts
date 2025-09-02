@@ -20,6 +20,21 @@ export interface HustleIncognitoClientOptions {
   cookie?: string;
 }
 
+export interface ChatOptions {
+  vaultId: string;
+  userApiKey?: string;
+  externalWalletAddress?: string;
+  slippageSettings?: Record<string, number>;
+  safeMode?: boolean;
+  rawResponse?: boolean;
+  /**
+   * ids of tool categories to use
+   * eg: ['solana-token-ecosystem', 'standard-tools']
+   * @see {ToolCategory}
+   */
+  selectedToolCategories?: string[];
+}
+
 /**
  * Options for streaming API requests.
  */
@@ -40,7 +55,31 @@ export interface StreamOptions {
   currentPath?: string | null;
   /** Whether to process stream chunks into structured data */
   processChunks?: boolean;
+  /**
+   * ids of tool categories to use
+   * eg: ['solana-token-ecosystem', 'standard-tools']
+   * @see {ToolCategory}
+   */
+  selectedToolCategories?: string[];
 }
+
+export interface RawStreamOptions {
+  vaultId: string;
+  messages: ChatMessage[];
+  userApiKey?: string;
+  externalWalletAddress?: string;
+  slippageSettings?: Record<string, number>;
+  safeMode?: boolean;
+  currentPath?: string | null;
+  /**
+   * ids of tool categories to use
+   * eg: ['solana-token-ecosystem', 'standard-tools']
+   * @see {ToolCategory}
+   */
+  selectedToolCategories?: string[];
+}
+
+
 
 /**
  * The request payload sent to the Agent Hustle API.
@@ -64,6 +103,12 @@ export interface HustleRequest {
   currentPath?: string | null;
   /** Optional attachments for the conversation */
   attachments?: any[];
+  /**
+   * ids of tool categories to use
+   * eg: ['solana-token-ecosystem', 'standard-tools']
+   * @see {ToolCategory}
+   */
+  selectedToolCategories?: string[];
 }
 
 /**
