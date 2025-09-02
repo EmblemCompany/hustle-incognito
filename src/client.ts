@@ -1,12 +1,15 @@
 // src/client.ts
 import type {
-  HustleIncognitoClientOptions,
   ChatMessage,
-  StreamChunk,
+  ChatOptions,
+  HustleIncognitoClientOptions,
   HustleRequest,
-  StreamOptions,
   ProcessedResponse,
   RawChunk,
+  RawStreamOptions,
+  StreamChunk,
+  StreamOptions,
+  ToolCategory,
 } from './types';
 
 // Define SDK version manually until we can properly import from package.json
@@ -72,14 +75,7 @@ export class HustleIncognitoClient {
    */
   public async chat(
     messages: ChatMessage[],
-    options: {
-      vaultId: string;
-      userApiKey?: string;
-      externalWalletAddress?: string;
-      slippageSettings?: Record<string, number>;
-      safeMode?: boolean;
-      rawResponse?: boolean;
-    } = { vaultId: 'unspecified-incognito' },
+    options: ChatOptions = { vaultId: 'unspecified-incognito' },
     overrideFunc: Function | null = null
   ): Promise<ProcessedResponse | RawChunk[]> {
     // Implement override pattern
@@ -109,6 +105,7 @@ export class HustleIncognitoClient {
         externalWalletAddress: options.externalWalletAddress,
         slippageSettings: options.slippageSettings,
         safeMode: options.safeMode,
+        selectedToolCategories: options.selectedToolCategories || [],
       })) {
         if (this.debug)
           console.log(`[${new Date().toISOString()}] Raw chunk:`, JSON.stringify(chunk));
@@ -133,6 +130,7 @@ export class HustleIncognitoClient {
       slippageSettings: options.slippageSettings,
       safeMode: options.safeMode,
       processChunks: true,
+      selectedToolCategories: options.selectedToolCategories || []
     })) {
       if ('type' in chunk) {
         switch (chunk.type) {
@@ -275,15 +273,7 @@ export class HustleIncognitoClient {
    * @returns An async iterable of raw chunks from the API
    */
   public async *rawStream(
-    options: {
-      vaultId: string;
-      messages: ChatMessage[];
-      userApiKey?: string;
-      externalWalletAddress?: string;
-      slippageSettings?: Record<string, number>;
-      safeMode?: boolean;
-      currentPath?: string | null;
-    },
+    options: RawStreamOptions,
     overrideFunc: Function | null = null
   ): AsyncIterable<RawChunk> {
     // Implement override pattern
@@ -368,6 +358,25 @@ export class HustleIncognitoClient {
     }
   }
 
+  public async getTools(): Promise<ToolCategory[]> {
+    // GET /api/tools/categories
+    const response = await this.fetchImpl(`${this.baseUrl}/api/tools/categories`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      if (this.debug)
+        console.error(
+          `[${new Date().toISOString()}] HTTP error: ${response.status} ${response.statusText}`
+        );
+      throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
+    }
+
+    const parsedResponse = await response.json();
+    return parsedResponse.data;
+  }
+
   /**
    * Prepares the request body for a chat request
    * @private
@@ -380,6 +389,7 @@ export class HustleIncognitoClient {
     slippageSettings?: Record<string, number>;
     safeMode?: boolean;
     currentPath?: string | null;
+    selectedToolCategories?: string[];
   }): HustleRequest {
     const apiKey = options.userApiKey || this.apiKey;
     if (!apiKey) {
@@ -400,6 +410,7 @@ export class HustleIncognitoClient {
       safeMode: options.safeMode !== false,
       currentPath: options.currentPath || null,
       attachments: [],
+      selectedToolCategories: options.selectedToolCategories || [],
     };
   }
 

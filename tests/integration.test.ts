@@ -7,7 +7,7 @@
  * To run: npx vitest run tests/integration.test.ts
  */
 
-import { describe, test, expect, beforeAll } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { HustleIncognitoClient } from '../src';
 import type { ProcessedResponse, ChatMessage, StreamChunk } from '../src/types';
 import dotenv from 'dotenv';
@@ -18,15 +18,24 @@ dotenv.config();
 // Skip these tests if running in CI or if API key is not available
 const shouldSkip = !process.env.HUSTLE_API_KEY || process.env.CI === 'true';
 
+// Helper function to add delay between tests
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 describe.skipIf(shouldSkip)('HustleIncognitoClient Integration Tests', () => {
   let client: HustleIncognitoClient;
   
-  beforeAll(() => {
-    // Initialize the client with API key from environment
+  beforeEach(() => {
+    // Initialize a fresh client for each test to avoid shared state
     client = new HustleIncognitoClient({
       apiKey: process.env.HUSTLE_API_KEY || '',
-      debug: true // Enable debug logging for integration tests
+      // Debug logging toggle
+      debug: process.env.DEBUG=== 'false' ? false : true
     });
+  });
+  
+  afterEach(async () => {
+    // Add a 2-second delay between tests to avoid API rate limiting
+    await delay(2000);
   });
   
   test('should connect to the API and get a response', async () => {
@@ -38,7 +47,7 @@ describe.skipIf(shouldSkip)('HustleIncognitoClient Integration Tests', () => {
     expect(response).toBeDefined();
     expect(typeof response.content).toBe('string');
     expect(response.content.length).toBeGreaterThan(0);
-  }, 30000); // Increase timeout to 30 seconds for API call
+  }); // Use global timeout
   
   test('should execute a tool call and return results', async () => {
     const response = await client.chat(
@@ -68,7 +77,7 @@ describe.skipIf(shouldSkip)('HustleIncognitoClient Integration Tests', () => {
     
     // The response should contain information about tokens
     expect(response.content.toLowerCase()).toMatch(/token|solana|trending/);
-  }, 60000); // Increase timeout to 60 seconds for this complex query
+  }); // Use global timeout
   
   test('should stream responses with tool calls', async () => {
     const messages: ChatMessage[] = [{ role: 'user', content: 'Show me the price of Bonk token' }];
@@ -111,5 +120,5 @@ describe.skipIf(shouldSkip)('HustleIncognitoClient Integration Tests', () => {
     // We may not always see a tool call depending on the API response
     // So we'll just log whether we saw one or not
     console.log('Saw tool call:', sawToolCall);
-  }, 120000); // Increase timeout to 120 seconds
+  }); // Use global timeout
 });

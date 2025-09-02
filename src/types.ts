@@ -20,6 +20,21 @@ export interface HustleIncognitoClientOptions {
   cookie?: string;
 }
 
+export interface ChatOptions {
+  vaultId: string;
+  userApiKey?: string;
+  externalWalletAddress?: string;
+  slippageSettings?: Record<string, number>;
+  safeMode?: boolean;
+  rawResponse?: boolean;
+  /**
+   * ids of tool categories to use
+   * eg: ['solana-token-ecosystem', 'standard-tools']
+   * @see {ToolCategory}
+   */
+  selectedToolCategories?: string[];
+}
+
 /**
  * Options for streaming API requests.
  */
@@ -40,7 +55,31 @@ export interface StreamOptions {
   currentPath?: string | null;
   /** Whether to process stream chunks into structured data */
   processChunks?: boolean;
+  /**
+   * ids of tool categories to use
+   * eg: ['solana-token-ecosystem', 'standard-tools']
+   * @see {ToolCategory}
+   */
+  selectedToolCategories?: string[];
 }
+
+export interface RawStreamOptions {
+  vaultId: string;
+  messages: ChatMessage[];
+  userApiKey?: string;
+  externalWalletAddress?: string;
+  slippageSettings?: Record<string, number>;
+  safeMode?: boolean;
+  currentPath?: string | null;
+  /**
+   * ids of tool categories to use
+   * eg: ['solana-token-ecosystem', 'standard-tools']
+   * @see {ToolCategory}
+   */
+  selectedToolCategories?: string[];
+}
+
+
 
 /**
  * The request payload sent to the Agent Hustle API.
@@ -64,6 +103,12 @@ export interface HustleRequest {
   currentPath?: string | null;
   /** Optional attachments for the conversation */
   attachments?: any[];
+  /**
+   * ids of tool categories to use
+   * eg: ['solana-token-ecosystem', 'standard-tools']
+   * @see {ToolCategory}
+   */
+  selectedToolCategories?: string[];
 }
 
 /**
@@ -171,7 +216,7 @@ export interface ToolCall {
  */
 export interface ToolResult {
   /** The ID of the tool call. */
-  tool_call_id: string;
+  toolCallId: string;
   /** The result of the tool execution. */
   result: unknown;
 }
@@ -216,4 +261,21 @@ export interface ApiError {
   message: string;
   /** Optional details about the error. */
   details?: unknown;
+}
+
+export interface ToolCategory {
+  /** Unique identifier for the tool category */
+  id: string;
+  /** Human-readable name of the tool category */
+  title: string;
+  /** Detailed description of what this tool category provides */
+  description: string;
+  /** Example use cases or queries that would trigger this tool category */
+  examples: string[];
+  /** UI color theme for this category */
+  color: string;
+  /** Whether this is primarily an analyst or trader focused tool */
+  type: "analyst" | "trader";
+  /** Whether this tool category requires a premium subscription */
+  premium?: boolean;
 }

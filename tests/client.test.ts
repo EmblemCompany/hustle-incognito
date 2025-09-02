@@ -46,7 +46,8 @@ describe('HustleIncognitoClient', () => {
       slippageSettings: { lpSlippage: 5, swapSlippage: 5, pumpSlippage: 5 },
       safeMode: true,
       currentPath: null,
-      attachments: []
+      attachments: [],
+      selectedToolCategories: []
     });
   });
 
