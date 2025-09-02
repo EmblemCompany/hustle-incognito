@@ -217,3 +217,20 @@ export interface ApiError {
   /** Optional details about the error. */
   details?: unknown;
 }
+
+export interface ToolCategory {
+  /** Unique identifier for the tool category */
+  id: string;
+  /** Human-readable name of the tool category */
+  title: string;
+  /** Detailed description of what this tool category provides */
+  description: string;
+  /** Example use cases or queries that would trigger this tool category */
+  examples: string[];
+  /** UI color theme for this category */
+  color: string;
+  /** Whether this is primarily an analyst or trader focused tool */
+  type: "analyst" | "trader";
+  /** Whether this tool category requires a premium subscription */
+  premium?: boolean;
+}

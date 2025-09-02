@@ -147,17 +147,121 @@ for await (const rawChunk of client.rawStream({
 }
 ```
 
-## 🛠 Built-in Tools
+## 🛠 Tools
 
-The Agent Hustle API includes powerful built-in tools that execute automatically on the server. The SDK captures these tool calls and results for you:
+Agent Hustle API has access to 25+ powerful tool categories for comprehensive crypto trading, analysis, and DeFi operations.
 
 ### Available Tools
 
-- **Trading & Swaps**: Token swaps, price quotes, limit orders, DCA strategies
-- **Liquidity Provision**: Add/remove liquidity, manage LP positions
-- **PumpFun Tokens**: Buy, sell, deploy tokens, check graduation status
-- **Security & Analysis**: Rugchecks, token audits, holder analysis
-- **Wallet Management**: Check balances, transfer tokens, deposit SOL
+#### Core Trading Tools
+
+- **Standard Tools**: Core trading toolbox with token research, contract addresses, strategic pricing, swaps, transfers, and persistent memory for end-to-end trading workflow management
+- **PumpFun**: Discover trending memecoins, buy/sell tokens, create new tokens, and track graduation status across the complete PumpFun lifecycle
+- **Meteora DBC** *(Premium)*: Management for Meteora's premier token launchpad with trending launches and position management
+- **Launch Lab**: Complete Raydium LaunchLab project lifecycle management with trending launches, token verification, trading, and professional token creation
+- **Conditional Trading**: Sophisticated automated buy/sell orders with stop-losses, take-profits, staged entries/exits, and professional order management
+- **Liquidity Pools**: Professional yield farming across Orca, Meteora, Raydium with standard and concentrated liquidity strategies and position optimization
+
+#### Analysis & Research Tools *(Premium)*
+
+- **Solana Token Ecosystem**: Comprehensive token research combining security audits, holder analysis, real-time trading data, trending insights, and rugpull detection
+- **Advanced Search**: Data extraction from any website, report, or online content transformed into structured, actionable intelligence
+- **InfoFI**: Social intelligence with influencer credibility scoring, sentiment analysis, narrative tracking, and signal filtering
+- **TVL Analysis**: DeFi protocol analytics with health metrics, capital flow tracking, cross-chain analysis, and token deployment insights
+- **Stablecoins**: Market intelligence on stablecoin ecosystems with market cap dominance, growth trends, compliance profiles, and arbitrage opportunities
+- **Companies & Protocols**: Protocol intelligence with security histories, fundraising data, treasury health, token unlocks, and institutional backing
+- **Yield**: Comprehensive yield farming with APY comparisons, performance tracking, borrowing rates, perpetual funding, and liquid staking analysis
+- **Perps**: Derivatives analytics with market overviews, protocol performance, volume tracking, growth analysis, and risk assessment
+- **Users**: User analytics with active user tracking, growth momentum, retention metrics, and ecosystem maturity assessment
+- **Narratives**: Crypto theme trading with narrative identification, lifecycle tracking, rotation patterns, and emerging theme discovery
+- **Bridges**: Cross-chain bridge analytics with volume tracking, protocol performance, and liquidity trend analysis
+- **Fees & Revenue**: Protocol financial intelligence with fee generation tracking, sustainability metrics, and fee-sharing opportunities
+- **Coin Prices**: Real-time multi-chain price data and performance tracking across any tokens with arbitrage detection
+- **DEX Volumes**: Comprehensive DEX analytics with market-wide volumes, chain competition data, and protocol performance metrics
+- **Bitcoin Tools**: Complete Bitcoin assets analysis for Inscriptions, Runes, BRC-20s, Stamps, Alkanes, and rare sats
+- **ETF Data**: Institutional crypto intelligence tracking Bitcoin/Ethereum ETF assets, flows, market share, and Grayscale holdings
+- **Indices Data**: Advanced derivatives intelligence with futures basis analysis, whale positioning, and market health indicators
+- **Spot Data**: Margin and premium analytics with Coinbase institutional premium, Bitfinex positioning, and cross-exchange rates
+- **Options Data**: Comprehensive options analytics with open interest tracking, implied volatility analysis, and cross-exchange comparisons
+- **On-Chain Data**: Exchange flow analytics with asset holdings, balance distributions, and transfer pattern analysis
+- **Whale Analytics**: Hyperliquid whale intelligence with real-time alerts on million-dollar positions and smart money tracking
+- **Platform Features**: Visual feedback, technical analysis visualization, and miscellaneous platform features
+
+### Get tools list
+
+To get a list of available tools, you can use the following API endpoint:
+
+```typescript
+const tools = await client.getTools();
+console.log('Available tools:', tools);
+```
+
+#### ToolCategory Type
+
+The `getTools()` method returns an array of `ToolCategory` objects. Each tool category represents a collection of related functionality:
+
+```typescript
+interface ToolCategory {
+  /** Unique identifier for the tool category */
+  id: string;
+  /** Human-readable name of the tool category */
+  title: string;
+  /** Detailed description of what this tool category provides */
+  description: string;
+  /** Example use cases or queries that would trigger this tool category */
+  examples: string[];
+  /** UI color theme for this category */
+  type: "analyst" | "trader";
+  /** Whether this tool category requires a premium subscription */
+  premium?: boolean;
+}
+```
+
+#### Example Response
+
+```typescript
+const tools = await client.getTools();
+// Example tool categories you might receive:
+
+[
+  {
+    id: "standard-tools",
+    title: "Standard Tools",
+    description: "Core trading toolbox with token research, contract addresses, strategic pricing, swaps, transfers, and persistent memory",
+    examples: [
+      "What's the contract address for SOL?",
+      "Help me swap 1 SOL for USDC",
+      "Remember my preferred slippage settings"
+    ],
+    type: "trader"
+  },
+  {
+    id: "solana-token-ecosystem",
+    title: "Solana Token Ecosystem",
+    description: "Comprehensive token research combining security audits, holder analysis, real-time trading data, trending insights, and rugpull detection",
+    examples: [
+      "Analyze the security of this token",
+      "Show me holder distribution for BONK",
+      "Is this token a potential rugpull?"
+    ],
+    type: "analyst",
+    premium: true
+  },
+  {
+    id: "info-fi",
+    title: "InfoFI",
+    description: "Social intelligence with influencer credibility scoring, sentiment analysis, narrative tracking, and signal filtering",
+    examples: [
+      "What are crypto influencers saying about Bitcoin?",
+      "Track sentiment around this narrative",
+      "Score this influencer's credibility"
+    ],
+    type: "analyst",
+    premium: true
+  }
+]
+```
+
 
 ### Multiple Tool Execution
 
@@ -282,10 +386,15 @@ const client = new HustleIncognitoClient({ apiKey: process.env.HUSTLE_API_KEY })
 ### TypeScript
 
 ```typescript
-import { HustleIncognitoClient, ChatMessage } from 'hustle-incognito';
+import { HustleIncognitoClient, ChatMessage, ToolCategory } from 'hustle-incognito';
 
 const client = new HustleIncognitoClient({ apiKey: process.env.HUSTLE_API_KEY });
 const messages: ChatMessage[] = [{ role: 'user', content: 'Hello' }];
+
+// Get available tool categories
+const tools: ToolCategory[] = await client.getTools();
+console.log('Available tools:', tools);
+
 // Use the client...
 ```
 

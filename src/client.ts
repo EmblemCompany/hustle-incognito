@@ -7,6 +7,7 @@ import type {
   StreamOptions,
   ProcessedResponse,
   RawChunk,
+  ToolCategory,
 } from './types';
 
 // Define SDK version manually until we can properly import from package.json
@@ -366,6 +367,25 @@ export class HustleIncognitoClient {
       yield { prefix: 'error', data: String(error), raw: String(error) };
       throw error;
     }
+  }
+
+  public async getTools(): Promise<ToolCategory[]> {
+    // GET /api/tools/categories
+    const response = await this.fetchImpl(`${this.baseUrl}/api/tools/categories`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      if (this.debug)
+        console.error(
+          `[${new Date().toISOString()}] HTTP error: ${response.status} ${response.statusText}`
+        );
+      throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
+    }
+
+    const parsedResponse = await response.json();
+    return parsedResponse.data;
   }
 
   /**
