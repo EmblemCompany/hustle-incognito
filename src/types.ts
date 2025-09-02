@@ -171,7 +171,7 @@ export interface ToolCall {
  */
 export interface ToolResult {
   /** The ID of the tool call. */
-  tool_call_id: string;
+  toolCallId: string;
   /** The result of the tool execution. */
   result: unknown;
 }
