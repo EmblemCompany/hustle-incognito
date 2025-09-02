@@ -1,4 +1,4 @@
-****# Emblem Vault Hustle Incognito SDK
+# Emblem Vault Hustle Incognito SDK
 
 > **Power your applications with EmblemVault's AI Agent Hustle API – the secure, intelligent assistant for crypto & web3.**
 
@@ -149,7 +149,7 @@ for await (const rawChunk of client.rawStream({
 
 ## 🛠 Tools
 
-Agent Hustle API has access to 25+ powerful tool categories for comprehensive crypto trading, analysis, and DeFi operations.
+The Agent Hustle API has access to 25+ powerful tool categories for comprehensive crypto trading, analysis, and DeFi operations.
 
 ### Available Tools
 *This list might not be exhaustive, use the getTools method to get the latest tools*
