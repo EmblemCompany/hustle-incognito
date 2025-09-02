@@ -25,7 +25,8 @@ describe.skipIf(shouldSkip)('HustleIncognitoClient Integration Tests', () => {
     // Initialize the client with API key from environment
     client = new HustleIncognitoClient({
       apiKey: process.env.HUSTLE_API_KEY || '',
-      debug: true // Enable debug logging for integration tests
+      // Debug logging toggle
+      debug: process.env.DEBUG=== 'false' ? false : true
     });
   });
   
