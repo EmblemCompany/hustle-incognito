@@ -1,6 +1,25 @@
 // src/types.ts
 
 /**
+ * An attachment that can be sent along with a message.
+ */
+export interface Attachment {
+  /**
+   * The name of the attachment, usually the file name.
+   */
+  name?: string;
+  /**
+   * A string indicating the media type.
+   * By default, it's extracted from the pathname's extension.
+   */
+  contentType?: string;
+  /**
+   * The URL of the attachment. It can either be a URL to a hosted file or a Data URL.
+   */
+  url: string;
+}
+
+/**
  * Configuration options for the HustleIncognitoClient.
  */
 export interface HustleIncognitoClientOptions {
@@ -33,6 +52,8 @@ export interface ChatOptions {
    * @see {ToolCategory}
    */
   selectedToolCategories?: string[];
+  /** Optional attachments for the conversation */
+  attachments?: Attachment[];
 }
 
 /**
@@ -61,6 +82,8 @@ export interface StreamOptions {
    * @see {ToolCategory}
    */
   selectedToolCategories?: string[];
+  /** Optional attachments for the conversation */
+  attachments?: Attachment[];
 }
 
 export interface RawStreamOptions {
@@ -102,7 +125,7 @@ export interface HustleRequest {
   /** Current path info */
   currentPath?: string | null;
   /** Optional attachments for the conversation */
-  attachments?: any[];
+  attachments?: Attachment[];
   /**
    * ids of tool categories to use
    * eg: ['solana-token-ecosystem', 'standard-tools']

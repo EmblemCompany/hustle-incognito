@@ -362,6 +362,104 @@ for await (const chunk of client.chatStream({
 }
 ```
 
+## 📎 Image Attachments
+
+The SDK supports attaching images to your prompts, allowing the AI agent to analyze visual content like charts, token logos, screenshots, or any other images relevant to your crypto queries.
+
+### Uploading Images
+
+Use the `uploadFile` method to upload an image and get an attachment object:
+
+```typescript
+// Upload an image file
+const attachment = await client.uploadFile('./chart.png');
+
+// Use the attachment in your chat request
+const response = await client.chat([
+  { role: 'user', content: 'Analyze this price chart and give me your insights' }
+], { 
+  vaultId: 'my-vault',
+  attachments: [attachment]
+});
+```
+
+### Supported Image Formats
+
+The SDK supports common image formats:
+- **PNG** (`.png`)
+- **JPEG** (`.jpg`, `.jpeg`) 
+- **GIF** (`.gif`)
+- **WebP** (`.webp`)
+
+### File Size Limits
+
+- Maximum file size: **5MB**
+- Files are automatically validated before upload
+
+### Using Attachments with Streaming
+
+Attachments work with all SDK modes including streaming:
+
+```typescript
+// Upload image first
+const chartImage = await client.uploadFile('./trading-chart.png');
+
+// Stream response with image analysis
+for await (const chunk of client.chatStream({
+  messages: [{ role: 'user', content: 'What do you see in this chart?' }],
+  vaultId: 'my-vault',
+  attachments: [chartImage],
+  processChunks: true
+})) {
+  if (chunk.type === 'text') {
+    process.stdout.write(chunk.value);
+  }
+}
+```
+
+### Multiple Images
+
+You can attach multiple images to a single prompt:
+
+```typescript
+// Upload multiple images
+const [chart1, chart2, screenshot] = await Promise.all([
+  client.uploadFile('./btc-chart.png'),
+  client.uploadFile('./eth-chart.png'),
+  client.uploadFile('./dex-screenshot.png')
+]);
+
+// Send all images together
+const response = await client.chat([
+  { role: 'user', content: 'Compare these charts and analyze the trading interface' }
+], {
+  vaultId: 'my-vault',
+  attachments: [chart1, chart2, screenshot]
+});
+```
+
+### Attachment Object Structure
+
+The `uploadFile` method returns an `Attachment` object:
+
+```typescript
+interface Attachment {
+  /** The name of the file */
+  name: string;
+  /** MIME type of the file */
+  contentType: string;
+  /** URL to the uploaded file */
+  url: string;
+}
+
+// Example attachment object:
+{
+  name: "chart.png",
+  contentType: "image/png", 
+  url: "https://api.agenthustle.ai/uploads/abc123/chart.png"
+}
+```
+
 ## 🧪 Testing Your Integration
 
 The SDK supports an override pattern for easy testing without making real API calls:
