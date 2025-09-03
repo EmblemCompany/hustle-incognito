@@ -7,6 +7,8 @@ async function main() {
     const { HustleIncognitoClient } = await import('../dist/esm/index.js');
     const dotenv = await import('dotenv');
     const readline = await import('readline');
+    const fs = await import('fs');
+    const path = await import('path');
     
     // Load environment variables
     dotenv.config();
@@ -36,6 +38,9 @@ async function main() {
     
     // Store available tools
     let availableTools = [];
+    
+    // Store pending attachments for the next message
+    let pendingAttachments = [];
     
     // Initialize the client
     let client = new HustleIncognitoClient({
@@ -69,6 +74,14 @@ async function main() {
         // Add selected tools if any
         if (settings.selectedTools.length > 0) {
           streamOptions.selectedToolCategories = settings.selectedTools;
+        }
+        
+        // Add pending attachments if any
+        if (pendingAttachments.length > 0) {
+          streamOptions.attachments = [...pendingAttachments];
+          console.log(`\n📎 Including ${pendingAttachments.length} attachment(s)`);
+          // Clear pending attachments after adding them
+          pendingAttachments = [];
         }
         
         for await (const chunk of client.chatStream(streamOptions)) {
@@ -118,6 +131,9 @@ async function main() {
       console.log('  /tools add <id> - Add a tool category');
       console.log('  /tools remove <id> - Remove a tool category');
       console.log('  /tools clear - Use all tools (no filter)');
+      console.log('  /image <path> - Upload an image file for the next message');
+      console.log('  /attachments  - Show pending attachments');
+      console.log('  /clear-attachments - Clear all pending attachments');
       console.log('  /exit or /quit - Exit the application');
     }
     
@@ -130,6 +146,10 @@ async function main() {
         settings.selectedTools.length > 0 
           ? settings.selectedTools.join(', ')
           : 'All tools (no filter)'
+      }`);
+      console.log(`  Pending Attachments: ${pendingAttachments.length > 0 
+        ? pendingAttachments.length + ' file(s)'
+        : 'None'
       }`);
     }
     
@@ -327,6 +347,73 @@ async function main() {
         return true;
       }
       
+      if (command === '/attachments') {
+        if (pendingAttachments.length === 0) {
+          console.log('No pending attachments.');
+        } else {
+          console.log('\nPending attachments:');
+          pendingAttachments.forEach((attachment, index) => {
+            console.log(`  ${index + 1}. ${attachment.name} (${attachment.contentType})`);
+          });
+        }
+        return true;
+      }
+      
+      if (command === '/clear-attachments') {
+        if (pendingAttachments.length === 0) {
+          console.log('No attachments to clear.');
+        } else {
+          const count = pendingAttachments.length;
+          pendingAttachments = [];
+          console.log(`Cleared ${count} attachment(s).`);
+        }
+        return true;
+      }
+      
+      if (command.startsWith('/image ')) {
+        const imagePath = command.substring(7).trim();
+        if (!imagePath) {
+          console.log('Please provide an image path: /image <path>');
+          return true;
+        }
+        
+        try {
+          // Check if file exists and is an image
+          if (!fs.existsSync(imagePath)) {
+            console.log(`File not found: ${imagePath}`);
+            return true;
+          }
+          
+          const stats = fs.statSync(imagePath);
+          if (!stats.isFile()) {
+            console.log(`Not a file: ${imagePath}`);
+            return true;
+          }
+          
+          // Check file extension
+          const ext = path.extname(imagePath).toLowerCase();
+          const supportedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+          if (!supportedExts.includes(ext)) {
+            console.log(`Unsupported image format. Supported formats: ${supportedExts.join(', ')}`);
+            return true;
+          }
+          
+          console.log(`📤 Uploading ${path.basename(imagePath)}...`);
+          
+          const attachment = await client.uploadFile(imagePath);
+          pendingAttachments.push(attachment);
+          
+          console.log(`✅ Upload successful! Image will be included with your next message.`);
+          console.log(`   Name: ${attachment.name}`);
+          console.log(`   Type: ${attachment.contentType}`);
+          console.log(`   URL: ${attachment.url}`);
+          
+        } catch (error) {
+          console.error(`❌ Upload failed: ${error.message}`);
+        }
+        return true;
+      }
+
       return false;
     }
     
@@ -370,7 +457,13 @@ async function main() {
             if (settings.selectedTools.length > 0) {
               chatOptions.selectedToolCategories = settings.selectedTools;
             }
-            
+
+            // Add attachments if any
+            if (pendingAttachments.length > 0) {
+              chatOptions.attachments = [...pendingAttachments];
+              pendingAttachments.length = 0;
+            }
+
             const response = await client.chat(
               messages,
               chatOptions
@@ -391,7 +484,7 @@ async function main() {
             
             assistantResponse = response.content;
           }
-          
+
           // Add assistant response to history
           if (assistantResponse && assistantResponse.length > 0) {
             if (settings.debug) {

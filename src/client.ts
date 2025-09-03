@@ -1,5 +1,6 @@
 // src/client.ts
 import type {
+  Attachment,
   ChatMessage,
   ChatOptions,
   HustleIncognitoClientOptions,
@@ -130,7 +131,8 @@ export class HustleIncognitoClient {
       slippageSettings: options.slippageSettings,
       safeMode: options.safeMode,
       processChunks: true,
-      selectedToolCategories: options.selectedToolCategories || []
+      selectedToolCategories: options.selectedToolCategories || [],
+      attachments: options.attachments || []
     })) {
       if ('type' in chunk) {
         switch (chunk.type) {
@@ -366,15 +368,96 @@ export class HustleIncognitoClient {
     });
 
     if (!response.ok) {
-      if (this.debug)
-        console.error(
-          `[${new Date().toISOString()}] HTTP error: ${response.status} ${response.statusText}`
-        );
-      throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
+      throw new Error(`Failed to fetch tools: ${response.status} ${response.statusText}`);
     }
 
     const parsedResponse = await response.json();
     return parsedResponse.data;
+  }
+
+  /**
+   * Uploads a file to the server and returns the attachment info.
+   *
+   * @param filePath - The path to the file to upload
+   * @param fileName - Optional custom filename
+   * @returns A promise resolving to the Attachment object
+   */
+  public async uploadFile(filePath: string, fileName?: string): Promise<Attachment> {
+    const fs = await import('fs');
+    const path = await import('path');
+    
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found: ${filePath}`);
+    }
+
+    const fileBuffer = fs.readFileSync(filePath);
+    const actualFileName = fileName || path.basename(filePath);
+    
+    // Simple content type detection based on file extension
+    const ext = path.extname(filePath).toLowerCase();
+    let contentType = 'application/octet-stream';
+    switch (ext) {
+      case '.jpg':
+      case '.jpeg':
+        contentType = 'image/jpeg';
+        break;
+      case '.png':
+        contentType = 'image/png';
+        break;
+      case '.gif':
+        contentType = 'image/gif';
+        break;
+      case '.webp':
+        contentType = 'image/webp';
+        break;
+      default:
+        throw new Error(`Unsupported file type: ${ext}. Supported types: .jpg, .jpeg, .png, .gif, .webp`);
+    }
+
+    // Check file size (5MB limit)
+    if (fileBuffer.length > 5 * 1024 * 1024) {
+      throw new Error('File size should be less than 5MB');
+    }
+
+    // Create FormData
+    const formData = new FormData();
+    const uint8Array = new Uint8Array(fileBuffer);
+    const blob = new Blob([uint8Array], { type: contentType });
+    
+    // Create a File-like object for the form data
+    const file = new File([blob], actualFileName, { type: contentType });
+    formData.append('file', file);
+
+    if (this.debug) {
+      console.log(`[${new Date().toISOString()}] Uploading file: ${actualFileName} (${contentType})`);
+    }
+
+    const headers = this.getHeaders();
+    // Remove Content-Type header to let the browser set it with boundary for FormData
+    delete headers['Content-Type'];
+
+    const response = await this.fetchImpl(`${this.baseUrl}/api/files/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Upload failed: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const uploadResult = await response.json();
+    
+    if (this.debug) {
+      console.log(`[${new Date().toISOString()}] Upload successful:`, uploadResult);
+    }
+
+    return {
+      name: actualFileName,
+      contentType,
+      url: uploadResult.url
+    };
   }
 
   /**
@@ -390,6 +473,7 @@ export class HustleIncognitoClient {
     safeMode?: boolean;
     currentPath?: string | null;
     selectedToolCategories?: string[];
+    attachments?: Attachment[];
   }): HustleRequest {
     const apiKey = options.userApiKey || this.apiKey;
     if (!apiKey) {
@@ -409,7 +493,7 @@ export class HustleIncognitoClient {
       },
       safeMode: options.safeMode !== false,
       currentPath: options.currentPath || null,
-      attachments: [],
+      attachments: options.attachments || [],
       selectedToolCategories: options.selectedToolCategories || [],
     };
   }

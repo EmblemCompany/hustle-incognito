@@ -6,11 +6,15 @@
  * 
  * To run: npx vitest run tests/integration.test.ts
  */
+import * as path from 'path';
+import * as fs from 'fs';
 
+import dotenv from 'dotenv';
 import { describe, test, expect, beforeEach, afterEach } from 'vitest';
+
 import { HustleIncognitoClient } from '../src';
 import type { ProcessedResponse, ChatMessage, StreamChunk } from '../src/types';
-import dotenv from 'dotenv';
+
 
 // Load environment variables
 dotenv.config();
@@ -120,5 +124,28 @@ describe.skipIf(shouldSkip)('HustleIncognitoClient Integration Tests', () => {
     // We may not always see a tool call depending on the API response
     // So we'll just log whether we saw one or not
     console.log('Saw tool call:', sawToolCall);
+  }); // Use global timeout
+  
+  test('should upload image file and return attachment info', async () => {
+    const testImagePath = path.join(__dirname, 'fixtures', 'test-image.png');
+    
+    // Verify test file exists
+    if (!fs.existsSync(testImagePath)) {
+      console.warn('Test image not found, skipping upload test');
+      return;
+    }
+    
+    console.log('Uploading test image:', testImagePath);
+    
+    const attachment = await client.uploadFile(testImagePath);
+    
+    expect(attachment).toBeDefined();
+    expect(attachment.name).toBe('test-image.png');
+    expect(attachment.contentType).toBe('image/png');
+    expect(attachment.url).toBeDefined();
+    expect(typeof attachment.url).toBe('string');
+    expect(attachment.url).toMatch(/^https?:\/\//); // Should be a valid URL
+    
+    console.log('Upload successful, URL:', attachment.url);
   }); // Use global timeout
 });
