@@ -839,6 +839,8 @@ async function main() {
       } else {
         selectedToolIds.push(toolId);
       }
+      // Save to localStorage immediately
+      localStorage.setItem('hustle_selected_tools', JSON.stringify(selectedToolIds));
       renderTools();
     }
 
