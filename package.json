@@ -1,6 +1,6 @@
 {
   "name": "hustle-incognito",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "SDK for interacting with the Emblem Vault Hustle Incognito Agent API",
   "author": "Emblem Vault",
   "license": "MIT",
@@ -71,7 +71,7 @@
     "rimraf": "^5.0.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.2",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.6"
   },
   "dependencies": {
     "mcp-framework": "^0.2.11",
