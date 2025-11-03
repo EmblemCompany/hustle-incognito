@@ -4,7 +4,13 @@
 async function main() {
   try {
     // Import dependencies
+    // For development: using local build
     const { HustleIncognitoClient } = await import('../dist/esm/index.js');
+
+    // For production: use the npm package instead
+    // Uncomment the line below and comment out the line above:
+    // const { HustleIncognitoClient } = await import('hustle-incognito');
+
     const dotenv = await import('dotenv');
     const readline = await import('readline');
     const fs = await import('fs');
@@ -37,7 +43,8 @@ async function main() {
       selectedTools: [],  // Array of selected tool category IDs
       baseUrl: ENV_API_URL || 'https://agenthustle.ai',  // API base URL
       apiKey: ENV_API_KEY,  // API key for authentication
-      vaultId: ENV_VAULT_ID  // Vault ID for requests
+      vaultId: ENV_VAULT_ID,  // Vault ID for requests
+      retainHistory: true  // Whether to retain conversation history
     };
     
     // Store available tools
@@ -132,6 +139,8 @@ async function main() {
       console.log('  /settings   - Show current settings');
       console.log('  /stream on|off - Toggle streaming mode');
       console.log('  /debug on|off  - Toggle debug mode');
+      console.log('  /history on|off - Toggle message history retention');
+      console.log('  /clear      - Clear conversation history');
       console.log('  /baseurl <url> - Set the API base URL');
       console.log('  /apikey <key>  - Set the API key');
       console.log('  /vaultid <id>  - Set the vault ID');
@@ -153,6 +162,8 @@ async function main() {
       console.log(`  Vault ID:  ${settings.vaultId}`);
       console.log(`  Streaming: ${settings.stream ? 'ON' : 'OFF'}`);
       console.log(`  Debug:     ${settings.debug ? 'ON' : 'OFF'}`);
+      console.log(`  History:   ${settings.retainHistory ? 'ON' : 'OFF'}`);
+      console.log(`  Messages in history: ${messages.length}`);
       console.log(`  Selected Tools: ${
         settings.selectedTools.length > 0
           ? settings.selectedTools.join(', ')
@@ -234,7 +245,13 @@ async function main() {
         showSettings();
         return true;
       }
-      
+
+      if (command === '/clear') {
+        messages.length = 0;
+        console.log('Conversation history cleared.');
+        return true;
+      }
+
       if (command === '/exit' || command === '/quit') {
         console.log('Goodbye!');
         rl.close();
@@ -256,6 +273,25 @@ async function main() {
           }
         } else {
           console.log(`Streaming is currently ${settings.stream ? 'ON' : 'OFF'}`);
+        }
+        return true;
+      }
+
+      if (command.startsWith('/history')) {
+        const parts = command.split(' ');
+        if (parts.length === 2) {
+          if (parts[1] === 'on') {
+            settings.retainHistory = true;
+            console.log('Message history retention enabled');
+          } else if (parts[1] === 'off') {
+            settings.retainHistory = false;
+            console.log('Message history retention disabled');
+            console.log('Note: Existing messages will remain until you use /clear');
+          } else {
+            console.log(`Invalid option: ${parts[1]}. Use 'on' or 'off'`);
+          }
+        } else {
+          console.log(`History retention is currently ${settings.retainHistory ? 'ON' : 'OFF'}`);
         }
         return true;
       }
@@ -511,18 +547,19 @@ async function main() {
         }
         
         // Add user message to history
-        messages.push({ role: 'user', content: input });
-        
+        const currentMessages = settings.retainHistory ? [...messages] : [];
+        currentMessages.push({ role: 'user', content: input });
+
         if (!settings.stream) {
           console.log('\nAgent is thinking...');
         }
-        
+
         try {
           let assistantResponse = '';
-          
+
           if (settings.stream) {
             // Stream the response
-            assistantResponse = await streamResponse([...messages]);
+            assistantResponse = await streamResponse([...currentMessages]);
           } else {
             // Get response from the AI (non-streaming)
             const chatOptions = { vaultId: settings.vaultId };
@@ -539,7 +576,7 @@ async function main() {
             }
 
             const response = await client.chat(
-              messages,
+              currentMessages,
               chatOptions
             );
             
@@ -559,14 +596,19 @@ async function main() {
             assistantResponse = response.content;
           }
 
-          // Add assistant response to history
-          if (assistantResponse && assistantResponse.length > 0) {
-            if (settings.debug) {
-              console.log(`\n[DEBUG] Adding assistant response to history: ${assistantResponse.substring(0, 50)}${assistantResponse.length > 50 ? '...' : ''}`);
+          // Add assistant response to history (only if retaining history)
+          if (settings.retainHistory) {
+            if (assistantResponse && assistantResponse.length > 0) {
+              if (settings.debug) {
+                console.log(`\n[DEBUG] Adding user message and assistant response to history`);
+              }
+              messages.push({ role: 'user', content: input });
+              messages.push({ role: 'assistant', content: assistantResponse });
+            } else if (settings.debug) {
+              console.log('\n[DEBUG] No assistant response to add to history');
             }
-            messages.push({ role: 'assistant', content: assistantResponse });
           } else if (settings.debug) {
-            console.log('\n[DEBUG] No assistant response to add to history');
+            console.log('\n[DEBUG] History retention disabled, not saving messages');
           }
           
           // Continue the conversation

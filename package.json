@@ -1,6 +1,6 @@
 {
   "name": "hustle-incognito",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "SDK for interacting with the Emblem Vault Hustle Incognito Agent API",
   "author": "Emblem Vault",
   "license": "MIT",
@@ -34,6 +34,7 @@
     "test:watch": "vitest",
     "example:cli": "node examples/simple-cli.js",
     "example:cli:stream": "node examples/simple-cli.js --stream",
+    "example:server": "node examples/simple-server.js",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "prepare": "npm run build",

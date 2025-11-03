@@ -34,6 +34,15 @@ console.log(response.content);
 - **Highly Configurable**: Advanced options when you need them
 - **Built for Testing**: Override pattern allows easy mocking
 
+## 📝 Examples
+
+Looking for complete, working examples? Check out the [`examples/`](./examples) directory:
+
+- **[Simple CLI](./examples/simple-cli.js)** - Interactive command-line chat with full feature support
+- **[HTTP Server with Web UI](./examples/simple-server.js)** - REST API server with beautiful test interface
+
+See the [Examples README](./examples/README.md) for setup instructions and usage details.
+
 ## 📦 Installation
 
 ```bash
@@ -527,7 +536,29 @@ console.log('Available tools:', tools);
 // Use the client...
 ```
 
-### Next.js
+### Next.js (App Router)
+
+```typescript
+// app/api/chat/route.ts
+import { HustleIncognitoClient } from 'hustle-incognito';
+
+export async function POST(req: Request) {
+  const { message, vaultId } = await req.json();
+
+  const client = new HustleIncognitoClient({
+    apiKey: process.env.HUSTLE_API_KEY!
+  });
+
+  const response = await client.chat(
+    [{ role: 'user', content: message }],
+    { vaultId: vaultId || 'default' }
+  );
+
+  return Response.json({ content: response.content });
+}
+```
+
+### Next.js (Pages Router)
 
 ```typescript
 // pages/api/hustle.ts
@@ -535,17 +566,66 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { HustleIncognitoClient } from 'hustle-incognito';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const client = new HustleIncognitoClient({ 
-    apiKey: process.env.HUSTLE_API_KEY 
+  const client = new HustleIncognitoClient({
+    apiKey: process.env.HUSTLE_API_KEY!
   });
-  
+
   const response = await client.chat(
     req.body.messages,
     { vaultId: req.body.vaultId || 'default' }
   );
-  
+
   res.status(200).json(response);
 }
+```
+
+### Express Server
+
+```javascript
+import express from 'express';
+import { HustleIncognitoClient } from 'hustle-incognito';
+
+const app = express();
+app.use(express.json());
+
+const client = new HustleIncognitoClient({
+  apiKey: process.env.HUSTLE_API_KEY
+});
+
+// Non-streaming endpoint
+app.post('/api/chat', async (req, res) => {
+  const { message, vaultId } = req.body;
+
+  const response = await client.chat(
+    [{ role: 'user', content: message }],
+    { vaultId: vaultId || 'default' }
+  );
+
+  res.json({ content: response.content });
+});
+
+// Streaming endpoint with Server-Sent Events
+app.post('/api/chat/stream', async (req, res) => {
+  const { message, vaultId } = req.body;
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  for await (const chunk of client.chatStream({
+    messages: [{ role: 'user', content: message }],
+    vaultId: vaultId || 'default',
+    processChunks: true
+  })) {
+    if (chunk.type === 'text') {
+      res.write(`data: ${JSON.stringify({ text: chunk.value })}\n\n`);
+    }
+  }
+
+  res.end();
+});
+
+app.listen(3000, () => console.log('Server running on port 3000'));
 ```
 
 ### Browser (via bundler)
@@ -563,7 +643,9 @@ const client = new HustleIncognitoClient({
 // Use the client...
 ```
 
-## 🛠️ Development
+## 🛠️ Contributing & Development
+
+Want to contribute to the SDK? Here's how to get started:
 
 ### Setup
 
@@ -589,31 +671,22 @@ npm test
 npm run test:watch
 ```
 
-### Running Examples
-
-```bash
-# Create a .env file with your API key
-echo "HUSTLE_API_KEY=your_api_key_here" > .env
-echo "VAULT_ID=your_vault_id" >> .env
-
-# Run the CLI example
-npm run example:cli
-```
-
-### Build Process
+### Build System
 
 The SDK uses a dual package approach to support both ESM and CommonJS:
 
 ```bash
-# Build ESM version
-npm run build:esm
-
-# Build CommonJS version
-npm run build:cjs
-
-# Build both versions
+# Build both versions (ESM + CommonJS)
 npm run build
+
+# Build individually
+npm run build:esm
+npm run build:cjs
 ```
+
+### Running Examples
+
+See the [Examples README](./examples/README.md) for instructions on running the example applications.
 
 ### Publishing
 
