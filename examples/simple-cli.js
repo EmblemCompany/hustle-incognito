@@ -19,12 +19,12 @@ async function main() {
     const initialStreamMode = args.includes('--stream');
     
     // Check for required environment variables
-    const API_KEY = process.env.HUSTLE_API_KEY;
-    const VAULT_ID = process.env.VAULT_ID || 'default';
+    const ENV_API_KEY = process.env.HUSTLE_API_KEY;
+    const ENV_VAULT_ID = process.env.VAULT_ID || 'default';
     const ENV_DEBUG = process.env.DEBUG === 'true';
     const ENV_API_URL = process.env.HUSTLE_API_URL;
 
-    if (!API_KEY) {
+    if (!ENV_API_KEY) {
       console.error('Error: HUSTLE_API_KEY environment variable is required');
       console.error('Please create a .env file with your API key or set it in your environment');
       process.exit(1);
@@ -35,7 +35,9 @@ async function main() {
       debug: initialDebugMode || ENV_DEBUG,
       stream: initialStreamMode,
       selectedTools: [],  // Array of selected tool category IDs
-      baseUrl: ENV_API_URL || 'https://agenthustle.ai'  // API base URL
+      baseUrl: ENV_API_URL || 'https://agenthustle.ai',  // API base URL
+      apiKey: ENV_API_KEY,  // API key for authentication
+      vaultId: ENV_VAULT_ID  // Vault ID for requests
     };
     
     // Store available tools
@@ -46,7 +48,7 @@ async function main() {
     
     // Initialize the client
     let client = new HustleIncognitoClient({
-      apiKey: API_KEY,
+      apiKey: settings.apiKey,
       debug: settings.debug,
       hustleApiUrl: settings.baseUrl
     });
@@ -69,7 +71,7 @@ async function main() {
       
       try {
         const streamOptions = {
-          vaultId: VAULT_ID,
+          vaultId: settings.vaultId,
           messages,
           processChunks: true
         };
@@ -131,6 +133,8 @@ async function main() {
       console.log('  /stream on|off - Toggle streaming mode');
       console.log('  /debug on|off  - Toggle debug mode');
       console.log('  /baseurl <url> - Set the API base URL');
+      console.log('  /apikey <key>  - Set the API key');
+      console.log('  /vaultid <id>  - Set the vault ID');
       console.log('  /tools      - Manage tool categories');
       console.log('  /tools add <id> - Add a tool category');
       console.log('  /tools remove <id> - Remove a tool category');
@@ -145,6 +149,8 @@ async function main() {
     function showSettings() {
       console.log('\nCurrent settings:');
       console.log(`  Base URL:  ${settings.baseUrl}`);
+      console.log(`  API Key:   ${settings.apiKey.substring(0, 8)}...${settings.apiKey.substring(settings.apiKey.length - 4)}`);
+      console.log(`  Vault ID:  ${settings.vaultId}`);
       console.log(`  Streaming: ${settings.stream ? 'ON' : 'OFF'}`);
       console.log(`  Debug:     ${settings.debug ? 'ON' : 'OFF'}`);
       console.log(`  Selected Tools: ${
@@ -331,7 +337,7 @@ async function main() {
             settings.debug = true;
             // Reinitialize client with new debug setting
             client = new HustleIncognitoClient({
-              apiKey: API_KEY,
+              apiKey: settings.apiKey,
               debug: true,
               hustleApiUrl: settings.baseUrl
             });
@@ -340,7 +346,7 @@ async function main() {
             settings.debug = false;
             // Reinitialize client with new debug setting
             client = new HustleIncognitoClient({
-              apiKey: API_KEY,
+              apiKey: settings.apiKey,
               debug: false,
               hustleApiUrl: settings.baseUrl
             });
@@ -364,7 +370,7 @@ async function main() {
             settings.baseUrl = newBaseUrl;
             // Reinitialize client with new base URL
             client = new HustleIncognitoClient({
-              apiKey: API_KEY,
+              apiKey: settings.apiKey,
               debug: settings.debug,
               hustleApiUrl: settings.baseUrl
             });
@@ -375,6 +381,42 @@ async function main() {
         } else {
           console.log(`Current base URL: ${settings.baseUrl}`);
           console.log('Usage: /baseurl <url>');
+        }
+        return true;
+      }
+
+      if (command.startsWith('/apikey')) {
+        const parts = command.split(' ');
+        if (parts.length === 2) {
+          const newApiKey = parts[1];
+          if (newApiKey.length < 10) {
+            console.log('Invalid API key: too short. Please provide a valid API key.');
+            return true;
+          }
+          settings.apiKey = newApiKey;
+          // Reinitialize client with new API key
+          client = new HustleIncognitoClient({
+            apiKey: settings.apiKey,
+            debug: settings.debug,
+            hustleApiUrl: settings.baseUrl
+          });
+          console.log(`API key updated to: ${settings.apiKey.substring(0, 8)}...${settings.apiKey.substring(settings.apiKey.length - 4)}`);
+        } else {
+          console.log(`Current API key: ${settings.apiKey.substring(0, 8)}...${settings.apiKey.substring(settings.apiKey.length - 4)}`);
+          console.log('Usage: /apikey <key>');
+        }
+        return true;
+      }
+
+      if (command.startsWith('/vaultid')) {
+        const parts = command.split(' ');
+        if (parts.length === 2) {
+          const newVaultId = parts[1];
+          settings.vaultId = newVaultId;
+          console.log(`Vault ID updated to: ${settings.vaultId}`);
+        } else {
+          console.log(`Current vault ID: ${settings.vaultId}`);
+          console.log('Usage: /vaultid <id>');
         }
         return true;
       }
@@ -483,7 +525,7 @@ async function main() {
             assistantResponse = await streamResponse([...messages]);
           } else {
             // Get response from the AI (non-streaming)
-            const chatOptions = { vaultId: VAULT_ID };
+            const chatOptions = { vaultId: settings.vaultId };
             
             // Add selected tools if any
             if (settings.selectedTools.length > 0) {
