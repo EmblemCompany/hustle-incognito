@@ -22,18 +22,20 @@ async function main() {
     const API_KEY = process.env.HUSTLE_API_KEY;
     const VAULT_ID = process.env.VAULT_ID || 'default';
     const ENV_DEBUG = process.env.DEBUG === 'true';
-    
+    const ENV_API_URL = process.env.HUSTLE_API_URL;
+
     if (!API_KEY) {
       console.error('Error: HUSTLE_API_KEY environment variable is required');
       console.error('Please create a .env file with your API key or set it in your environment');
       process.exit(1);
     }
-    
+
     // Settings that can be toggled during runtime
     let settings = {
       debug: initialDebugMode || ENV_DEBUG,
       stream: initialStreamMode,
-      selectedTools: []  // Array of selected tool category IDs
+      selectedTools: [],  // Array of selected tool category IDs
+      baseUrl: ENV_API_URL || 'https://agenthustle.ai'  // API base URL
     };
     
     // Store available tools
@@ -45,7 +47,8 @@ async function main() {
     // Initialize the client
     let client = new HustleIncognitoClient({
       apiKey: API_KEY,
-      debug: settings.debug
+      debug: settings.debug,
+      hustleApiUrl: settings.baseUrl
     });
     
     // Create readline interface for user input
@@ -127,6 +130,7 @@ async function main() {
       console.log('  /settings   - Show current settings');
       console.log('  /stream on|off - Toggle streaming mode');
       console.log('  /debug on|off  - Toggle debug mode');
+      console.log('  /baseurl <url> - Set the API base URL');
       console.log('  /tools      - Manage tool categories');
       console.log('  /tools add <id> - Add a tool category');
       console.log('  /tools remove <id> - Remove a tool category');
@@ -140,14 +144,15 @@ async function main() {
     // Show current settings
     function showSettings() {
       console.log('\nCurrent settings:');
+      console.log(`  Base URL:  ${settings.baseUrl}`);
       console.log(`  Streaming: ${settings.stream ? 'ON' : 'OFF'}`);
       console.log(`  Debug:     ${settings.debug ? 'ON' : 'OFF'}`);
       console.log(`  Selected Tools: ${
-        settings.selectedTools.length > 0 
+        settings.selectedTools.length > 0
           ? settings.selectedTools.join(', ')
           : 'All tools (no filter)'
       }`);
-      console.log(`  Pending Attachments: ${pendingAttachments.length > 0 
+      console.log(`  Pending Attachments: ${pendingAttachments.length > 0
         ? pendingAttachments.length + ' file(s)'
         : 'None'
       }`);
@@ -327,7 +332,8 @@ async function main() {
             // Reinitialize client with new debug setting
             client = new HustleIncognitoClient({
               apiKey: API_KEY,
-              debug: true
+              debug: true,
+              hustleApiUrl: settings.baseUrl
             });
             console.log('Debug mode enabled');
           } else if (parts[1] === 'off') {
@@ -335,7 +341,8 @@ async function main() {
             // Reinitialize client with new debug setting
             client = new HustleIncognitoClient({
               apiKey: API_KEY,
-              debug: false
+              debug: false,
+              hustleApiUrl: settings.baseUrl
             });
             console.log('Debug mode disabled');
           } else {
@@ -343,6 +350,31 @@ async function main() {
           }
         } else {
           console.log(`Debug is currently ${settings.debug ? 'ON' : 'OFF'}`);
+        }
+        return true;
+      }
+
+      if (command.startsWith('/baseurl')) {
+        const parts = command.split(' ');
+        if (parts.length === 2) {
+          const newBaseUrl = parts[1];
+          // Basic URL validation
+          try {
+            new URL(newBaseUrl);
+            settings.baseUrl = newBaseUrl;
+            // Reinitialize client with new base URL
+            client = new HustleIncognitoClient({
+              apiKey: API_KEY,
+              debug: settings.debug,
+              hustleApiUrl: settings.baseUrl
+            });
+            console.log(`Base URL updated to: ${settings.baseUrl}`);
+          } catch (error) {
+            console.log(`Invalid URL: ${newBaseUrl}. Please provide a valid URL.`);
+          }
+        } else {
+          console.log(`Current base URL: ${settings.baseUrl}`);
+          console.log('Usage: /baseurl <url>');
         }
         return true;
       }
