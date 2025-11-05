@@ -51,7 +51,7 @@ async function main() {
     const portIndex = args.indexOf('--port');
     const PORT = portIndex !== -1 && args[portIndex + 1]
       ? parseInt(args[portIndex + 1])
-      : 3000;
+      : (process.env.PORT || 3000);
 
     // Check for required environment variables
     const API_KEY = process.env.HUSTLE_API_KEY;
