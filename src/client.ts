@@ -385,33 +385,44 @@ export class HustleIncognitoClient {
   public async uploadFile(filePath: string, fileName?: string): Promise<Attachment> {
     const fs = await import('fs');
     const path = await import('path');
-    
+    const { fileTypeFromBuffer } = await import('file-type');
+
     if (!fs.existsSync(filePath)) {
       throw new Error(`File not found: ${filePath}`);
     }
 
     const fileBuffer = fs.readFileSync(filePath);
     const actualFileName = fileName || path.basename(filePath);
-    
-    // Simple content type detection based on file extension
-    const ext = path.extname(filePath).toLowerCase();
+
+    // Use proper MIME type detection
+    const fileType = await fileTypeFromBuffer(fileBuffer);
     let contentType = 'application/octet-stream';
-    switch (ext) {
-      case '.jpg':
-      case '.jpeg':
-        contentType = 'image/jpeg';
-        break;
-      case '.png':
-        contentType = 'image/png';
-        break;
-      case '.gif':
-        contentType = 'image/gif';
-        break;
-      case '.webp':
-        contentType = 'image/webp';
-        break;
-      default:
-        throw new Error(`Unsupported file type: ${ext}. Supported types: .jpg, .jpeg, .png, .gif, .webp`);
+
+    if (fileType) {
+      contentType = fileType.mime;
+
+      // Check if it's a supported image type
+      const supportedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (!supportedImageTypes.includes(contentType)) {
+        throw new Error(`Unsupported file type: ${contentType}. Supported types: JPEG, PNG, GIF, WebP`);
+      }
+    } else {
+      // Fallback to extension-based detection if file-type can't determine it
+      const ext = path.extname(filePath).toLowerCase();
+      if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
+        // If it's one of our expected extensions but file-type couldn't detect it,
+        // we can still try to proceed with a basic mapping
+        const extToMime: Record<string, string> = {
+          '.jpg': 'image/jpeg',
+          '.jpeg': 'image/jpeg',
+          '.png': 'image/png',
+          '.gif': 'image/gif',
+          '.webp': 'image/webp'
+        };
+        contentType = extToMime[ext] || 'application/octet-stream';
+      } else {
+        throw new Error(`Unable to determine file type for: ${actualFileName}`);
+      }
     }
 
     // Check file size (5MB limit)
@@ -423,7 +434,7 @@ export class HustleIncognitoClient {
     const formData = new FormData();
     const uint8Array = new Uint8Array(fileBuffer);
     const blob = new Blob([uint8Array], { type: contentType });
-    
+
     // Create a File-like object for the form data
     const file = new File([blob], actualFileName, { type: contentType });
     formData.append('file', file);

@@ -386,7 +386,7 @@ const attachment = await client.uploadFile('./chart.png');
 // Use the attachment in your chat request
 const response = await client.chat([
   { role: 'user', content: 'Analyze this price chart and give me your insights' }
-], { 
+], {
   vaultId: 'my-vault',
   attachments: [attachment]
 });
@@ -396,9 +396,11 @@ const response = await client.chat([
 
 The SDK supports common image formats:
 - **PNG** (`.png`)
-- **JPEG** (`.jpg`, `.jpeg`) 
+- **JPEG** (`.jpg`, `.jpeg`)
 - **GIF** (`.gif`)
 - **WebP** (`.webp`)
+
+**Note:** The SDK uses intelligent MIME type detection based on file content, not just file extensions. This means images without extensions or with incorrect extensions will still be properly identified.
 
 ### File Size Limits
 
@@ -447,6 +449,26 @@ const response = await client.chat([
 });
 ```
 
+### Custom File Names
+
+You can provide a custom filename when uploading:
+
+```typescript
+// Upload with custom name
+const attachment = await client.uploadFile('./temp/img12345.tmp', 'price-chart.png');
+// attachment.name will be 'price-chart.png' instead of 'img12345.tmp'
+```
+
+### Images Without Extensions
+
+The SDK can handle images without file extensions by detecting the format from the file content:
+
+```typescript
+// Upload an image without extension (MIME type auto-detected)
+const attachment = await client.uploadFile('./screenshots/latest');
+// The SDK will detect if it's PNG, JPEG, etc. from the file content
+```
+
 ### Attachment Object Structure
 
 The `uploadFile` method returns an `Attachment` object:
@@ -455,7 +477,7 @@ The `uploadFile` method returns an `Attachment` object:
 interface Attachment {
   /** The name of the file */
   name: string;
-  /** MIME type of the file */
+  /** MIME type of the file (auto-detected from content) */
   contentType: string;
   /** URL to the uploaded file */
   url: string;
@@ -464,8 +486,25 @@ interface Attachment {
 // Example attachment object:
 {
   name: "chart.png",
-  contentType: "image/png", 
+  contentType: "image/png",  // Detected from file content, not extension
   url: "https://api.agenthustle.ai/uploads/abc123/chart.png"
+}
+```
+
+### Error Handling
+
+The upload method includes comprehensive error handling:
+
+```typescript
+try {
+  const attachment = await client.uploadFile('./image.png');
+} catch (error) {
+  // Possible errors:
+  // - File not found
+  // - File too large (>5MB)
+  // - Unsupported file type (not an image)
+  // - Network/upload errors
+  console.error('Upload failed:', error.message);
 }
 ```
 

@@ -128,24 +128,93 @@ describe.skipIf(shouldSkip)('HustleIncognitoClient Integration Tests', () => {
   
   test('should upload image file and return attachment info', async () => {
     const testImagePath = path.join(__dirname, 'fixtures', 'test-image.png');
-    
+
     // Verify test file exists
     if (!fs.existsSync(testImagePath)) {
       console.warn('Test image not found, skipping upload test');
       return;
     }
-    
+
     console.log('Uploading test image:', testImagePath);
-    
+
     const attachment = await client.uploadFile(testImagePath);
-    
+
     expect(attachment).toBeDefined();
     expect(attachment.name).toBe('test-image.png');
     expect(attachment.contentType).toBe('image/png');
     expect(attachment.url).toBeDefined();
     expect(typeof attachment.url).toBe('string');
     expect(attachment.url).toMatch(/^https?:\/\//); // Should be a valid URL
-    
+
     console.log('Upload successful, URL:', attachment.url);
+  }); // Use global timeout
+
+  test('should detect PNG MIME type from file content without extension', async () => {
+    const testImagePath = path.join(__dirname, 'fixtures', 'test-image');
+
+    // Verify test file exists
+    if (!fs.existsSync(testImagePath)) {
+      console.warn('Test image without extension not found, skipping test');
+      return;
+    }
+
+    console.log('Uploading test image without extension:', testImagePath);
+
+    const attachment = await client.uploadFile(testImagePath);
+
+    expect(attachment).toBeDefined();
+    expect(attachment.name).toBe('test-image');
+    expect(attachment.contentType).toBe('image/png'); // Should detect PNG from content
+    expect(attachment.url).toBeDefined();
+    expect(typeof attachment.url).toBe('string');
+    expect(attachment.url).toMatch(/^https?:\/\//); // Should be a valid URL
+
+    console.log('Upload successful, detected content type:', attachment.contentType);
+  }); // Use global timeout
+
+  test('should upload JPEG file with extension and detect correct MIME type', async () => {
+    const testImagePath = path.join(__dirname, 'fixtures', 'test-image.jpg');
+
+    // Verify test file exists
+    if (!fs.existsSync(testImagePath)) {
+      console.warn('Test JPEG with extension not found, skipping test');
+      return;
+    }
+
+    console.log('Uploading test JPEG with extension:', testImagePath);
+
+    const attachment = await client.uploadFile(testImagePath);
+
+    expect(attachment).toBeDefined();
+    expect(attachment.name).toBe('test-image.jpg');
+    expect(attachment.contentType).toBe('image/jpeg');
+    expect(attachment.url).toBeDefined();
+    expect(typeof attachment.url).toBe('string');
+    expect(attachment.url).toMatch(/^https?:\/\//);
+
+    console.log('Upload successful, content type:', attachment.contentType);
+  }); // Use global timeout
+
+  test('should detect JPEG MIME type from file content without extension', async () => {
+    const testImagePath = path.join(__dirname, 'fixtures', 'test-image-jpg');
+
+    // Verify test file exists
+    if (!fs.existsSync(testImagePath)) {
+      console.warn('Test JPEG without extension not found, skipping test');
+      return;
+    }
+
+    console.log('Uploading test JPEG without extension:', testImagePath);
+
+    const attachment = await client.uploadFile(testImagePath);
+
+    expect(attachment).toBeDefined();
+    expect(attachment.name).toBe('test-image-jpg');
+    expect(attachment.contentType).toBe('image/jpeg'); // Should detect JPEG from content
+    expect(attachment.url).toBeDefined();
+    expect(typeof attachment.url).toBe('string');
+    expect(attachment.url).toMatch(/^https?:\/\//);
+
+    console.log('Upload successful, detected content type:', attachment.contentType);
   }); // Use global timeout
 });

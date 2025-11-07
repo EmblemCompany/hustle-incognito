@@ -389,7 +389,7 @@ describe('HustleIncognitoClient', () => {
       
       await expect(client.uploadFile('/path/to/test.txt'))
         .rejects
-        .toThrow('Unsupported file type: .txt. Supported types: .jpg, .jpeg, .png, .gif, .webp');
+        .toThrow('Unable to determine file type for: test.txt');
     });
 
     test('should throw error for file size exceeding limit', async () => {
@@ -480,6 +480,49 @@ describe('HustleIncognitoClient', () => {
         
         vi.clearAllMocks();
       }
+    });
+
+    test('should detect PNG MIME type from file content without extension', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      // Create a mock PNG buffer (minimal valid PNG header and data)
+      const pngBuffer = Buffer.from([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,  // PNG signature
+        0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,  // IHDR chunk
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,  // 1x1 dimensions
+        0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+        0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41,  // IDAT chunk
+        0x54, 0x78, 0x9c, 0x62, 0x00, 0x02, 0x00, 0x00,
+        0x05, 0x00, 0x01, 0xe2, 0x26, 0x05, 0x5b, 0x00,
+        0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,  // IEND chunk
+        0x42, 0x60, 0x82
+      ]);
+
+      const mockResponse = {
+        ok: true,
+        json: () => Promise.resolve({ url: 'https://example.com/test-image' })
+      };
+
+      const mockFetch = vi.fn().mockResolvedValue(mockResponse);
+      // @ts-expect-error - Overriding private property for testing
+      client.fetchImpl = mockFetch;
+
+      vi.doMock('fs', () => ({
+        existsSync: vi.fn().mockReturnValue(true),
+        readFileSync: vi.fn().mockReturnValue(pngBuffer)
+      }));
+
+      vi.doMock('path', () => ({
+        basename: vi.fn().mockReturnValue('test-image'),
+        extname: vi.fn().mockReturnValue('')  // No extension
+      }));
+
+      const result = await client.uploadFile('/path/to/test-image');
+
+      // Should detect as PNG based on file content, not extension
+      expect(result.contentType).toBe('image/png');
+      expect(result.name).toBe('test-image');
+      expect(result.url).toBe('https://example.com/test-image');
     });
   });
 });
