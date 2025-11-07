@@ -496,7 +496,7 @@ export class HustleIncognitoClient {
     }
 
     // Transform attachments to match real Hustle app format
-    let transformedMessages = [...options.messages];
+    const transformedMessages = [...options.messages];
 
     if (options.attachments && options.attachments.length > 0) {
       // Transform the last user message to include experimental_attachments and parts
