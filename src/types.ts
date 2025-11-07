@@ -102,8 +102,6 @@ export interface RawStreamOptions {
   selectedToolCategories?: string[];
 }
 
-
-
 /**
  * The request payload sent to the Agent Hustle API.
  */
@@ -298,7 +296,7 @@ export interface ToolCategory {
   /** UI color theme for this category */
   color: string;
   /** Whether this is primarily an analyst or trader focused tool */
-  type: "analyst" | "trader";
+  type: 'analyst' | 'trader';
   /** Whether this tool category requires a premium subscription */
   premium?: boolean;
 }

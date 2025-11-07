@@ -132,7 +132,7 @@ export class HustleIncognitoClient {
       safeMode: options.safeMode,
       processChunks: true,
       selectedToolCategories: options.selectedToolCategories || [],
-      attachments: options.attachments || []
+      attachments: options.attachments || [],
     })) {
       if ('type' in chunk) {
         switch (chunk.type) {
@@ -404,7 +404,9 @@ export class HustleIncognitoClient {
       // Check if it's a supported image type
       const supportedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
       if (!supportedImageTypes.includes(contentType)) {
-        throw new Error(`Unsupported file type: ${contentType}. Supported types: JPEG, PNG, GIF, WebP`);
+        throw new Error(
+          `Unsupported file type: ${contentType}. Supported types: JPEG, PNG, GIF, WebP`
+        );
       }
     } else {
       // Fallback to extension-based detection if file-type can't determine it
@@ -417,7 +419,7 @@ export class HustleIncognitoClient {
           '.jpeg': 'image/jpeg',
           '.png': 'image/png',
           '.gif': 'image/gif',
-          '.webp': 'image/webp'
+          '.webp': 'image/webp',
         };
         contentType = extToMime[ext] || 'application/octet-stream';
       } else {
@@ -440,7 +442,9 @@ export class HustleIncognitoClient {
     formData.append('file', file);
 
     if (this.debug) {
-      console.log(`[${new Date().toISOString()}] Uploading file: ${actualFileName} (${contentType})`);
+      console.log(
+        `[${new Date().toISOString()}] Uploading file: ${actualFileName} (${contentType})`
+      );
     }
 
     const headers = this.getHeaders();
@@ -459,7 +463,7 @@ export class HustleIncognitoClient {
     }
 
     const uploadResult = await response.json();
-    
+
     if (this.debug) {
       console.log(`[${new Date().toISOString()}] Upload successful:`, uploadResult);
     }
@@ -467,7 +471,7 @@ export class HustleIncognitoClient {
     return {
       name: actualFileName,
       contentType,
-      url: uploadResult.url
+      url: uploadResult.url,
     };
   }
 
