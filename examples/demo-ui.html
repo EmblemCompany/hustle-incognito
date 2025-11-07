@@ -430,6 +430,10 @@
         </h2>
         <form id="nonStreamForm">
           <div class="input-group">
+            <label for="systemPrompt1">System Prompt (optional)</label>
+            <textarea id="systemPrompt1" placeholder="You are a helpful AI assistant expert in blockchain and cryptocurrency..." rows="3"></textarea>
+          </div>
+          <div class="input-group">
             <label for="message1">Message</label>
             <textarea id="message1" placeholder="What is Solana?" required></textarea>
           </div>
@@ -455,6 +459,10 @@
           <span class="badge streaming">SSE</span>
         </h2>
         <form id="streamForm">
+          <div class="input-group">
+            <label for="systemPrompt2">System Prompt (optional)</label>
+            <textarea id="systemPrompt2" placeholder="You are a helpful AI assistant expert in blockchain and cryptocurrency..." rows="3"></textarea>
+          </div>
           <div class="input-group">
             <label for="message2">Message</label>
             <textarea id="message2" placeholder="Tell me about Solana tokens" required></textarea>
@@ -874,6 +882,7 @@
       e.preventDefault();
 
       const message = document.getElementById('message1').value;
+      const systemPrompt = document.getElementById('systemPrompt1').value;
       const vaultId = document.getElementById('vaultId1').value;
       const responseBox = document.getElementById('response1');
       const submitBtn = document.getElementById('submitBtn1');
@@ -895,6 +904,9 @@
         }
 
         const requestBody = { message, vaultId };
+        if (systemPrompt && systemPrompt.trim()) {
+          requestBody.systemPrompt = systemPrompt.trim();
+        }
 
         // Load selected tools from localStorage and add to request
         const savedTools = localStorage.getItem('hustle_selected_tools');
@@ -1045,6 +1057,7 @@
       e.preventDefault();
 
       const message = document.getElementById('message2').value;
+      const systemPrompt = document.getElementById('systemPrompt2').value;
       const vaultId = document.getElementById('vaultId2').value;
       const responseBox = document.getElementById('response2');
       const submitBtn = document.getElementById('submitBtn2');
@@ -1066,6 +1079,9 @@
         }
 
         const requestBody = { message, vaultId };
+        if (systemPrompt && systemPrompt.trim()) {
+          requestBody.systemPrompt = systemPrompt.trim();
+        }
 
         // Load selected tools from localStorage and add to request
         const savedTools = localStorage.getItem('hustle_selected_tools');

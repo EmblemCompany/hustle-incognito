@@ -108,6 +108,28 @@ async function main() {
       sendJSON(res, statusCode, { error: message });
     }
 
+    // Helper function to build messages array with optional system prompt
+    function buildMessages(body) {
+      if (body.messages) {
+        // Use provided messages array
+        return body.messages;
+      }
+
+      const messages = [];
+
+      // Add system prompt if provided
+      if (body.systemPrompt && body.systemPrompt.trim()) {
+        messages.push({ role: 'system', content: body.systemPrompt.trim() });
+      }
+
+      // Add user message
+      if (body.message) {
+        messages.push({ role: 'user', content: body.message });
+      }
+
+      return messages;
+    }
+
     /**
      * Non-streaming chat endpoint handler
      */
@@ -135,10 +157,12 @@ async function main() {
           console.log(`[${new Date().toISOString()}] Using custom client config`);
         }
 
-        // Prepare messages array
-        const messages = body.messages || [
-          { role: 'user', content: body.message }
-        ];
+        // Prepare messages array with optional system prompt
+        const messages = buildMessages(body);
+
+        // Log the message structure being sent to SDK
+        console.log('\n📨 Messages being sent to SDK:');
+        console.log(JSON.stringify(messages, null, 2));
 
         // Prepare chat options
         const chatOptions = {
@@ -202,10 +226,12 @@ async function main() {
           console.log(`[${new Date().toISOString()}] Using custom client config for streaming`);
         }
 
-        // Prepare messages array
-        const messages = body.messages || [
-          { role: 'user', content: body.message }
-        ];
+        // Prepare messages array with optional system prompt
+        const messages = buildMessages(body);
+
+        // Log the message structure being sent to SDK
+        console.log('\n📨 Messages being sent to SDK (streaming):');
+        console.log(JSON.stringify(messages, null, 2));
 
         // Prepare stream options
         const streamOptions = {
