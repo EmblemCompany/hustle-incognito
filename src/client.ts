@@ -432,14 +432,24 @@ export class HustleIncognitoClient {
       throw new Error('File size should be less than 5MB');
     }
 
-    // Create FormData
+    // Create FormData with Node.js compatibility
     const formData = new FormData();
-    const uint8Array = new Uint8Array(fileBuffer);
-    const blob = new Blob([uint8Array], { type: contentType });
 
-    // Create a File-like object for the form data
-    const file = new File([blob], actualFileName, { type: contentType });
-    formData.append('file', file);
+    // Check if we're in Node.js environment
+    const isNode = typeof window === 'undefined' && typeof global !== 'undefined';
+
+    if (isNode) {
+      // Node.js environment - create a Blob from buffer for undici FormData
+      const uint8Array = new Uint8Array(fileBuffer);
+      const blob = new Blob([uint8Array], { type: contentType });
+      formData.append('file', blob, actualFileName);
+    } else {
+      // Browser environment - use Blob and File
+      const uint8Array = new Uint8Array(fileBuffer);
+      const blob = new Blob([uint8Array], { type: contentType });
+      const file = new File([blob], actualFileName, { type: contentType });
+      formData.append('file', file);
+    }
 
     if (this.debug) {
       console.log(
