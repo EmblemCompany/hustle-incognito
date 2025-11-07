@@ -505,15 +505,15 @@ export class HustleIncognitoClient {
         const lastUserMessage = transformedMessages[lastUserMessageIndex];
 
         // Create experimental_attachments array in the same format as the main app
-        const experimental_attachments = options.attachments.map((attachment) => ({
+        const experimental_attachments = options.attachments.map(attachment => ({
           contentType: attachment.contentType || 'image/png',
           name: attachment.name || 'uploaded-image',
-          url: attachment.url || ''
+          url: attachment.url || '',
         }));
 
         // Create parts array with just the text content (no image parts)
         const parts: import('./types').MessagePart[] = [
-          { type: 'text' as const, text: lastUserMessage.content || '' }
+          { type: 'text' as const, text: lastUserMessage.content || '' },
         ];
 
         // Update the message with experimental_attachments and parts
@@ -521,7 +521,7 @@ export class HustleIncognitoClient {
           ...lastUserMessage,
           content: lastUserMessage.content || '',
           experimental_attachments: experimental_attachments,
-          parts: parts
+          parts: parts,
         };
       }
     }
