@@ -307,6 +307,77 @@
       padding: 20px;
       color: #6b7280;
     }
+    .file-upload-area {
+      margin-top: 10px;
+      padding: 10px;
+      background: #f9fafb;
+      border: 2px dashed #e5e7eb;
+      border-radius: 8px;
+    }
+    .file-upload-area.has-file {
+      border-color: #667eea;
+      background: #f0f4ff;
+    }
+    .file-input {
+      display: none;
+    }
+    .file-upload-label {
+      display: inline-block;
+      padding: 8px 16px;
+      background: #667eea;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      margin-right: 10px;
+    }
+    .file-upload-label:hover {
+      background: #5568d3;
+    }
+    .uploaded-files {
+      margin-top: 10px;
+    }
+    .uploaded-file {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px;
+      background: white;
+      border-radius: 6px;
+      margin-top: 5px;
+    }
+    .uploaded-file-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .uploaded-file-name {
+      font-size: 14px;
+      color: #374151;
+    }
+    .uploaded-file-size {
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .remove-file-btn {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .remove-file-btn:hover {
+      background: #dc2626;
+    }
+    .attachment-preview {
+      max-width: 60px;
+      max-height: 60px;
+      border-radius: 4px;
+      object-fit: cover;
+    }
   </style>
 </head>
 <body>
@@ -366,6 +437,12 @@
             <label for="vaultId1">Vault ID</label>
             <input type="text" id="vaultId1" value="default" placeholder="default">
           </div>
+          <div class="file-upload-area" id="uploadArea1">
+            <input type="file" id="fileInput1" class="file-input" accept="image/*" multiple>
+            <label for="fileInput1" class="file-upload-label">📎 Attach Images</label>
+            <span id="fileCount1" style="font-size: 14px; color: #6b7280;"></span>
+            <div id="uploadedFiles1" class="uploaded-files"></div>
+          </div>
           <button type="submit" id="submitBtn1">Send Message</button>
         </form>
         <div id="response1" class="response-box">Response will appear here...</div>
@@ -385,6 +462,12 @@
           <div class="input-group">
             <label for="vaultId2">Vault ID</label>
             <input type="text" id="vaultId2" value="default" placeholder="default">
+          </div>
+          <div class="file-upload-area" id="uploadArea2">
+            <input type="file" id="fileInput2" class="file-input" accept="image/*" multiple>
+            <label for="fileInput2" class="file-upload-label">📎 Attach Images</label>
+            <span id="fileCount2" style="font-size: 14px; color: #6b7280;"></span>
+            <div id="uploadedFiles2" class="uploaded-files"></div>
           </div>
           <button type="submit" id="submitBtn2">Stream Message</button>
         </form>
@@ -483,31 +566,16 @@
         selectedToolIds = [];
       }
 
-      // Always ensure standard-tools is included
-      if (!selectedToolIds.includes('standard-tools')) {
-        selectedToolIds.push('standard-tools');
-        localStorage.setItem('hustle_selected_tools', JSON.stringify(selectedToolIds));
-      }
+      // Don't force any tools to be selected
 
       console.log('Loaded tool selection from localStorage:', selectedToolIds);
     }
 
     // Toggle tool selection and auto-save
     window.toggleTool = function toggleTool(toolId) {
-      // Don't allow toggling off standard-tools (required)
-      if (toolId === 'standard-tools') {
-        console.log('Standard Tools is required and cannot be unchecked');
-        return;
-      }
-
       // Load current selection from localStorage to ensure we have the latest
       const saved = localStorage.getItem('hustle_selected_tools');
       selectedToolIds = saved ? JSON.parse(saved) : [];
-
-      // Always ensure standard-tools is included
-      if (!selectedToolIds.includes('standard-tools')) {
-        selectedToolIds.push('standard-tools');
-      }
 
       const index = selectedToolIds.indexOf(toolId);
       if (index > -1) {
@@ -566,7 +634,7 @@
         traderTools.forEach(tool => {
           const isSelected = selectedToolIds.includes(tool.id);
           const isDisabled = tool.disabled || false;
-          const isRequired = tool.id === 'standard-tools';
+          const isRequired = tool.id === 'standard-tools' || tool.id === 'trader-standard-tools';
           html += `
             <div class="tool-card ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}"
                  onclick="${!isDisabled && !isRequired ? `toggleTool('${tool.id}')` : ''}">
@@ -663,6 +731,144 @@
     // Load settings on page load
     loadSettings();
 
+    // File upload handling
+    let uploadedAttachments1 = [];
+    let uploadedAttachments2 = [];
+
+    // Handle file selection for panel 1
+    document.getElementById('fileInput1').addEventListener('change', async function(e) {
+      await handleFileUpload(e.target.files, 1);
+    });
+
+    // Handle file selection for panel 2
+    document.getElementById('fileInput2').addEventListener('change', async function(e) {
+      await handleFileUpload(e.target.files, 2);
+    });
+
+    // Upload files and manage attachments
+    async function handleFileUpload(files, panelNum) {
+      const uploadArea = document.getElementById(`uploadArea${panelNum}`);
+      const fileCount = document.getElementById(`fileCount${panelNum}`);
+      const uploadedFilesDiv = document.getElementById(`uploadedFiles${panelNum}`);
+      const attachments = panelNum === 1 ? uploadedAttachments1 : uploadedAttachments2;
+
+      for (let file of files) {
+        if (!file.type.startsWith('image/')) {
+          alert(`File ${file.name} is not an image. Only images are supported.`);
+          continue;
+        }
+
+        // Show uploading status
+        fileCount.textContent = 'Uploading...';
+
+        try {
+          // Upload file to server
+          const formData = new FormData();
+          formData.append('file', file);
+
+          const settings = getCurrentSettings();
+          const headers = {};
+
+          if (settings.apiKey) {
+            headers['X-API-Key'] = settings.apiKey;
+          }
+          if (settings.baseUrl) {
+            headers['X-Base-URL'] = settings.baseUrl;
+          }
+
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            headers: headers,
+            body: formData
+          });
+
+          const result = await response.json();
+
+          if (response.ok && result.success) {
+            // Add to attachments
+            attachments.push(result.attachment);
+
+            // Create preview element
+            const fileDiv = document.createElement('div');
+            fileDiv.className = 'uploaded-file';
+            fileDiv.innerHTML = `
+              <div class="uploaded-file-info">
+                <img src="${result.attachment.url}" alt="${result.attachment.name}" class="attachment-preview">
+                <div>
+                  <div class="uploaded-file-name">${result.attachment.name}</div>
+                  <div class="uploaded-file-size">${formatFileSize(file.size)}</div>
+                </div>
+              </div>
+              <button class="remove-file-btn" onclick="removeAttachment(${panelNum}, '${result.attachment.url}')">Remove</button>
+            `;
+            uploadedFilesDiv.appendChild(fileDiv);
+
+            uploadArea.classList.add('has-file');
+          } else {
+            throw new Error(result.error || 'Upload failed');
+          }
+        } catch (error) {
+          console.error('Upload error:', error);
+          alert(`Failed to upload ${file.name}: ${error.message}`);
+        }
+      }
+
+      // Update file count
+      const count = attachments.length;
+      fileCount.textContent = count > 0 ? `${count} file(s) attached` : '';
+
+      // Clear the file input
+      document.getElementById(`fileInput${panelNum}`).value = '';
+    }
+
+    // Remove attachment
+    window.removeAttachment = function(panelNum, url) {
+      const attachments = panelNum === 1 ? uploadedAttachments1 : uploadedAttachments2;
+      const index = attachments.findIndex(a => a.url === url);
+
+      if (index > -1) {
+        attachments.splice(index, 1);
+      }
+
+      // Rebuild UI
+      const uploadedFilesDiv = document.getElementById(`uploadedFiles${panelNum}`);
+      const uploadArea = document.getElementById(`uploadArea${panelNum}`);
+      const fileCount = document.getElementById(`fileCount${panelNum}`);
+
+      uploadedFilesDiv.innerHTML = '';
+      attachments.forEach(attachment => {
+        const fileDiv = document.createElement('div');
+        fileDiv.className = 'uploaded-file';
+        fileDiv.innerHTML = `
+          <div class="uploaded-file-info">
+            <img src="${attachment.url}" alt="${attachment.name}" class="attachment-preview">
+            <div>
+              <div class="uploaded-file-name">${attachment.name}</div>
+            </div>
+          </div>
+          <button class="remove-file-btn" onclick="removeAttachment(${panelNum}, '${attachment.url}')">Remove</button>
+        `;
+        uploadedFilesDiv.appendChild(fileDiv);
+      });
+
+      // Update file count
+      const count = attachments.length;
+      fileCount.textContent = count > 0 ? `${count} file(s) attached` : '';
+
+      if (count === 0) {
+        uploadArea.classList.remove('has-file');
+      }
+    }
+
+    // Format file size
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
     // Non-streaming form handler
     document.getElementById('nonStreamForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -698,6 +904,12 @@
         if (currentSelectedTools.length > 0) {
           requestBody.selectedToolCategories = currentSelectedTools;
           console.log('Including selected tools in request:', currentSelectedTools);
+        }
+
+        // Add attachments if any
+        if (uploadedAttachments1.length > 0) {
+          requestBody.attachments = uploadedAttachments1;
+          console.log('Including attachments in request:', uploadedAttachments1.length);
         }
 
         const response = await fetch(`${API_BASE_URL}/api/chat`, {
@@ -863,6 +1075,12 @@
         if (currentSelectedTools.length > 0) {
           requestBody.selectedToolCategories = currentSelectedTools;
           console.log('Including selected tools in streaming request:', currentSelectedTools);
+        }
+
+        // Add attachments if any
+        if (uploadedAttachments2.length > 0) {
+          requestBody.attachments = uploadedAttachments2;
+          console.log('Including attachments in streaming request:', uploadedAttachments2.length);
         }
 
         const response = await fetch(`${API_BASE_URL}/api/chat/stream`, {

@@ -217,4 +217,132 @@ describe.skipIf(shouldSkip)('HustleIncognitoClient Integration Tests', () => {
 
     console.log('Upload successful, detected content type:', attachment.contentType);
   }); // Use global timeout
+
+  test('should send chat message with image attachment', async () => {
+    const testImagePath = path.join(__dirname, 'fixtures', 'test-image.png');
+
+    // Verify test file exists
+    if (!fs.existsSync(testImagePath)) {
+      console.warn('Test image not found, skipping chat with attachment test');
+      return;
+    }
+
+    console.log('Uploading image for chat with attachment test');
+
+    // First upload the image to get attachment
+    const attachment = await client.uploadFile(testImagePath);
+    expect(attachment).toBeDefined();
+    expect(attachment.url).toBeDefined();
+
+    console.log('Sending chat message with image attachment');
+
+    // Send chat message with the attachment
+    const response = await client.chat(
+      [{ role: 'user' as const, content: 'What do you see in this image?' }],
+      {
+        vaultId: process.env.VAULT_ID || 'default',
+        attachments: [attachment]
+      }
+    ) as ProcessedResponse;
+
+    expect(response).toBeDefined();
+    expect(typeof response.content).toBe('string');
+    expect(response.content.length).toBeGreaterThan(0);
+
+    console.log('Chat response with attachment received');
+    console.log('Response content preview:', response.content.substring(0, 200) + '...');
+  }); // Use global timeout
+
+  test('should stream chat with image attachment', async () => {
+    const testImagePath = path.join(__dirname, 'fixtures', 'test-image.png');
+
+    // Verify test file exists
+    if (!fs.existsSync(testImagePath)) {
+      console.warn('Test image not found, skipping stream with attachment test');
+      return;
+    }
+
+    console.log('Uploading image for stream with attachment test');
+
+    // First upload the image to get attachment
+    const attachment = await client.uploadFile(testImagePath);
+    expect(attachment).toBeDefined();
+    expect(attachment.url).toBeDefined();
+
+    console.log('Streaming chat message with image attachment');
+
+    const messages: ChatMessage[] = [
+      { role: 'user', content: 'Describe what you see in this image' }
+    ];
+
+    const chunks: StreamChunk[] = [];
+    let textContent = '';
+    const MAX_CHUNKS = 150;
+
+    for await (const chunk of client.chatStream({
+      vaultId: process.env.VAULT_ID || 'default',
+      messages,
+      processChunks: true,
+      attachments: [attachment]
+    })) {
+      if ('type' in chunk) {
+        chunks.push(chunk);
+
+        if (chunk.type === 'text' && typeof chunk.value === 'string') {
+          textContent += chunk.value;
+        }
+
+        // Break after finish event or if we've processed enough chunks
+        if (chunk.type === 'finish' || chunks.length >= MAX_CHUNKS) {
+          break;
+        }
+      }
+    }
+
+    expect(chunks.length).toBeGreaterThan(0);
+    expect(textContent.length).toBeGreaterThan(0);
+
+    console.log(`Stream with attachment processed ${chunks.length} chunks`);
+    console.log('Response content preview:', textContent.substring(0, 200) + '...');
+  }); // Use global timeout
+
+  test('should send chat with multiple image attachments', async () => {
+    const testPngPath = path.join(__dirname, 'fixtures', 'test-image.png');
+    const testJpgPath = path.join(__dirname, 'fixtures', 'test-image.jpg');
+
+    // Verify test files exist
+    if (!fs.existsSync(testPngPath) || !fs.existsSync(testJpgPath)) {
+      console.warn('Test images not found, skipping multiple attachments test');
+      return;
+    }
+
+    console.log('Uploading multiple images for chat');
+
+    // Upload both images
+    const [pngAttachment, jpgAttachment] = await Promise.all([
+      client.uploadFile(testPngPath),
+      client.uploadFile(testJpgPath)
+    ]);
+
+    expect(pngAttachment).toBeDefined();
+    expect(jpgAttachment).toBeDefined();
+
+    console.log('Sending chat message with multiple attachments');
+
+    // Send chat message with multiple attachments
+    const response = await client.chat(
+      [{ role: 'user' as const, content: 'Can you compare these two images?' }],
+      {
+        vaultId: process.env.VAULT_ID || 'default',
+        attachments: [pngAttachment, jpgAttachment]
+      }
+    ) as ProcessedResponse;
+
+    expect(response).toBeDefined();
+    expect(typeof response.content).toBe('string');
+    expect(response.content.length).toBeGreaterThan(0);
+
+    console.log('Chat response with multiple attachments received');
+    console.log('Response preview:', response.content.substring(0, 200) + '...');
+  }); // Use global timeout
 });

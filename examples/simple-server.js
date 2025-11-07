@@ -343,6 +343,126 @@ async function main() {
     }
 
     /**
+     * Handle file upload endpoint
+     */
+    async function handleUpload(req, res) {
+      try {
+        // Collect the file data
+        const chunks = [];
+        let totalSize = 0;
+        const maxSize = 10 * 1024 * 1024; // 10MB limit
+
+        req.on('data', (chunk) => {
+          totalSize += chunk.length;
+          if (totalSize > maxSize) {
+            res.writeHead(413, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'File too large. Maximum size is 10MB.' }));
+            return;
+          }
+          chunks.push(chunk);
+        });
+
+        req.on('end', async () => {
+          try {
+            const buffer = Buffer.concat(chunks);
+
+            // Parse multipart form data (simple implementation)
+            const boundary = req.headers['content-type'].split('boundary=')[1];
+            if (!boundary) {
+              return sendError(res, 400, 'No boundary found in multipart request');
+            }
+
+            // Extract file data from multipart
+            const parts = buffer.toString('binary').split(`--${boundary}`);
+            let fileBuffer = null;
+            let fileName = 'uploaded-file';
+
+            for (const part of parts) {
+              if (part.includes('Content-Disposition: form-data')) {
+                const filenameMatch = part.match(/filename="(.+?)"/);
+                if (filenameMatch) {
+                  fileName = filenameMatch[1];
+                }
+
+                // Find the file content (after double CRLF)
+                const contentStart = part.indexOf('\r\n\r\n');
+                if (contentStart !== -1) {
+                  const contentEnd = part.lastIndexOf('\r\n');
+                  if (contentEnd > contentStart) {
+                    const binaryContent = part.slice(contentStart + 4, contentEnd);
+                    fileBuffer = Buffer.from(binaryContent, 'binary');
+                    break;
+                  }
+                }
+              }
+            }
+
+            if (!fileBuffer) {
+              return sendError(res, 400, 'No file found in request');
+            }
+
+            // Check for custom headers
+            const customApiKey = req.headers['x-api-key'];
+            const customBaseUrl = req.headers['x-base-url'];
+
+            // Use custom client if headers provided
+            let clientToUse = client;
+            if (customApiKey || customBaseUrl) {
+              clientToUse = new HustleIncognitoClient({
+                apiKey: customApiKey || API_KEY,
+                debug: process.env.DEBUG === 'true',
+                ...(customBaseUrl && { hustleApiUrl: customBaseUrl })
+              });
+            }
+
+            console.log(`[${new Date().toISOString()}] Uploading file: ${fileName}`);
+
+            // Create a temporary file path
+            const fs = await import('fs');
+            const path = await import('path');
+            const os = await import('os');
+            const tempDir = os.tmpdir();
+            const tempFilePath = path.join(tempDir, `upload-${Date.now()}-${fileName}`);
+
+            // Write buffer to temp file
+            await fs.promises.writeFile(tempFilePath, fileBuffer);
+
+            try {
+              // Upload using the client
+              const attachment = await clientToUse.uploadFile(tempFilePath);
+
+              // Clean up temp file
+              await fs.promises.unlink(tempFilePath);
+
+              console.log(`[${new Date().toISOString()}] Upload successful: ${attachment.url}`);
+
+              // Send response
+              sendJSON(res, 200, {
+                success: true,
+                attachment
+              });
+            } catch (error) {
+              // Clean up temp file on error
+              await fs.promises.unlink(tempFilePath).catch(() => {});
+              throw error;
+            }
+          } catch (error) {
+            console.error('Error processing upload:', error);
+            sendError(res, 500, error.message);
+          }
+        });
+
+        req.on('error', (error) => {
+          console.error('Upload request error:', error);
+          sendError(res, 500, error.message);
+        });
+      } catch (error) {
+        console.error('Error in handleUpload:', error);
+        sendError(res, 500, error.message);
+      }
+    }
+
+    /**
      * Serve test UI
      */
     async function handleUI(req, res) {
@@ -416,6 +536,10 @@ async function main() {
 
       if (pathname === '/api/chat/stream' && method === 'POST') {
         return handleChatStream(req, res);
+      }
+
+      if (pathname === '/api/upload' && method === 'POST') {
+        return handleUpload(req, res);
       }
 
       // 404 for unknown routes

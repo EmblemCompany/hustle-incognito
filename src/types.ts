@@ -100,6 +100,8 @@ export interface RawStreamOptions {
    * @see {ToolCategory}
    */
   selectedToolCategories?: string[];
+  /** Optional attachments for the conversation */
+  attachments?: Attachment[];
 }
 
 /**
@@ -174,6 +176,12 @@ export interface ChatMessage {
   name?: string;
   /** Optional parts for structured content. */
   parts?: MessagePart[];
+  /** Optional experimental attachments for the message. */
+  experimental_attachments?: Array<{
+    contentType: string;
+    name: string;
+    url: string;
+  }>;
 }
 
 /**
@@ -186,6 +194,8 @@ export interface MessagePart {
   text?: string;
   /** The file URL if type is 'image' or 'file'. */
   url?: string;
+  /** The attachment ID if type is 'image' (for experimental_attachments). */
+  id?: string;
 }
 
 /**
