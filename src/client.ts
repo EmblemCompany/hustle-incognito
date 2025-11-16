@@ -317,16 +317,22 @@ export class HustleIncognitoClient {
           if (this.debug) console.log(`[${new Date().toISOString()}] Stream complete`);
           // Process any remaining buffered line
           if (lineBuffer.trim()) {
-            if (this.debug) console.log(`[${new Date().toISOString()}] Processing final buffered line`);
+            if (this.debug)
+              console.log(`[${new Date().toISOString()}] Processing final buffered line`);
             const prefix = lineBuffer.charAt(0);
             const data = lineBuffer.substring(2);
             let parsedData;
             try {
               parsedData = JSON.parse(data);
-              if (typeof parsedData === 'string' && (parsedData.startsWith('{') || parsedData.startsWith('['))) {
+              if (
+                typeof parsedData === 'string' &&
+                (parsedData.startsWith('{') || parsedData.startsWith('['))
+              ) {
                 try {
                   parsedData = JSON.parse(parsedData);
-                } catch (e) { /* keep single-decoded version */ }
+                } catch (e) {
+                  /* keep single-decoded version */
+                }
               }
             } catch (e) {
               parsedData = data;
@@ -362,7 +368,10 @@ export class HustleIncognitoClient {
 
               // Check if the result is still a JSON string (double-encoded)
               // This happens when the server sends tool results as stringified JSON
-              if (typeof parsedData === 'string' && (parsedData.startsWith('{') || parsedData.startsWith('['))) {
+              if (
+                typeof parsedData === 'string' &&
+                (parsedData.startsWith('{') || parsedData.startsWith('['))
+              ) {
                 try {
                   const doubleDecoded = JSON.parse(parsedData);
                   parsedData = doubleDecoded;
