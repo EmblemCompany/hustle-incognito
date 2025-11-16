@@ -308,17 +308,44 @@ export class HustleIncognitoClient {
 
       if (this.debug) console.log(`[${new Date().toISOString()}] Starting to read stream`);
 
+      // Buffer for incomplete lines that span chunk boundaries
+      let lineBuffer = '';
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
           if (this.debug) console.log(`[${new Date().toISOString()}] Stream complete`);
+          // Process any remaining buffered line
+          if (lineBuffer.trim()) {
+            if (this.debug) console.log(`[${new Date().toISOString()}] Processing final buffered line`);
+            const prefix = lineBuffer.charAt(0);
+            const data = lineBuffer.substring(2);
+            let parsedData;
+            try {
+              parsedData = JSON.parse(data);
+              if (typeof parsedData === 'string' && (parsedData.startsWith('{') || parsedData.startsWith('['))) {
+                try {
+                  parsedData = JSON.parse(parsedData);
+                } catch (e) { /* keep single-decoded version */ }
+              }
+            } catch (e) {
+              parsedData = data;
+            }
+            yield { prefix, data: parsedData, raw: lineBuffer };
+          }
           break;
         }
 
         const text = new TextDecoder().decode(value);
         if (this.debug) console.log(`[${new Date().toISOString()}] Raw stream data:`, text);
 
-        const lines = text.split('\n');
+        // Prepend any buffered content from previous chunk
+        const fullText = lineBuffer + text;
+        const lines = fullText.split('\n');
+
+        // The last element might be incomplete if it doesn't end with \n
+        // Save it for the next iteration
+        lineBuffer = text.endsWith('\n') ? '' : lines.pop() || '';
 
         for (const line of lines) {
           if (!line.trim()) continue;
@@ -328,9 +355,30 @@ export class HustleIncognitoClient {
             const data = line.substring(2);
 
             // Parse JSON if it's valid JSON, otherwise leave as string
+            // Also handle double-encoded JSON (JSON string within JSON)
             let parsedData;
             try {
               parsedData = JSON.parse(data);
+
+              // Check if the result is still a JSON string (double-encoded)
+              // This happens when the server sends tool results as stringified JSON
+              if (typeof parsedData === 'string' && (parsedData.startsWith('{') || parsedData.startsWith('['))) {
+                try {
+                  const doubleDecoded = JSON.parse(parsedData);
+                  parsedData = doubleDecoded;
+                  if (this.debug)
+                    console.log(
+                      `[${new Date().toISOString()}] Double-decoded JSON data for prefix ${prefix}`
+                    );
+                } catch (e) {
+                  // If it fails to parse again, keep the single-decoded version
+                  if (this.debug)
+                    console.log(
+                      `[${new Date().toISOString()}] Single-decoded JSON data for prefix ${prefix}`
+                    );
+                }
+              }
+
               if (this.debug)
                 console.log(
                   `[${new Date().toISOString()}] Parsed JSON data for prefix ${prefix}:`,
