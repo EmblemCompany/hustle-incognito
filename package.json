@@ -1,21 +1,21 @@
 {
   "name": "hustle-incognito",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "SDK for interacting with the Emblem Vault Hustle Incognito Agent API",
   "author": "Emblem Vault",
   "license": "MIT",
   "type": "module",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
-  "types": "./dist/esm/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "exports": {
     ".": {
       "import": {
-        "types": "./dist/esm/index.d.ts",
+        "types": "./dist/types/index.d.ts",
         "default": "./dist/esm/index.js"
       },
       "require": {
-        "types": "./dist/cjs/index.d.ts",
+        "types": "./dist/types/index.d.ts",
         "default": "./dist/cjs/index.js"
       }
     }
@@ -25,9 +25,7 @@
     "README.md"
   ],
   "scripts": {
-    "build:esm": "tsc --outDir ./dist/esm",
-    "build:cjs": "tsc --module commonjs --outDir ./dist/cjs",
-    "build": "npm run build:esm && npm run build:cjs",
+    "build": "rollup -c",
     "clean": "rimraf dist",
     "prebuild": "npm run clean",
     "test": "vitest run",
@@ -61,6 +59,10 @@
   },
   "homepage": "https://github.com/EmblemCompany/hustle-incognito#readme",
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-typescript": "^12.3.0",
     "@types/bun": "latest",
     "@types/node": "^20.11.25",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
@@ -69,7 +71,10 @@
     "eslint": "^8.57.1",
     "prettier": "^3.5.3",
     "rimraf": "^5.0.10",
+    "rollup": "^4.53.3",
+    "rollup-plugin-dts": "^6.2.3",
     "ts-node": "^10.9.2",
+    "tslib": "^2.8.1",
     "typescript": "^5.4.2",
     "vitest": "^4.0.6"
   },

@@ -49,7 +49,9 @@ export class HustleIncognitoClient {
       API_ENDPOINTS.PRODUCTION;
     this.userKey = options.userKey;
     this.userSecret = options.userSecret;
-    this.fetchImpl = options.fetch || fetch;
+    this.fetchImpl =
+      options.fetch ||
+      (typeof window !== 'undefined' ? (url: any, init: any) => window.fetch(url, init) : fetch);
     this.debug = options.debug || false;
     this.cookie = options.cookie || (process.env && process.env['COOKIE']);
 
@@ -422,6 +424,7 @@ export class HustleIncognitoClient {
     const response = await this.fetchImpl(`${this.baseUrl}/api/tools/categories`, {
       method: 'GET',
       headers: this.getHeaders(),
+      mode: 'cors',
     });
 
     if (!response.ok) {
@@ -442,10 +445,7 @@ export class HustleIncognitoClient {
    * @param fileName - Optional custom filename
    * @returns A promise resolving to the Attachment object
    */
-  public async uploadFile(
-    file: string | Blob | File,
-    fileName?: string
-  ): Promise<Attachment> {
+  public async uploadFile(file: string | Blob | File, fileName?: string): Promise<Attachment> {
     const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 
     const supportedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -505,8 +505,8 @@ export class HustleIncognitoClient {
         const filePath = file;
 
         // Dynamic imports for Node.js modules
-        const fs = await import('node:fs');
-        const path = await import('node:path');
+        const fs = await import('fs');
+        const path = await import('path');
 
         if (!fs.existsSync(filePath)) {
           throw new Error(`File not found: ${filePath}`);
@@ -613,6 +613,7 @@ export class HustleIncognitoClient {
       method: 'POST',
       headers,
       body: formData,
+      mode: 'cors',
     });
 
     if (!response.ok) {
@@ -719,6 +720,7 @@ export class HustleIncognitoClient {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(requestBody),
+      mode: 'cors',
     });
 
     if (!response.ok) {
