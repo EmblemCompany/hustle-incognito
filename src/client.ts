@@ -14,7 +14,7 @@ import type {
 } from './types';
 
 // Define SDK version manually until we can properly import from package.json
-const SDK_VERSION = '0.1.0';
+const SDK_VERSION = '0.2.3';
 
 // Default API endpoints
 const API_ENDPOINTS = {
@@ -434,78 +434,169 @@ export class HustleIncognitoClient {
 
   /**
    * Uploads a file to the server and returns the attachment info.
+   * Browser-safe: accepts `File`/`Blob` in the browser and
+   * file path strings in Node.js. Avoids importing Node modules
+   * in browser bundles.
    *
-   * @param filePath - The path to the file to upload
+   * @param file - A File/Blob (browser) or a filesystem path (Node)
    * @param fileName - Optional custom filename
    * @returns A promise resolving to the Attachment object
    */
-  public async uploadFile(filePath: string, fileName?: string): Promise<Attachment> {
-    const fs = await import('fs');
-    const path = await import('path');
-    const { fileTypeFromBuffer } = await import('file-type');
+  public async uploadFile(
+    file: string | Blob | File,
+    fileName?: string
+  ): Promise<Attachment> {
+    const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`File not found: ${filePath}`);
-    }
+    const supportedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const extToMime: Record<string, string> = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+    };
 
-    const fileBuffer = fs.readFileSync(filePath);
-    const actualFileName = fileName || path.basename(filePath);
+    let actualFileName = fileName || 'uploaded-image';
+    let contentType: string | undefined;
+    let blobForUpload: Blob | null = null;
 
-    // Use proper MIME type detection
-    const fileType = await fileTypeFromBuffer(fileBuffer);
-    let contentType = 'application/octet-stream';
-
-    if (fileType) {
-      contentType = fileType.mime;
-
-      // Check if it's a supported image type
-      const supportedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-      if (!supportedImageTypes.includes(contentType)) {
+    if (isBrowser) {
+      // In the browser we require a File or Blob
+      if (typeof file === 'string') {
         throw new Error(
-          `Unsupported file type: ${contentType}. Supported types: JPEG, PNG, GIF, WebP`
+          'In the browser, uploadFile expects a File or Blob. Paths are not supported.'
         );
       }
-    } else {
-      // Fallback to extension-based detection if file-type can't determine it
-      const ext = path.extname(filePath).toLowerCase();
-      if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
-        // If it's one of our expected extensions but file-type couldn't detect it,
-        // we can still try to proceed with a basic mapping
-        const extToMime: Record<string, string> = {
-          '.jpg': 'image/jpeg',
-          '.jpeg': 'image/jpeg',
-          '.png': 'image/png',
-          '.gif': 'image/gif',
-          '.webp': 'image/webp',
-        };
-        contentType = extToMime[ext] || 'application/octet-stream';
+
+      const input = file as Blob; // File extends Blob
+
+      // Derive filename and content type
+      if (typeof File !== 'undefined' && input instanceof File) {
+        actualFileName = fileName || input.name || actualFileName;
+        contentType = input.type || undefined;
       } else {
-        throw new Error(`Unable to determine file type for: ${actualFileName}`);
+        actualFileName = fileName || actualFileName;
+        contentType = (input as Blob).type || undefined;
+      }
+
+      // If the Blob/File lacks a type, try extension-based detection
+      if (!contentType) {
+        const extMatch = /\.[^.]+$/.exec(actualFileName || '');
+        const ext = extMatch ? extMatch[0].toLowerCase() : '';
+        if (ext in extToMime) contentType = extToMime[ext];
+      }
+
+      if (!contentType || !supportedImageTypes.includes(contentType)) {
+        throw new Error(
+          `Unsupported file type: ${contentType || 'unknown'}. Supported types: JPEG, PNG, GIF, WebP`
+        );
+      }
+
+      // Enforce size limit using Blob/File size
+      if ((input as Blob).size > 5 * 1024 * 1024) {
+        throw new Error('File size should be less than 5MB');
+      }
+
+      blobForUpload = input;
+    } else {
+      // Node.js environment
+      if (typeof file === 'string') {
+        const filePath = file;
+
+        // Dynamic imports for Node.js modules
+        const fs = await import('node:fs');
+        const path = await import('node:path');
+
+        if (!fs.existsSync(filePath)) {
+          throw new Error(`File not found: ${filePath}`);
+        }
+
+        const fileBuffer: Uint8Array = fs.readFileSync(filePath);
+        actualFileName = fileName || path.basename(filePath);
+
+        // Determine content type by extension first
+        const ext = path.extname(filePath).toLowerCase();
+        contentType = extToMime[ext];
+
+        // If extension is missing or unrecognized, try detecting from content
+        if (!contentType) {
+          try {
+            const ft = await import('file-type');
+            const detected = await ft.fileTypeFromBuffer(fileBuffer);
+            if (detected?.mime) {
+              contentType = detected.mime;
+            }
+          } catch {
+            // ignore detection errors and fall through
+          }
+        }
+
+        if (!contentType || !supportedImageTypes.includes(contentType)) {
+          throw new Error(
+            `Unsupported file type: ${contentType || ext || 'unknown'}. Supported types: JPEG, PNG, GIF, WebP`
+          );
+        }
+
+        // Size check (5MB)
+        if ((fileBuffer as Uint8Array).length > 5 * 1024 * 1024) {
+          throw new Error('File size should be less than 5MB');
+        }
+
+        const uint8Array = new Uint8Array(fileBuffer);
+        blobForUpload = new Blob([uint8Array], { type: contentType });
+      } else {
+        // Blob/File passed in Node environment
+        const input = file as Blob; // File extends Blob
+
+        if (typeof File !== 'undefined' && (file as any) instanceof File) {
+          actualFileName = fileName || (file as File).name || actualFileName;
+          contentType = (file as File).type || undefined;
+        } else {
+          actualFileName = fileName || actualFileName;
+          contentType = input.type || undefined;
+        }
+
+        if (!contentType) {
+          const extMatch = /\.[^.]+$/.exec(actualFileName || '');
+          const ext = extMatch ? extMatch[0].toLowerCase() : '';
+          if (ext in extToMime) contentType = extToMime[ext];
+        }
+
+        if (!contentType || !supportedImageTypes.includes(contentType)) {
+          throw new Error(
+            `Unsupported file type: ${contentType || 'unknown'}. Supported types: JPEG, PNG, GIF, WebP`
+          );
+        }
+
+        if (input.size > 5 * 1024 * 1024) {
+          throw new Error('File size should be less than 5MB');
+        }
+
+        blobForUpload = input;
       }
     }
 
-    // Check file size (5MB limit)
-    if (fileBuffer.length > 5 * 1024 * 1024) {
-      throw new Error('File size should be less than 5MB');
-    }
-
-    // Create FormData with Node.js compatibility
+    // Prepare FormData. Ensure a filename is provided when appending.
     const formData = new FormData();
+    if (typeof File !== 'undefined') {
+      // If we already have a File with a name, reuse it, otherwise wrap Blob in a File
+      const fileIsFile = !isBrowser
+        ? typeof File !== 'undefined' && blobForUpload && (blobForUpload as any) instanceof File
+        : blobForUpload instanceof File;
 
-    // Check if we're in Node.js environment
-    const isNode = typeof window === 'undefined' && typeof global !== 'undefined';
-
-    if (isNode) {
-      // Node.js environment - create a Blob from buffer for undici FormData
-      const uint8Array = new Uint8Array(fileBuffer);
-      const blob = new Blob([uint8Array], { type: contentType });
-      formData.append('file', blob, actualFileName);
+      if (fileIsFile) {
+        formData.append('file', blobForUpload as File, actualFileName);
+      } else {
+        // Wrap Blob with a filename for best compatibility
+        const wrapped = new File([blobForUpload as Blob], actualFileName, {
+          type: contentType,
+        });
+        formData.append('file', wrapped, actualFileName);
+      }
     } else {
-      // Browser environment - use Blob and File
-      const uint8Array = new Uint8Array(fileBuffer);
-      const blob = new Blob([uint8Array], { type: contentType });
-      const file = new File([blob], actualFileName, { type: contentType });
-      formData.append('file', file);
+      // Older Node runtimes: append Blob directly
+      formData.append('file', blobForUpload as Blob, actualFileName);
     }
 
     if (this.debug) {
@@ -515,7 +606,7 @@ export class HustleIncognitoClient {
     }
 
     const headers = this.getHeaders();
-    // Remove Content-Type header to let the browser set it with boundary for FormData
+    // Remove Content-Type header to let the browser/undici set it with boundary for FormData
     delete headers['Content-Type'];
 
     const response = await this.fetchImpl(`${this.baseUrl}/api/files/upload`, {
@@ -537,7 +628,7 @@ export class HustleIncognitoClient {
 
     return {
       name: actualFileName,
-      contentType,
+      contentType: contentType || 'application/octet-stream',
       url: uploadResult.url,
     };
   }

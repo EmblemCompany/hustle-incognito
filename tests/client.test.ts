@@ -1,6 +1,29 @@
-import { describe, test, expect, vi } from 'vitest';
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 import { HustleIncognitoClient } from '../src';
 import type { ProcessedResponse, StreamChunk, RawChunk } from '../src/types';
+
+// Mock Node.js modules at the top level
+vi.mock('node:fs', () => ({
+  existsSync: vi.fn(),
+  readFileSync: vi.fn(),
+  default: {
+    existsSync: vi.fn(),
+    readFileSync: vi.fn(),
+  }
+}));
+
+vi.mock('node:path', () => ({
+  basename: vi.fn(),
+  extname: vi.fn(),
+  default: {
+    basename: vi.fn(),
+    extname: vi.fn(),
+  }
+}));
+
+vi.mock('file-type', () => ({
+  fileTypeFromBuffer: vi.fn(),
+}));
 
 describe('HustleIncognitoClient', () => {
   test('should initialize with required API key', () => {
@@ -320,39 +343,45 @@ describe('HustleIncognitoClient', () => {
   });
 
   describe('uploadFile', () => {
+    let fs: any;
+    let path: any;
+    let fileType: any;
+
+    beforeEach(async () => {
+      fs = await import('node:fs');
+      path = await import('node:path');
+      fileType = await import('file-type');
+      vi.clearAllMocks();
+    });
+
     test('should upload a PNG file successfully', async () => {
       const client = new HustleIncognitoClient({ apiKey: 'test-key' });
-      
+
       // Mock file system and fetch
       const mockFileBuffer = Buffer.from('fake-png-data');
       const mockResponse = {
         ok: true,
         json: () => Promise.resolve({ url: 'https://example.com/uploaded-file.png' })
       };
-      
+
       const mockFetch = vi.fn().mockResolvedValue(mockResponse);
       // @ts-expect-error - Overriding private property for testing
       client.fetchImpl = mockFetch;
-      
-      // Mock file system modules using dynamic import pattern
-      vi.doMock('fs', () => ({
-        existsSync: vi.fn().mockReturnValue(true),
-        readFileSync: vi.fn().mockReturnValue(mockFileBuffer)
-      }));
-      
-      vi.doMock('path', () => ({
-        basename: vi.fn().mockReturnValue('test.png'),
-        extname: vi.fn().mockReturnValue('.png')
-      }));
-      
+
+      // Set up mocks
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockReturnValue(mockFileBuffer);
+      vi.mocked(path.basename).mockReturnValue('test.png');
+      vi.mocked(path.extname).mockReturnValue('.png');
+
       const result = await client.uploadFile('/path/to/test.png');
-      
+
       expect(result).toEqual({
         name: 'test.png',
         contentType: 'image/png',
         url: 'https://example.com/uploaded-file.png'
       });
-      
+
       expect(mockFetch).toHaveBeenCalledWith(
         'https://agenthustle.ai/api/files/upload',
         expect.objectContaining({
@@ -364,11 +393,9 @@ describe('HustleIncognitoClient', () => {
 
     test('should throw error for non-existent file', async () => {
       const client = new HustleIncognitoClient({ apiKey: 'test-key' });
-      
-      vi.doMock('fs', () => ({
-        existsSync: vi.fn().mockReturnValue(false)
-      }));
-      
+
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+
       await expect(client.uploadFile('/path/to/nonexistent.png'))
         .rejects
         .toThrow('File not found: /path/to/nonexistent.png');
@@ -376,38 +403,29 @@ describe('HustleIncognitoClient', () => {
 
     test('should throw error for unsupported file type', async () => {
       const client = new HustleIncognitoClient({ apiKey: 'test-key' });
-      
-      vi.doMock('fs', () => ({
-        existsSync: vi.fn().mockReturnValue(true),
-        readFileSync: vi.fn().mockReturnValue(Buffer.from('fake-data'))
-      }));
-      
-      vi.doMock('path', () => ({
-        basename: vi.fn().mockReturnValue('test.txt'),
-        extname: vi.fn().mockReturnValue('.txt')
-      }));
-      
+
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockReturnValue(Buffer.from('fake-data'));
+      vi.mocked(path.basename).mockReturnValue('test.txt');
+      vi.mocked(path.extname).mockReturnValue('.txt');
+      vi.mocked(fileType.fileTypeFromBuffer).mockResolvedValue(undefined);
+
       await expect(client.uploadFile('/path/to/test.txt'))
         .rejects
-        .toThrow('Unable to determine file type for: test.txt');
+        .toThrow('Unsupported file type');
     });
 
     test('should throw error for file size exceeding limit', async () => {
       const client = new HustleIncognitoClient({ apiKey: 'test-key' });
-      
+
       // Create a buffer larger than 5MB
       const largeMockFileBuffer = Buffer.alloc(6 * 1024 * 1024, 'x');
-      
-      vi.doMock('fs', () => ({
-        existsSync: vi.fn().mockReturnValue(true),
-        readFileSync: vi.fn().mockReturnValue(largeMockFileBuffer)
-      }));
-      
-      vi.doMock('path', () => ({
-        basename: vi.fn().mockReturnValue('large.png'),
-        extname: vi.fn().mockReturnValue('.png')
-      }));
-      
+
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockReturnValue(largeMockFileBuffer);
+      vi.mocked(path.basename).mockReturnValue('large.png');
+      vi.mocked(path.extname).mockReturnValue('.png');
+
       await expect(client.uploadFile('/path/to/large.png'))
         .rejects
         .toThrow('File size should be less than 5MB');
@@ -415,7 +433,7 @@ describe('HustleIncognitoClient', () => {
 
     test('should handle upload API error', async () => {
       const client = new HustleIncognitoClient({ apiKey: 'test-key' });
-      
+
       const mockFileBuffer = Buffer.from('fake-data');
       const mockResponse = {
         ok: false,
@@ -423,21 +441,16 @@ describe('HustleIncognitoClient', () => {
         statusText: 'Bad Request',
         text: () => Promise.resolve('Invalid file format')
       };
-      
+
       const mockFetch = vi.fn().mockResolvedValue(mockResponse);
       // @ts-expect-error - Overriding private property for testing
       client.fetchImpl = mockFetch;
-      
-      vi.doMock('fs', () => ({
-        existsSync: vi.fn().mockReturnValue(true),
-        readFileSync: vi.fn().mockReturnValue(mockFileBuffer)
-      }));
-      
-      vi.doMock('path', () => ({
-        basename: vi.fn().mockReturnValue('test.png'),
-        extname: vi.fn().mockReturnValue('.png')
-      }));
-      
+
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockReturnValue(mockFileBuffer);
+      vi.mocked(path.basename).mockReturnValue('test.png');
+      vi.mocked(path.extname).mockReturnValue('.png');
+
       await expect(client.uploadFile('/path/to/test.png'))
         .rejects
         .toThrow('Upload failed: 400 Bad Request - Invalid file format');
@@ -445,7 +458,7 @@ describe('HustleIncognitoClient', () => {
 
     test('should correctly identify different image content types', async () => {
       const client = new HustleIncognitoClient({ apiKey: 'test-key' });
-      
+
       const testCases = [
         { ext: '.jpg', expectedType: 'image/jpeg' },
         { ext: '.jpeg', expectedType: 'image/jpeg' },
@@ -453,31 +466,26 @@ describe('HustleIncognitoClient', () => {
         { ext: '.gif', expectedType: 'image/gif' },
         { ext: '.webp', expectedType: 'image/webp' }
       ];
-      
+
       for (const testCase of testCases) {
         const mockFileBuffer = Buffer.from('fake-data');
         const mockResponse = {
           ok: true,
           json: () => Promise.resolve({ url: `https://example.com/test${testCase.ext}` })
         };
-        
+
         const mockFetch = vi.fn().mockResolvedValue(mockResponse);
         // @ts-expect-error - Overriding private property for testing
         client.fetchImpl = mockFetch;
-        
-        vi.doMock('fs', () => ({
-          existsSync: vi.fn().mockReturnValue(true),
-          readFileSync: vi.fn().mockReturnValue(mockFileBuffer)
-        }));
-        
-        vi.doMock('path', () => ({
-          basename: vi.fn().mockReturnValue(`test${testCase.ext}`),
-          extname: vi.fn().mockReturnValue(testCase.ext)
-        }));
-        
+
+        vi.mocked(fs.existsSync).mockReturnValue(true);
+        vi.mocked(fs.readFileSync).mockReturnValue(mockFileBuffer);
+        vi.mocked(path.basename).mockReturnValue(`test${testCase.ext}`);
+        vi.mocked(path.extname).mockReturnValue(testCase.ext);
+
         const result = await client.uploadFile(`/path/to/test${testCase.ext}`);
         expect(result.contentType).toBe(testCase.expectedType);
-        
+
         vi.clearAllMocks();
       }
     });
@@ -507,15 +515,11 @@ describe('HustleIncognitoClient', () => {
       // @ts-expect-error - Overriding private property for testing
       client.fetchImpl = mockFetch;
 
-      vi.doMock('fs', () => ({
-        existsSync: vi.fn().mockReturnValue(true),
-        readFileSync: vi.fn().mockReturnValue(pngBuffer)
-      }));
-
-      vi.doMock('path', () => ({
-        basename: vi.fn().mockReturnValue('test-image'),
-        extname: vi.fn().mockReturnValue('')  // No extension
-      }));
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockReturnValue(pngBuffer);
+      vi.mocked(path.basename).mockReturnValue('test-image');
+      vi.mocked(path.extname).mockReturnValue('');  // No extension
+      vi.mocked(fileType.fileTypeFromBuffer).mockResolvedValue({ mime: 'image/png', ext: 'png' });
 
       const result = await client.uploadFile('/path/to/test-image');
 
