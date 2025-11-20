@@ -49,9 +49,9 @@ export class HustleIncognitoClient {
       API_ENDPOINTS.PRODUCTION;
     this.userKey = options.userKey;
     this.userSecret = options.userSecret;
-    this.fetchImpl = options.fetch || (typeof window !== 'undefined' ?
-      (url: any, init: any) => window.fetch(url, init) :
-      fetch);
+    this.fetchImpl =
+      options.fetch ||
+      (typeof window !== 'undefined' ? (url: any, init: any) => window.fetch(url, init) : fetch);
     this.debug = options.debug || false;
     this.cookie = options.cookie || (process.env && process.env['COOKIE']);
 
@@ -445,10 +445,7 @@ export class HustleIncognitoClient {
    * @param fileName - Optional custom filename
    * @returns A promise resolving to the Attachment object
    */
-  public async uploadFile(
-    file: string | Blob | File,
-    fileName?: string
-  ): Promise<Attachment> {
+  public async uploadFile(file: string | Blob | File, fileName?: string): Promise<Attachment> {
     const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
 
     const supportedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
