@@ -13,8 +13,11 @@ import type {
   ToolCategory,
 } from './types';
 
-// Define SDK version manually until we can properly import from package.json
-const SDK_VERSION = '0.2.3';
+type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
+// Injected at build time by rollup-plugin-replace from package.json version
+declare const __SDK_VERSION__: string;
+const SDK_VERSION = __SDK_VERSION__;
 
 // Default API endpoints
 const API_ENDPOINTS = {
@@ -30,7 +33,7 @@ export class HustleIncognitoClient {
   private readonly userKey?: string;
   private readonly userSecret?: string;
   private readonly sdkVersion: string = SDK_VERSION;
-  private readonly fetchImpl: typeof fetch;
+  private readonly fetchImpl: FetchLike;
   private readonly debug: boolean;
   private readonly cookie?: string;
 
@@ -49,9 +52,12 @@ export class HustleIncognitoClient {
       API_ENDPOINTS.PRODUCTION;
     this.userKey = options.userKey;
     this.userSecret = options.userSecret;
-    this.fetchImpl =
-      options.fetch ||
-      (typeof window !== 'undefined' ? (url: any, init: any) => window.fetch(url, init) : fetch);
+    const defaultFetch: FetchLike = options.fetch
+      ? (options.fetch as FetchLike)
+      : typeof window !== 'undefined'
+      ? (window.fetch.bind(window) as FetchLike)
+      : (fetch as FetchLike);
+    this.fetchImpl = defaultFetch;
     this.debug = options.debug || false;
     this.cookie = options.cookie || (process.env && process.env['COOKIE']);
 

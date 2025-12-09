@@ -32,7 +32,7 @@ export interface HustleIncognitoClientOptions {
   /** Optional user secret associated with the user key. */
   userSecret?: string;
   /** Optional fetch implementation for environments without native fetch. */
-  fetch?: typeof fetch;
+  fetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
   /** Enable debug logging. */
   debug?: boolean;
   /** Optional cookie for authentication with Vercel. */

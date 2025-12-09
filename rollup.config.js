@@ -2,7 +2,12 @@ import typescript from '@rollup/plugin-typescript';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
+import replace from '@rollup/plugin-replace';
 import { dts } from 'rollup-plugin-dts';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const pkg = require('./package.json');
 
 const external = [
   'node:fs',
@@ -36,6 +41,10 @@ export default [
     },
     external,
     plugins: [
+      replace({
+        preventAssignment: true,
+        __SDK_VERSION__: JSON.stringify(pkg.version)
+      }),
       resolve({
         preferBuiltins: true,
         browser: true
@@ -61,6 +70,10 @@ export default [
     },
     external,
     plugins: [
+      replace({
+        preventAssignment: true,
+        __SDK_VERSION__: JSON.stringify(pkg.version)
+      }),
       resolve({
         preferBuiltins: true
       }),
