@@ -29,6 +29,201 @@
       color: #8892a4;
       margin-bottom: 24px;
     }
+    /* Auth Section Styles */
+    .auth-section {
+      margin-bottom: 20px;
+    }
+    .connect-container {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .connect-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #1a1f25;
+      border: 1px solid #333;
+      color: #e6eef8;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .connect-btn:hover {
+      background: #252b33;
+      border-color: #444;
+    }
+    .connect-icon {
+      font-size: 16px;
+    }
+    .connected-container {
+      position: relative;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .connected-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+    }
+    .connected-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      border: 1px solid #10b981;
+      color: #10b981;
+      padding: 8px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .connected-check {
+      color: #10b981;
+    }
+    .connected-dot {
+      color: #555;
+    }
+    .short-address {
+      color: #8892a4;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 13px;
+    }
+    .dropdown-arrow {
+      color: #8892a4;
+      font-size: 10px;
+      margin-left: 4px;
+    }
+    .logout-icon-btn {
+      background: transparent;
+      border: 1px solid #333;
+      color: #8892a4;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .logout-icon-btn:hover {
+      border-color: #dc2626;
+      color: #dc2626;
+    }
+    .vault-info-wrapper {
+      position: relative;
+    }
+    .vault-info-wrapper:hover .vault-info {
+      display: block;
+    }
+    .vault-info {
+      display: none;
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 8px;
+      background: #12161b;
+      border: 1px solid #222b35;
+      border-radius: 12px;
+      padding: 16px;
+      min-width: 380px;
+      z-index: 100;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .vault-info-header {
+      font-size: 11px;
+      font-weight: 600;
+      color: #8892a4;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+    .vault-info-row {
+      margin-bottom: 12px;
+    }
+    .vault-info-row:last-child {
+      margin-bottom: 0;
+    }
+    .vault-label {
+      display: block;
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+    .vault-value-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .vault-value {
+      font-size: 14px;
+      color: #e6eef8;
+      font-weight: 500;
+      flex: 1;
+    }
+    .vault-value.mono {
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 13px;
+      word-break: break-all;
+    }
+    .copy-btn {
+      background: transparent;
+      border: 1px solid #333;
+      color: #8892a4;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .copy-btn:hover {
+      background: #1a1f25;
+      border-color: #4c9aff;
+      color: #4c9aff;
+    }
+    .copy-btn.copied {
+      background: #10b981;
+      border-color: #10b981;
+      color: white;
+    }
+    .debug-toggle {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .debug-toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1px solid #333;
+      color: #6b7280;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+    .debug-toggle-btn:hover {
+      border-color: #4c9aff;
+      color: #4c9aff;
+    }
+    .debug-toggle-btn.active {
+      border-color: #4c9aff;
+      color: #4c9aff;
+      background: rgba(76, 154, 255, 0.1);
+    }
+    .debug-icon {
+      font-size: 14px;
+    }
     .card {
       background: #12161b;
       border: 1px solid #222b35;
@@ -101,6 +296,7 @@
     .chat-input {
       display: flex;
       gap: 8px;
+      flex: 1;
     }
     .chat-input input {
       flex: 1;
@@ -141,6 +337,79 @@
       color: #8892a4;
       margin-bottom: 4px;
     }
+    .message-content h1, .message-content h2, .message-content h3 {
+      color: #fff;
+      margin: 12px 0 8px 0;
+    }
+    .message-content h1 { font-size: 1.4em; }
+    .message-content h2 { font-size: 1.2em; }
+    .message-content h3 { font-size: 1.1em; }
+    .message-content p {
+      margin-bottom: 8px;
+      line-height: 1.6;
+    }
+    .message-content ul, .message-content ol {
+      margin: 8px 0 8px 20px;
+    }
+    .message-content li {
+      margin-bottom: 4px;
+    }
+    .message-content code {
+      background: #0f141a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 0.9em;
+    }
+    .message-content pre {
+      background: #0f141a;
+      padding: 12px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    .message-content pre code {
+      padding: 0;
+      background: none;
+    }
+    .message-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 0.9em;
+    }
+    .message-content th, .message-content td {
+      border: 1px solid #333;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    .message-content th {
+      background: #1a1f25;
+      font-weight: 600;
+    }
+    .message-content tr:nth-child(even) {
+      background: rgba(255,255,255,0.02);
+    }
+    .message-content a {
+      color: #4c9aff;
+      text-decoration: none;
+    }
+    .message-content a:hover {
+      text-decoration: underline;
+    }
+    .message-content strong {
+      color: #fff;
+      font-weight: 600;
+    }
+    .message-content em {
+      color: #a0aec0;
+    }
+    .message-content blockquote {
+      border-left: 3px solid #4c9aff;
+      padding-left: 12px;
+      margin: 8px 0;
+      color: #a0aec0;
+    }
     .loading {
       color: #8892a4;
       font-style: italic;
@@ -152,6 +421,109 @@
       border-radius: 8px;
       margin-top: 12px;
     }
+    .system-prompt-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #1a1f25;
+      color: #fff;
+      font-size: 13px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 60px;
+      margin-top: 8px;
+    }
+    .system-prompt-input:focus {
+      outline: none;
+      border-color: #4c9aff;
+    }
+    .chat-input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .file-upload-area {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .file-upload-area.has-files .file-upload-btn {
+      background: #1a2633;
+      border-color: #4c9aff;
+    }
+    .file-input {
+      display: none;
+    }
+    .file-upload-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      background: #1a1f25;
+      border: 1px solid #333;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .file-upload-btn:hover {
+      background: #252b33;
+      border-color: #4c9aff;
+    }
+    .file-upload-icon {
+      font-size: 18px;
+    }
+    .uploaded-files {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .uploaded-file {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: #1a1f25;
+      border-radius: 6px;
+      border: 1px solid #333;
+    }
+    .uploaded-file img {
+      width: 40px;
+      height: 40px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+    .uploaded-file-name {
+      font-size: 12px;
+      color: #e6eef8;
+      max-width: 100px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .remove-file-btn {
+      background: #dc2626;
+      color: white;
+      border: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .remove-file-btn:hover {
+      background: #ef4444;
+    }
+    .uploading {
+      color: #4c9aff;
+      font-size: 12px;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -159,41 +531,97 @@
     <h1>Hustle Incognito + Emblem Auth Demo</h1>
     <p class="subtitle">Demonstrates JWT authentication with the chat API</p>
 
-    <!-- Authentication Card -->
-    <div class="card">
-      <h2>Authentication</h2>
-      <div>
-        <button id="loginBtn" class="btn">Login with Emblem</button>
-        <button id="logoutBtn" class="btn btn-danger" style="display:none;">Logout</button>
+    <!-- Authentication Section -->
+    <div class="auth-section">
+      <!-- Not Connected State -->
+      <div id="connectContainer" class="connect-container">
+        <button id="loginBtn" class="connect-btn">
+          <span class="connect-icon">→</span>
+          Connect
+        </button>
       </div>
-      <div id="authStatus" class="status disconnected">Not authenticated - click Login to begin</div>
-      <details>
-        <summary style="cursor:pointer; color:#8892a4; margin-top:12px;">Session Details</summary>
-        <pre id="sessionInfo">No active session</pre>
-      </details>
+
+      <!-- Connected State -->
+      <div id="connectedContainer" class="connected-container" style="display:none;">
+        <div class="connected-header">
+          <div class="vault-info-wrapper">
+            <button id="connectedBtn" class="connected-btn">
+              <span class="connected-check">✓</span>
+              <span>Connected</span>
+              <span class="connected-dot">•</span>
+              <span id="shortAddress" class="short-address">0x0000...0000</span>
+              <span class="dropdown-arrow">▾</span>
+            </button>
+
+            <div id="vaultInfo" class="vault-info">
+              <div class="vault-info-header">VAULT INFORMATION</div>
+              <div class="vault-info-row">
+                <span class="vault-label">Vault ID</span>
+                <div class="vault-value-row">
+                  <span id="vaultIdDisplay" class="vault-value">#0</span>
+                  <button class="copy-btn" onclick="copyToClipboard('vaultIdDisplay', this)">Copy</button>
+                </div>
+              </div>
+              <div class="vault-info-row">
+                <span class="vault-label">Connected Wallet</span>
+                <div class="vault-value-row">
+                  <span id="walletDisplay" class="vault-value mono">0x0000000000000000000000000000000000000000</span>
+                  <button class="copy-btn" onclick="copyToClipboard('walletDisplay', this)">Copy</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button id="logoutBtn" class="logout-icon-btn" title="Disconnect">⏻</button>
+        </div>
+      </div>
     </div>
+    <div id="authStatus" style="display:none;"></div>
+    <pre id="sessionInfo" style="display:none;">No active session</pre>
 
     <!-- Chat Card -->
     <div class="card">
       <h2>Chat</h2>
+      <details style="margin-bottom: 12px;">
+        <summary style="cursor:pointer; color:#8892a4;">System Prompt (optional)</summary>
+        <textarea id="systemPrompt" class="system-prompt-input" placeholder="Enter a custom system prompt..."></textarea>
+      </details>
       <div class="chat-container">
         <div id="messages" class="messages">
-          <div class="loading">Login to start chatting...</div>
+          <div class="loading">Connect to start chatting...</div>
         </div>
-        <div class="chat-input">
-          <input type="text" id="messageInput" placeholder="Type a message..." disabled>
-          <button id="sendBtn" class="btn" disabled>Send</button>
+        <div class="chat-input-row">
+          <div class="file-upload-area" id="uploadArea">
+            <input type="file" id="fileInput" class="file-input" accept="image/*" multiple>
+            <label for="fileInput" class="file-upload-btn" title="Attach images">
+              <span class="file-upload-icon">📎</span>
+            </label>
+            <span id="uploadStatus" class="uploading" style="display:none;"></span>
+          </div>
+          <div class="chat-input">
+            <input type="text" id="messageInput" placeholder="Type a message..." disabled>
+            <button id="sendBtn" class="btn" disabled>Send</button>
+          </div>
         </div>
+        <div id="uploadedFiles" class="uploaded-files"></div>
       </div>
       <div id="chatError" class="error" style="display:none;"></div>
     </div>
 
-    <!-- Debug Card -->
-    <div class="card">
+    <!-- Debug Toggle -->
+    <div class="debug-toggle">
+      <button id="debugToggle" class="debug-toggle-btn">
+        <span class="debug-icon">⚙</span>
+        Debug
+      </button>
+    </div>
+    <div id="debugCard" class="card" style="display:none;">
       <h2>Debug Log</h2>
       <pre id="debugLog">Waiting for initialization...</pre>
     </div>
   </div>
+
+  <!-- Load Marked.js for markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
   <!-- Load Emblem Auth SDK from CDN -->
   <script src="https://unpkg.com/emblem-auth-sdk@latest/dist/emblem-auth.min.js"></script>
@@ -209,17 +637,30 @@
     let authSDK = null;
     let hustleClient = null;
     let messages = [];
+    let uploadedAttachments = [];
 
     // DOM elements
     const loginBtn = document.getElementById('loginBtn');
     const logoutBtn = document.getElementById('logoutBtn');
     const authStatus = document.getElementById('authStatus');
     const sessionInfo = document.getElementById('sessionInfo');
+    const connectContainer = document.getElementById('connectContainer');
+    const connectedContainer = document.getElementById('connectedContainer');
+    const shortAddressSpan = document.getElementById('shortAddress');
+    const vaultIdDisplay = document.getElementById('vaultIdDisplay');
+    const walletDisplay = document.getElementById('walletDisplay');
     const messagesDiv = document.getElementById('messages');
     const messageInput = document.getElementById('messageInput');
     const sendBtn = document.getElementById('sendBtn');
     const chatError = document.getElementById('chatError');
     const debugLog = document.getElementById('debugLog');
+    const debugToggle = document.getElementById('debugToggle');
+    const debugCard = document.getElementById('debugCard');
+    const systemPromptInput = document.getElementById('systemPrompt');
+    const fileInput = document.getElementById('fileInput');
+    const uploadArea = document.getElementById('uploadArea');
+    const uploadStatus = document.getElementById('uploadStatus');
+    const uploadedFilesDiv = document.getElementById('uploadedFiles');
 
     // Debug logging
     function log(msg) {
@@ -274,12 +715,47 @@
     }
 
     // Handle successful authentication
-    function handleAuthSuccess(session) {
-      authStatus.textContent = `Authenticated as vault ${session.user?.vaultId}`;
-      authStatus.className = 'status connected';
+    // Helper to truncate address
+    function truncateAddress(address) {
+      if (!address || address.length < 10) return address || '';
+      return `${address.slice(0, 6)}...${address.slice(-4)}`;
+    }
 
-      // Decode JWT claims for display
+    // Copy to clipboard helper
+    window.copyToClipboard = async function(elementId, btn) {
+      const element = document.getElementById(elementId);
+      const text = element.textContent.replace('#', ''); // Remove # prefix from vault ID
+
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'Copy';
+          btn.classList.remove('copied');
+        }, 1500);
+      } catch (err) {
+        log('Failed to copy: ' + err.message);
+      }
+    };
+
+    function handleAuthSuccess(session) {
+      // Get wallet/identifier from JWT claims
       const jwtClaims = session.authToken ? decodeJwt(session.authToken) : null;
+      const identifier = jwtClaims?.identifier || session.user?.identifier || '';
+      const walletAddress = identifier.replace('ethereum:', '');
+      const vaultId = session.user?.vaultId || '';
+
+      // Update UI - show connected state
+      connectContainer.style.display = 'none';
+      connectedContainer.style.display = 'block';
+
+      // Update vault info display
+      shortAddressSpan.textContent = truncateAddress(walletAddress);
+      vaultIdDisplay.textContent = `#${vaultId}`;
+      walletDisplay.textContent = walletAddress;
+
+      // Store session info for debugging
       const sessionWithClaims = {
         ...session,
         _jwtClaims: jwtClaims ? {
@@ -295,11 +771,7 @@
       };
       sessionInfo.textContent = JSON.stringify(sessionWithClaims, null, 2);
 
-      loginBtn.style.display = 'none';
-      logoutBtn.style.display = 'inline-block';
-
       // Create Hustle client with SDK auth
-      // Using experimental endpoint with dev auth
       log('Creating HustleIncognitoClient with SDK auth (experimental)...');
       hustleClient = new HustleIncognitoClient({
         sdk: authSDK,
@@ -312,7 +784,7 @@
       sendBtn.disabled = false;
       messagesDiv.innerHTML = '<div class="loading">Ready to chat! Type a message...</div>';
 
-      log('Chat enabled');
+      log(`Connected: vault #${vaultId}, wallet ${truncateAddress(walletAddress)}`);
     }
 
     // Handle logout
@@ -322,80 +794,217 @@
       }
       hustleClient = null;
 
-      authStatus.textContent = 'Not authenticated - click Login to begin';
-      authStatus.className = 'status disconnected';
+      // Reset UI to disconnected state
+      connectContainer.style.display = 'flex';
+      connectedContainer.style.display = 'none';
+
+      // Reset vault info
+      shortAddressSpan.textContent = '0x0000...0000';
+      vaultIdDisplay.textContent = '#0';
+      walletDisplay.textContent = '';
       sessionInfo.textContent = 'No active session';
 
-      loginBtn.style.display = 'inline-block';
-      logoutBtn.style.display = 'none';
-
+      // Disable chat
       messageInput.disabled = true;
       sendBtn.disabled = true;
       messages = [];
-      messagesDiv.innerHTML = '<div class="loading">Login to start chatting...</div>';
+      messagesDiv.innerHTML = '<div class="loading">Connect to start chatting...</div>';
 
-      log('Logged out');
+      // Clear attachments on logout
+      clearAttachments();
+
+      log('Disconnected');
     }
 
     // Render messages
+    // Configure marked for safe rendering
+    marked.setOptions({
+      breaks: true,
+      gfm: true
+    });
+
     function renderMessages() {
       if (messages.length === 0) {
         messagesDiv.innerHTML = '<div class="loading">Ready to chat! Type a message...</div>';
         return;
       }
 
-      messagesDiv.innerHTML = messages.map(m => `
-        <div class="message ${m.role}">
-          <div class="role">${m.role}</div>
-          <div>${m.content}</div>
-        </div>
-      `).join('');
+      messagesDiv.innerHTML = messages.map(m => {
+        // Parse markdown for assistant messages, escape HTML for user messages
+        const content = m.role === 'assistant'
+          ? marked.parse(m.content || '')
+          : escapeHtml(m.content || '');
+        return `
+          <div class="message ${m.role}">
+            <div class="role">${m.role}</div>
+            <div class="message-content">${content}</div>
+          </div>
+        `;
+      }).join('');
 
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
-    // Send a chat message
+    // Helper to escape HTML in user messages
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Handle file selection and upload via SDK
+    async function handleFileUpload(files) {
+      if (!hustleClient) {
+        showError('Please login first to upload files');
+        return;
+      }
+
+      for (const file of files) {
+        if (!file.type.startsWith('image/')) {
+          log('Skipping non-image file: ' + file.name);
+          continue;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+          showError(`File ${file.name} is too large. Maximum size is 5MB.`);
+          continue;
+        }
+
+        uploadStatus.textContent = `Uploading ${file.name}...`;
+        uploadStatus.style.display = 'inline';
+        log('Uploading file: ' + file.name);
+
+        try {
+          // Upload using the SDK's uploadFile method (accepts File in browser)
+          const attachment = await hustleClient.uploadFile(file);
+          uploadedAttachments.push(attachment);
+          log('Upload successful: ' + attachment.url);
+          renderUploadedFiles();
+        } catch (error) {
+          log('Upload failed: ' + error.message);
+          showError(`Failed to upload ${file.name}: ${error.message}`);
+        }
+      }
+
+      uploadStatus.style.display = 'none';
+      fileInput.value = '';
+    }
+
+    // Render uploaded files
+    function renderUploadedFiles() {
+      const count = uploadedAttachments.length;
+
+      if (count > 0) {
+        uploadArea.classList.add('has-files');
+      } else {
+        uploadArea.classList.remove('has-files');
+      }
+
+      uploadedFilesDiv.innerHTML = uploadedAttachments.map((attachment, index) => `
+        <div class="uploaded-file">
+          <img src="${attachment.url}" alt="${attachment.name}">
+          <span class="uploaded-file-name">${attachment.name}</span>
+          <button class="remove-file-btn" onclick="removeAttachment(${index})">x</button>
+        </div>
+      `).join('');
+    }
+
+    // Remove attachment
+    window.removeAttachment = function(index) {
+      uploadedAttachments.splice(index, 1);
+      renderUploadedFiles();
+      log('Removed attachment');
+    };
+
+    // Clear all attachments
+    function clearAttachments() {
+      uploadedAttachments = [];
+      renderUploadedFiles();
+    }
+
+    // Send a chat message with streaming
     async function sendMessage() {
       const content = messageInput.value.trim();
       if (!content || !hustleClient) return;
 
       messageInput.value = '';
+      sendBtn.disabled = true;
+      messageInput.disabled = true;
+
       messages.push({ role: 'user', content });
       renderMessages();
 
-      // Add loading indicator
-      messages.push({ role: 'assistant', content: 'Thinking...' });
+      // Add empty assistant message that we'll stream into
+      messages.push({ role: 'assistant', content: '' });
       renderMessages();
 
-      log('Sending message: ' + content.substring(0, 50) + '...');
+      log('Sending message (streaming): ' + content.substring(0, 50) + '...');
 
       try {
         chatError.style.display = 'none';
 
-        const response = await hustleClient.chat(
-          messages.slice(0, -1).map(m => ({ role: m.role, content: m.content })),
-          { safeMode: true }
-        );
+        // Build messages array with optional system prompt
+        const systemPrompt = systemPromptInput.value.trim();
+        const chatMessages = [];
 
-        // Remove loading indicator and add real response
-        messages.pop();
-
-        if (response.content) {
-          messages.push({ role: 'assistant', content: response.content });
-          log('Received response: ' + response.content.substring(0, 50) + '...');
-        } else if (Array.isArray(response)) {
-          // Raw response mode
-          const textChunks = response.filter(c => c.prefix === '0').map(c => c.data).join('');
-          messages.push({ role: 'assistant', content: textChunks || 'No response' });
-          log('Received raw response');
+        // Add system prompt as first message if provided
+        if (systemPrompt) {
+          chatMessages.push({ role: 'system', content: systemPrompt });
         }
 
-        renderMessages();
+        // Add conversation history (excluding the empty assistant message we just added)
+        chatMessages.push(...messages.slice(0, -1).map(m => ({ role: m.role, content: m.content })));
+
+        // Use chatStream for real-time streaming
+        const chatOptions = {
+          messages: chatMessages,
+          processChunks: true
+        };
+
+        // Add attachments if any
+        if (uploadedAttachments.length > 0) {
+          chatOptions.attachments = [...uploadedAttachments];
+          log('Including ' + uploadedAttachments.length + ' attachment(s) in request');
+        }
+
+        const stream = hustleClient.chatStream(chatOptions);
+
+        // Clear attachments after adding to request
+        clearAttachments();
+
+        let fullContent = '';
+
+        for await (const chunk of stream) {
+          if (chunk.type === 'text') {
+            fullContent += chunk.value;
+            // Update the last message with accumulated content
+            messages[messages.length - 1].content = fullContent;
+            renderMessages();
+          } else if (chunk.type === 'tool_call') {
+            log('Tool call: ' + JSON.stringify(chunk.value).substring(0, 100));
+          } else if (chunk.type === 'tool_result') {
+            log('Tool result received');
+          } else if (chunk.type === 'error') {
+            throw new Error(chunk.value?.message || 'Stream error');
+          }
+        }
+
+        if (!fullContent) {
+          messages[messages.length - 1].content = '(No response)';
+          renderMessages();
+        }
+
+        log('Stream complete: ' + fullContent.substring(0, 50) + '...');
       } catch (error) {
-        messages.pop(); // Remove loading indicator
+        // Update assistant message with error
+        messages[messages.length - 1].content = '❌ Error: ' + error.message;
         renderMessages();
         showError(error.message);
         log('Chat error: ' + error.message);
+      } finally {
+        sendBtn.disabled = false;
+        messageInput.disabled = false;
+        messageInput.focus();
       }
     }
 
@@ -419,8 +1028,36 @@
       if (e.key === 'Enter') sendMessage();
     });
 
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        handleFileUpload(e.target.files);
+      }
+    });
+
+    // Debug toggle
+    debugToggle.addEventListener('click', () => {
+      const isVisible = debugCard.style.display !== 'none';
+      debugCard.style.display = isVisible ? 'none' : 'block';
+      debugToggle.classList.toggle('active', !isVisible);
+    });
+
+    // Save system prompt to localStorage when changed
+    systemPromptInput.addEventListener('input', () => {
+      localStorage.setItem('hustle_auth_demo_system_prompt', systemPromptInput.value);
+    });
+
+    // Load system prompt from localStorage
+    function loadSystemPrompt() {
+      const saved = localStorage.getItem('hustle_auth_demo_system_prompt');
+      if (saved) {
+        systemPromptInput.value = saved;
+        log('Loaded system prompt from storage');
+      }
+    }
+
     // Initialize on load
     log('Page loaded, initializing...');
+    loadSystemPrompt();
     initAuth();
   </script>
 </body>

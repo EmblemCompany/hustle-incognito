@@ -489,37 +489,105 @@ async function main() {
     }
 
     /**
-     * Serve test UI
+     * Serve static HTML files
      */
-    async function handleUI(req, res) {
+    async function serveHtmlFile(res, filename, replacements = {}) {
       try {
         const fs = await import('fs');
         const path = await import('path');
         const { fileURLToPath } = await import('url');
         const __filename = fileURLToPath(import.meta.url);
         const __dirname = path.dirname(__filename);
-        const htmlPath = path.join(__dirname, 'demo-ui.html');
+        const htmlPath = path.join(__dirname, filename);
 
         // Read the HTML file
         fs.readFile(htmlPath, 'utf8', (err, data) => {
           if (err) {
-            console.error('Error reading demo-ui.html:', err);
-            // Fallback to serving error message if file not found
+            console.error(`Error reading ${filename}:`, err);
             res.writeHead(500, { 'Content-Type': 'text/html' });
-            res.end('<h1>Error: Could not load demo-ui.html</h1><p>Please ensure demo-ui.html exists in the examples directory.</p>');
+            res.end(`<h1>Error: Could not load ${filename}</h1><p>Please ensure ${filename} exists in the examples directory.</p>`);
             return;
           }
 
-          // Replace placeholder values with actual values
-          const updatedHtml = data.replace(/{{VAULT_ID_PLACEHOLDER}}/g, DEFAULT_VAULT_ID);
+          // Apply any placeholder replacements
+          let updatedHtml = data;
+          for (const [placeholder, value] of Object.entries(replacements)) {
+            updatedHtml = updatedHtml.replace(new RegExp(placeholder, 'g'), value);
+          }
 
           res.writeHead(200, { 'Content-Type': 'text/html' });
           res.end(updatedHtml);
         });
       } catch (error) {
-        console.error('Error in handleUI:', error);
+        console.error(`Error serving ${filename}:`, error);
         res.writeHead(500, { 'Content-Type': 'text/html' });
         res.end('<h1>Internal Server Error</h1>');
+      }
+    }
+
+    /**
+     * Serve landing page
+     */
+    function handleLandingPage(req, res) {
+      serveHtmlFile(res, 'index.html');
+    }
+
+    /**
+     * Serve API key demo UI (deprecated)
+     */
+    function handleDemoUI(req, res) {
+      serveHtmlFile(res, 'demo-ui.html', {
+        '{{VAULT_ID_PLACEHOLDER}}': DEFAULT_VAULT_ID
+      });
+    }
+
+    /**
+     * Serve Emblem Auth demo
+     */
+    function handleAuthDemo(req, res) {
+      serveHtmlFile(res, 'auth-chat-demo.html');
+    }
+
+    /**
+     * Serve static files from dist directory (for browser SDK)
+     */
+    async function handleDistFiles(req, res, filepath) {
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+        const { fileURLToPath } = await import('url');
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+
+        // Go up one level from examples to reach dist
+        const distPath = path.join(__dirname, '..', filepath);
+
+        // Determine content type
+        const ext = path.extname(filepath).toLowerCase();
+        const contentTypes = {
+          '.js': 'application/javascript',
+          '.mjs': 'application/javascript',
+          '.json': 'application/json',
+          '.css': 'text/css',
+          '.map': 'application/json'
+        };
+        const contentType = contentTypes[ext] || 'application/octet-stream';
+
+        fs.readFile(distPath, (err, data) => {
+          if (err) {
+            console.error(`Error reading ${filepath}:`, err);
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('Not found');
+            return;
+          }
+
+          res.writeHead(200, { 'Content-Type': contentType });
+          res.end(data);
+        });
+      } catch (error) {
+        console.error(`Error serving ${filepath}:`, error);
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Internal Server Error');
       }
     }
 
@@ -545,7 +613,20 @@ async function main() {
 
       // Route requests
       if (pathname === '/' && method === 'GET') {
-        return handleUI(req, res);
+        return handleLandingPage(req, res);
+      }
+
+      if (pathname === '/demo-ui.html' && method === 'GET') {
+        return handleDemoUI(req, res);
+      }
+
+      if (pathname === '/auth-chat-demo.html' && method === 'GET') {
+        return handleAuthDemo(req, res);
+      }
+
+      // Serve SDK browser build files
+      if (pathname.startsWith('/dist/') && method === 'GET') {
+        return handleDistFiles(req, res, pathname);
       }
 
       if (pathname === '/health' && method === 'GET') {
@@ -577,18 +658,23 @@ async function main() {
 
     server.listen(PORT, () => {
       console.log('');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('  Hustle Incognito Server Started');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('');
-      console.log(`  🌐 Test UI:   http://localhost:${PORT}`);
-      console.log(`  📡 Server:    http://localhost:${PORT}`);
+      console.log(`  🌐 Open in browser: http://localhost:${PORT}`);
       console.log('');
-      console.log('  Available endpoints:');
-      console.log(`    GET  /                    - Test UI (open in browser)`);
+      console.log('  Demo Pages:');
+      console.log(`    /                         - Landing page (choose demo)`);
+      console.log(`    /auth-chat-demo.html      - Emblem Auth demo (recommended)`);
+      console.log(`    /demo-ui.html             - API Key demo (deprecated)`);
+      console.log('');
+      console.log('  API Endpoints:');
       console.log(`    GET  /health              - Health check`);
+      console.log(`    GET  /api/tools           - Get available tools`);
       console.log(`    POST /api/chat            - Non-streaming chat`);
       console.log(`    POST /api/chat/stream     - Streaming chat (SSE)`);
+      console.log(`    POST /api/upload          - File upload`);
       console.log('');
       console.log('  Example requests:');
       console.log('');
@@ -603,7 +689,7 @@ async function main() {
       console.log(`      -d '{"message": "What is Solana?", "vaultId": "${DEFAULT_VAULT_ID}"}' \\`);
       console.log(`      -N`);
       console.log('');
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('');
     });
 

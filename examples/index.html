@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hustle Incognito SDK Examples</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0b0d10 0%, #1a1f2e 100%);
+      color: #e6eef8;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .container {
+      max-width: 800px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #4c9aff 0%, #a855f7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .subtitle {
+      color: #8892a4;
+      font-size: 1.1rem;
+      margin-bottom: 48px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 640px) {
+      .cards {
+        grid-template-columns: 1fr;
+      }
+    }
+    .card {
+      background: #12161b;
+      border: 1px solid #222b35;
+      border-radius: 16px;
+      padding: 32px 24px;
+      text-decoration: none;
+      color: inherit;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .card:hover {
+      border-color: #4c9aff;
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(76, 154, 255, 0.15);
+    }
+    .card.recommended {
+      border-color: #10b981;
+    }
+    .card.recommended:hover {
+      border-color: #34d399;
+      box-shadow: 0 12px 40px rgba(16, 185, 129, 0.15);
+    }
+    .badge {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .badge.recommended {
+      background: #10b981;
+      color: white;
+    }
+    .badge.deprecated {
+      background: #f59e0b;
+      color: #1a1f2e;
+    }
+    .card-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+    }
+    .card h2 {
+      font-size: 1.25rem;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+    .card p {
+      color: #8892a4;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    .card-features {
+      text-align: left;
+      font-size: 0.85rem;
+      color: #a0aec0;
+    }
+    .card-features li {
+      margin-bottom: 6px;
+      padding-left: 20px;
+      position: relative;
+    }
+    .card-features li::before {
+      content: ">";
+      position: absolute;
+      left: 0;
+      color: #4c9aff;
+    }
+    .card.recommended .card-features li::before {
+      color: #10b981;
+    }
+    .cta {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #333;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #e6eef8;
+      display: inline-block;
+    }
+    .card:hover .cta {
+      background: #4c9aff;
+      color: white;
+    }
+    .card.recommended:hover .cta {
+      background: #10b981;
+    }
+    .footer {
+      margin-top: 48px;
+      color: #5a6577;
+      font-size: 0.85rem;
+    }
+    .footer a {
+      color: #4c9aff;
+      text-decoration: none;
+    }
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Hustle Incognito SDK</h1>
+    <p class="subtitle">Choose a demo to explore the SDK capabilities</p>
+
+    <div class="cards">
+      <!-- Recommended: Emblem Auth Demo -->
+      <a href="auth-chat-demo.html" class="card recommended">
+        <span class="badge recommended">Recommended</span>
+        <div class="card-icon">🔐</div>
+        <h2>Emblem Auth Demo</h2>
+        <p>Fully client-side authentication using EmblemAuthSDK with JWT tokens. No API keys required.</p>
+        <ul class="card-features">
+          <li>EmblemAuth authentication</li>
+          <li>JWT-based authentication</li>
+          <li>Streaming responses</li>
+          <li>Image attachments</li>
+          <li>System prompt config</li>
+          <li>No server required</li>
+        </ul>
+        <span class="cta">Launch Demo</span>
+      </a>
+
+      <!-- Deprecated: Server-side API Key Demo -->
+      <a href="demo-ui.html" class="card">
+        <span class="badge deprecated">Deprecated</span>
+        <div class="card-icon">🔧</div>
+        <h2>API Key Demo</h2>
+        <p>Server-side authentication using API keys. Requires running simple-server.js locally.</p>
+        <ul class="card-features">
+          <li>API key authentication</li>
+          <li>Streaming & non-streaming</li>
+          <li>Tool category selection</li>
+          <li>Agent builder & saving</li>
+          <li>Requires local server</li>
+          <li>For development/testing</li>
+        </ul>
+        <span class="cta">Launch Demo</span>
+      </a>
+    </div>
+
+    <div class="footer">
+      <p>View the <a href="https://auth.emblemvault.ai" target="_blank">Emblem Ai Documentation</a> for more information.</p>
+    </div>
+  </div>
+</body>
+</html>
