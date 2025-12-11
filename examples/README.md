@@ -40,7 +40,42 @@ The examples include both import statements with instructions in the code.
 
 ## Examples
 
-### 1. Simple CLI (`simple-cli.js`)
+### 1. Auth Chat Demo (`auth-chat-demo.html`)
+
+A browser-based demo showing EmblemAuthSDK integration with JWT authentication.
+
+**Features:**
+- Full EmblemAuthSDK integration with social login
+- JWT-based authentication (no API key required)
+- Streaming responses with real-time UI updates
+- Automatic vault ID resolution from session
+- Tool call visualization
+
+**Usage:**
+
+1. Open `auth-chat-demo.html` in a browser
+2. Click "Sign In" to authenticate via EmblemAuthSDK
+3. Once authenticated, you can chat with the AI agent
+
+**Key Concepts:**
+
+```javascript
+// Initialize the auth SDK
+const authSdk = new EmblemAuthSDK({ appId: 'agenthustle.ai' });
+
+// Create client with SDK auth (no apiKey needed!)
+const client = new HustleIncognitoClient({
+  sdk: authSdk,  // Pass SDK instance directly
+  debug: true
+});
+
+// Chat - vaultId is auto-fetched from session
+const response = await client.chat([
+  { role: 'user', content: 'Hello!' }
+]);
+```
+
+### 2. Simple CLI (`simple-cli.js`)
 
 An interactive command-line interface for chatting with the Hustle Incognito agent.
 
@@ -81,7 +116,7 @@ node examples/simple-cli.js --debug
 - `/image <path>` - Upload an image
 - `/exit` or `/quit` - Exit the application
 
-### 2. Simple Server (`simple-server.js`)
+### 3. Simple Server (`simple-server.js`)
 
 A basic HTTP server demonstrating both streaming and non-streaming API endpoints.
 

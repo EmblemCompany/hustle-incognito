@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hustle Incognito + Emblem Auth Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0b0d10;
+      color: #e6eef8;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 {
+      margin-bottom: 8px;
+      color: #fff;
+    }
+    .subtitle {
+      color: #8892a4;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: #12161b;
+      border: 1px solid #222b35;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    h2 {
+      color: #4c9aff;
+      margin-bottom: 16px;
+      font-size: 1.25rem;
+    }
+    .btn {
+      background: #4c9aff;
+      border: none;
+      color: white;
+      font-weight: 600;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-right: 8px;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .btn:hover {
+      background: #7bb6ff;
+    }
+    .btn:disabled {
+      background: #333;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: #333;
+    }
+    .btn-secondary:hover {
+      background: #444;
+    }
+    .btn-danger {
+      background: #dc2626;
+    }
+    .btn-danger:hover {
+      background: #ef4444;
+    }
+    .status {
+      padding: 12px;
+      background: #0f141a;
+      border-radius: 8px;
+      margin: 12px 0;
+      font-size: 14px;
+    }
+    .status.connected {
+      border-left: 4px solid #10b981;
+    }
+    .status.disconnected {
+      border-left: 4px solid #f59e0b;
+    }
+    pre {
+      background: #0f141a;
+      padding: 16px;
+      border-radius: 8px;
+      overflow: auto;
+      font-size: 13px;
+      max-height: 200px;
+    }
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .chat-input {
+      display: flex;
+      gap: 8px;
+    }
+    .chat-input input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #1a1f25;
+      color: #fff;
+      font-size: 14px;
+    }
+    .chat-input input:focus {
+      outline: none;
+      border-color: #4c9aff;
+    }
+    .messages {
+      background: #0f141a;
+      border-radius: 8px;
+      padding: 16px;
+      min-height: 200px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .message {
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      border-radius: 8px;
+    }
+    .message.user {
+      background: #1e3a5f;
+      margin-left: 40px;
+    }
+    .message.assistant {
+      background: #1a2633;
+      margin-right: 40px;
+    }
+    .message .role {
+      font-size: 11px;
+      color: #8892a4;
+      margin-bottom: 4px;
+    }
+    .loading {
+      color: #8892a4;
+      font-style: italic;
+    }
+    .error {
+      color: #ef4444;
+      padding: 12px;
+      background: rgba(239, 68, 68, 0.1);
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Hustle Incognito + Emblem Auth Demo</h1>
+    <p class="subtitle">Demonstrates JWT authentication with the chat API</p>
+
+    <!-- Authentication Card -->
+    <div class="card">
+      <h2>Authentication</h2>
+      <div>
+        <button id="loginBtn" class="btn">Login with Emblem</button>
+        <button id="logoutBtn" class="btn btn-danger" style="display:none;">Logout</button>
+      </div>
+      <div id="authStatus" class="status disconnected">Not authenticated - click Login to begin</div>
+      <details>
+        <summary style="cursor:pointer; color:#8892a4; margin-top:12px;">Session Details</summary>
+        <pre id="sessionInfo">No active session</pre>
+      </details>
+    </div>
+
+    <!-- Chat Card -->
+    <div class="card">
+      <h2>Chat</h2>
+      <div class="chat-container">
+        <div id="messages" class="messages">
+          <div class="loading">Login to start chatting...</div>
+        </div>
+        <div class="chat-input">
+          <input type="text" id="messageInput" placeholder="Type a message..." disabled>
+          <button id="sendBtn" class="btn" disabled>Send</button>
+        </div>
+      </div>
+      <div id="chatError" class="error" style="display:none;"></div>
+    </div>
+
+    <!-- Debug Card -->
+    <div class="card">
+      <h2>Debug Log</h2>
+      <pre id="debugLog">Waiting for initialization...</pre>
+    </div>
+  </div>
+
+  <!-- Load Emblem Auth SDK from CDN -->
+  <script src="https://unpkg.com/emblem-auth-sdk@latest/dist/emblem-auth.min.js"></script>
+
+  <!-- Load Hustle Incognito browser build -->
+  <script type="module">
+    import { HustleIncognitoClient } from '/dist/browser/hustle-incognito.esm.js';
+
+    // Make it available globally for debugging
+    window.HustleIncognitoClient = HustleIncognitoClient;
+
+    // State
+    let authSDK = null;
+    let hustleClient = null;
+    let messages = [];
+
+    // DOM elements
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const authStatus = document.getElementById('authStatus');
+    const sessionInfo = document.getElementById('sessionInfo');
+    const messagesDiv = document.getElementById('messages');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const chatError = document.getElementById('chatError');
+    const debugLog = document.getElementById('debugLog');
+
+    // Debug logging
+    function log(msg) {
+      const time = new Date().toLocaleTimeString();
+      debugLog.textContent = `[${time}] ${msg}\n` + debugLog.textContent;
+      console.log(`[${time}]`, msg);
+    }
+
+    // Initialize Emblem Auth SDK
+    function initAuth() {
+      if (!window.EmblemAuth) {
+        log('ERROR: EmblemAuth SDK not loaded!');
+        return;
+      }
+
+      log('Initializing Emblem Auth SDK...');
+
+      authSDK = new window.EmblemAuth.EmblemAuthSDK({
+        appId: 'agenthustle.ai',
+        onSuccess: (session) => {
+          log('Auth success! VaultId: ' + session.user?.vaultId);
+          handleAuthSuccess(session);
+        },
+        onError: (error) => {
+          log('Auth error: ' + error.message);
+          showError(error.message);
+        }
+      });
+
+      // Check for existing session
+      const existingSession = authSDK.getSession();
+      if (existingSession) {
+        log('Found existing session');
+        handleAuthSuccess(existingSession);
+      } else {
+        log('No existing session');
+      }
+    }
+
+    // Handle successful authentication
+    function handleAuthSuccess(session) {
+      authStatus.textContent = `Authenticated as vault ${session.user?.vaultId}`;
+      authStatus.className = 'status connected';
+      sessionInfo.textContent = JSON.stringify(session, null, 2);
+
+      loginBtn.style.display = 'none';
+      logoutBtn.style.display = 'inline-block';
+
+      // Create Hustle client with SDK auth
+      // TEMPORARY: Override to local dev server for testing
+      log('Creating HustleIncognitoClient with SDK auth (local dev)...');
+      hustleClient = new HustleIncognitoClient({
+        sdk: authSDK,
+        hustleApiUrl: 'http://localhost:3001',
+        debug: true
+      });
+
+      // Enable chat
+      messageInput.disabled = false;
+      sendBtn.disabled = false;
+      messagesDiv.innerHTML = '<div class="loading">Ready to chat! Type a message...</div>';
+
+      log('Chat enabled');
+    }
+
+    // Handle logout
+    function handleLogout() {
+      if (authSDK) {
+        authSDK.logout();
+      }
+      hustleClient = null;
+
+      authStatus.textContent = 'Not authenticated - click Login to begin';
+      authStatus.className = 'status disconnected';
+      sessionInfo.textContent = 'No active session';
+
+      loginBtn.style.display = 'inline-block';
+      logoutBtn.style.display = 'none';
+
+      messageInput.disabled = true;
+      sendBtn.disabled = true;
+      messages = [];
+      messagesDiv.innerHTML = '<div class="loading">Login to start chatting...</div>';
+
+      log('Logged out');
+    }
+
+    // Render messages
+    function renderMessages() {
+      if (messages.length === 0) {
+        messagesDiv.innerHTML = '<div class="loading">Ready to chat! Type a message...</div>';
+        return;
+      }
+
+      messagesDiv.innerHTML = messages.map(m => `
+        <div class="message ${m.role}">
+          <div class="role">${m.role}</div>
+          <div>${m.content}</div>
+        </div>
+      `).join('');
+
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Send a chat message
+    async function sendMessage() {
+      const content = messageInput.value.trim();
+      if (!content || !hustleClient) return;
+
+      messageInput.value = '';
+      messages.push({ role: 'user', content });
+      renderMessages();
+
+      // Add loading indicator
+      messages.push({ role: 'assistant', content: 'Thinking...' });
+      renderMessages();
+
+      log('Sending message: ' + content.substring(0, 50) + '...');
+
+      try {
+        chatError.style.display = 'none';
+
+        const response = await hustleClient.chat(
+          messages.slice(0, -1).map(m => ({ role: m.role, content: m.content })),
+          { safeMode: true }
+        );
+
+        // Remove loading indicator and add real response
+        messages.pop();
+
+        if (response.content) {
+          messages.push({ role: 'assistant', content: response.content });
+          log('Received response: ' + response.content.substring(0, 50) + '...');
+        } else if (Array.isArray(response)) {
+          // Raw response mode
+          const textChunks = response.filter(c => c.prefix === '0').map(c => c.data).join('');
+          messages.push({ role: 'assistant', content: textChunks || 'No response' });
+          log('Received raw response');
+        }
+
+        renderMessages();
+      } catch (error) {
+        messages.pop(); // Remove loading indicator
+        renderMessages();
+        showError(error.message);
+        log('Chat error: ' + error.message);
+      }
+    }
+
+    // Show error
+    function showError(msg) {
+      chatError.textContent = msg;
+      chatError.style.display = 'block';
+    }
+
+    // Event listeners
+    loginBtn.addEventListener('click', () => {
+      log('Opening auth modal...');
+      authSDK.openAuthModal();
+    });
+
+    logoutBtn.addEventListener('click', handleLogout);
+
+    sendBtn.addEventListener('click', sendMessage);
+
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    // Initialize on load
+    log('Page loaded, initializing...');
+    initAuth();
+  </script>
+</body>
+</html>

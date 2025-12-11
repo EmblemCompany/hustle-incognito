@@ -40,6 +40,7 @@ Looking for complete, working examples? Check out the [`examples/`](./examples) 
 
 - **[Simple CLI](./examples/simple-cli.js)** - Interactive command-line chat with full feature support
 - **[HTTP Server with Web UI](./examples/simple-server.js)** - REST API server with beautiful test interface
+- **[Auth Chat Demo](./examples/auth-chat-demo.html)** - Browser demo showing EmblemAuthSDK integration with JWT authentication
 
 See the [Examples README](./examples/README.md) for setup instructions and usage details.
 
@@ -58,7 +59,11 @@ pnpm add hustle-incognito
 
 ## 🔑 Authentication
 
-Authentication is simple - just provide your API key when initializing the client:
+The SDK supports multiple authentication methods to suit different use cases:
+
+### API Key (Server-Side)
+
+The simplest method - provide your API key directly:
 
 ```typescript
 const client = new HustleIncognitoClient({
@@ -68,6 +73,66 @@ const client = new HustleIncognitoClient({
   debug: true // Enable verbose logging
 });
 ```
+
+### EmblemAuthSDK Integration (Browser Apps)
+
+For browser applications using the [Emblem Auth SDK](https://www.npmjs.com/package/@anthropic/auth-sdk), pass the SDK instance directly. The client will automatically use JWT authentication with session auto-refresh:
+
+```typescript
+import { EmblemAuthSDK } from '@anthropic/auth-sdk';
+
+const authSdk = new EmblemAuthSDK({ appId: 'your-app-id' });
+await authSdk.authenticate();
+
+const client = new HustleIncognitoClient({
+  sdk: authSdk,  // Pass the SDK instance directly
+  debug: true
+});
+
+// vaultId is optional when using SDK auth - it will be auto-fetched from the session
+const response = await client.chat([
+  { role: 'user', content: 'Show me trending tokens' }
+]);
+```
+
+### JWT Authentication
+
+For custom JWT-based authentication:
+
+```typescript
+// Static JWT token
+const client = new HustleIncognitoClient({
+  jwt: 'your-jwt-token'
+});
+
+// Dynamic JWT getter (useful for token refresh)
+const client = new HustleIncognitoClient({
+  getJwt: async () => {
+    const session = await fetchSession();
+    return session.authToken;
+  }
+});
+```
+
+### Custom Auth Headers
+
+For maximum flexibility, provide a custom headers function:
+
+```typescript
+const client = new HustleIncognitoClient({
+  getAuthHeaders: async () => ({
+    'Authorization': `Bearer ${await getToken()}`,
+    'X-Custom-Header': 'value'
+  })
+});
+```
+
+### Authentication Priority
+
+When multiple auth methods are provided, they are resolved in this order:
+1. `getAuthHeaders()` - Custom headers (highest priority)
+2. `apiKey` - Traditional x-api-key header
+3. `jwt` / `getJwt()` / `sdk` - Bearer token authentication
 
 ## 🔍 Usage Modes
 

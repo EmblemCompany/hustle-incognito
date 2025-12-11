@@ -1,6 +1,41 @@
 // src/types.ts
 
 /**
+ * Vault information returned from the API.
+ */
+export interface VaultInfo {
+  vaultId: string;
+  evmAddress?: string;
+  solanaAddress?: string;
+  address?: string;
+}
+
+/**
+ * Authentication provider interface compatible with EmblemAuthSDK.
+ * Supports multiple authentication methods with priority:
+ * 1. getAuthHeaders() - Custom auth headers (highest priority)
+ * 2. apiKey - Traditional x-api-key header
+ * 3. jwt / getJwt() / sdk - Bearer token authentication
+ */
+export type EmblemAuthProvider = {
+  /** Static JWT token for authentication */
+  jwt?: string;
+  /** Dynamic JWT getter function */
+  getJwt?: () => Promise<string | null | undefined> | string | null | undefined;
+  /** Custom auth headers getter */
+  getAuthHeaders?: () => Promise<Record<string, string>> | Record<string, string>;
+  /**
+   * EmblemAuthSDK instance or compatible object with getSession() method.
+   * The session should have an authToken property.
+   */
+  sdk?: {
+    getSession: () => { authToken?: string | null | undefined; user?: { vaultId?: string } } | null | undefined;
+    getVaultApiKey?: () => Promise<string>;
+    getVaultInfo?: () => Promise<VaultInfo>;
+  };
+};
+
+/**
  * An attachment that can be sent along with a message.
  */
 export interface Attachment {
@@ -21,12 +56,21 @@ export interface Attachment {
 
 /**
  * Configuration options for the HustleIncognitoClient.
+ *
+ * Authentication can be provided via:
+ * - apiKey: Traditional API key (simplest, for server-side use)
+ * - sdk: EmblemAuthSDK instance - uses JWT from session with auto-refresh (recommended for browser apps)
+ * - jwt: Static JWT token
+ * - getJwt: Dynamic JWT getter function
+ *
+ * At least one authentication method must be provided.
+ * When using SDK auth, the JWT is fetched fresh on each request to handle session refresh.
  */
-export interface HustleIncognitoClientOptions {
+export interface HustleIncognitoClientOptions extends EmblemAuthProvider {
   /** The base URL of the Agent Hustle API. Defaults to production API URL. */
   hustleApiUrl?: string;
   /** The API key for authenticating requests. */
-  apiKey: string;
+  apiKey?: string;
   /** Optional user key for user-specific context or authentication. */
   userKey?: string;
   /** Optional user secret associated with the user key. */
@@ -40,7 +84,8 @@ export interface HustleIncognitoClientOptions {
 }
 
 export interface ChatOptions {
-  vaultId: string;
+  /** Vault ID for context. Required when using API key auth, optional with JWT/SDK auth (will be auto-fetched). */
+  vaultId?: string;
   userApiKey?: string;
   externalWalletAddress?: string;
   slippageSettings?: Record<string, number>;
@@ -60,8 +105,8 @@ export interface ChatOptions {
  * Options for streaming API requests.
  */
 export interface StreamOptions {
-  /** Required vault ID for the context */
-  vaultId: string;
+  /** Vault ID for context. Required when using API key auth, optional with JWT/SDK auth (will be auto-fetched). */
+  vaultId?: string;
   /** Messages to send to the AI */
   messages: ChatMessage[];
   /** Optional user-specific API key */
@@ -87,7 +132,8 @@ export interface StreamOptions {
 }
 
 export interface RawStreamOptions {
-  vaultId: string;
+  /** Vault ID for context. Required when using API key auth, optional with JWT/SDK auth (will be auto-fetched). */
+  vaultId?: string;
   messages: ChatMessage[];
   userApiKey?: string;
   externalWalletAddress?: string;
@@ -110,8 +156,8 @@ export interface RawStreamOptions {
 export interface HustleRequest {
   /** Unique ID for the chat session */
   id: string;
-  /** API key for authentication */
-  apiKey: string;
+  /** API key for authentication (optional when using JWT auth) */
+  apiKey?: string;
   /** Messages to send to the AI */
   messages: ChatMessage[];
   /** Vault ID for context */

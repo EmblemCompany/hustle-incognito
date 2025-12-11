@@ -5,6 +5,7 @@ export { HustleIncognitoClient } from './client.js';
 
 // Export types
 export {
+  EmblemAuthProvider,
   HustleIncognitoClientOptions,
   ChatMessage,
   StreamChunk,
@@ -12,4 +13,5 @@ export {
   StreamOptions,
   ProcessedResponse,
   RawChunk,
+  VaultInfo,
 } from './types.js';

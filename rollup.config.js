@@ -98,5 +98,35 @@ export default [
     plugins: [
       dts()
     ]
+  },
+  // Browser (ES module) build - for use with <script type="module">
+  {
+    input: 'src/index.ts',
+    output: {
+      file: 'dist/browser/hustle-incognito.esm.js',
+      format: 'es',
+      sourcemap: true,
+      inlineDynamicImports: true
+    },
+    // Don't externalize anything for browser build - bundle everything except node builtins
+    external: ['fs', 'path', 'os', 'node:fs', 'node:path'],
+    plugins: [
+      replace({
+        preventAssignment: true,
+        __SDK_VERSION__: JSON.stringify(pkg.version)
+      }),
+      resolve({
+        preferBuiltins: false,
+        browser: true
+      }),
+      commonjs(),
+      json(),
+      typescript({
+        outDir: 'dist/browser',
+        declaration: false,
+        target: 'es2020'
+      }),
+      conditionalImports()
+    ]
   }
 ];

@@ -31,9 +31,11 @@ describe('HustleIncognitoClient', () => {
     expect(client).toBeDefined();
   });
 
-  test('should throw error when API key is missing', () => {
+  test('should throw error when no authentication is provided', () => {
     // @ts-ignore - Testing invalid input
-    expect(() => new HustleIncognitoClient({})).toThrow('API key is required');
+    expect(() => new HustleIncognitoClient({})).toThrow(
+      'Authentication required: provide apiKey, jwt, getJwt(), sdk, or getAuthHeaders()'
+    );
   });
 
   test('should use default production URL when not specified', () => {
@@ -527,6 +529,382 @@ describe('HustleIncognitoClient', () => {
       expect(result.contentType).toBe('image/png');
       expect(result.name).toBe('test-image');
       expect(result.url).toBe('https://example.com/test-image');
+    });
+  });
+
+  describe('SDK/JWT Authentication', () => {
+    test('should initialize with static JWT token', () => {
+      const client = new HustleIncognitoClient({
+        jwt: 'test-jwt-token',
+      });
+      expect(client).toBeDefined();
+    });
+
+    test('should initialize with getJwt function', () => {
+      const client = new HustleIncognitoClient({
+        getJwt: () => 'dynamic-jwt-token',
+      });
+      expect(client).toBeDefined();
+    });
+
+    test('should initialize with async getJwt function', () => {
+      const client = new HustleIncognitoClient({
+        getJwt: async () => 'async-jwt-token',
+      });
+      expect(client).toBeDefined();
+    });
+
+    test('should initialize with SDK instance', () => {
+      const mockSdk = {
+        getSession: () => ({ authToken: 'sdk-jwt-token' }),
+      };
+      const client = new HustleIncognitoClient({
+        sdk: mockSdk,
+      });
+      expect(client).toBeDefined();
+    });
+
+    test('should initialize with getAuthHeaders function', () => {
+      const client = new HustleIncognitoClient({
+        getAuthHeaders: () => ({ Authorization: 'Bearer custom-token' }),
+      });
+      expect(client).toBeDefined();
+    });
+
+    test('should use JWT in Authorization header when making requests', async () => {
+      const client = new HustleIncognitoClient({
+        jwt: 'test-jwt-token',
+      });
+
+      // Mock fetch to capture the request
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+      });
+      // @ts-ignore - Accessing private property for testing
+      client.fetchImpl = mockFetch;
+
+      await client.getTools();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer test-jwt-token',
+          }),
+        })
+      );
+    });
+
+    test('should use SDK session token in Authorization header', async () => {
+      const mockSdk = {
+        getSession: () => ({ authToken: 'sdk-session-token' }),
+      };
+      const client = new HustleIncognitoClient({
+        sdk: mockSdk,
+      });
+
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+      });
+      // @ts-ignore - Accessing private property for testing
+      client.fetchImpl = mockFetch;
+
+      await client.getTools();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer sdk-session-token',
+          }),
+        })
+      );
+    });
+
+    test('should call getJwt on each request for fresh token', async () => {
+      let callCount = 0;
+      const getJwt = vi.fn().mockImplementation(() => {
+        callCount++;
+        return `token-${callCount}`;
+      });
+
+      const client = new HustleIncognitoClient({
+        getJwt,
+      });
+
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+      });
+      // @ts-ignore - Accessing private property for testing
+      client.fetchImpl = mockFetch;
+
+      // First request
+      await client.getTools();
+      expect(getJwt).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenLastCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer token-1',
+          }),
+        })
+      );
+
+      // Second request should get fresh token
+      await client.getTools();
+      expect(getJwt).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenLastCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer token-2',
+          }),
+        })
+      );
+    });
+
+    test('should use custom headers from getAuthHeaders', async () => {
+      const client = new HustleIncognitoClient({
+        getAuthHeaders: () => ({
+          Authorization: 'Custom custom-auth-value',
+          'X-Custom-Header': 'custom-value',
+        }),
+      });
+
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+      });
+      // @ts-ignore - Accessing private property for testing
+      client.fetchImpl = mockFetch;
+
+      await client.getTools();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Custom custom-auth-value',
+            'X-Custom-Header': 'custom-value',
+          }),
+        })
+      );
+    });
+
+    test('should prioritize getAuthHeaders over jwt', async () => {
+      const client = new HustleIncognitoClient({
+        jwt: 'static-jwt',
+        getAuthHeaders: () => ({ Authorization: 'Bearer custom-header-token' }),
+      });
+
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+      });
+      // @ts-ignore - Accessing private property for testing
+      client.fetchImpl = mockFetch;
+
+      await client.getTools();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer custom-header-token',
+          }),
+        })
+      );
+    });
+
+    test('should not require apiKey in request body when using JWT auth', async () => {
+      const client = new HustleIncognitoClient({
+        jwt: 'test-jwt-token',
+      });
+
+      // Mock the rawStream method to return predefined chunks
+      const mockRawStream = async function* () {
+        yield { prefix: '0', data: 'Hello', raw: '0:Hello' };
+        yield { prefix: 'f', data: { messageId: 'msg123' }, raw: 'f:{"messageId":"msg123"}' };
+      };
+
+      // @ts-ignore - Mocking private method
+      client.rawStream = mockRawStream;
+
+      const response = (await client.chat(
+        [{ role: 'user', content: 'Test' }],
+        { vaultId: 'test' }
+      )) as ProcessedResponse;
+
+      expect(response.content).toBe('Hello');
+    });
+
+    test('should handle SDK with null session gracefully', async () => {
+      const mockSdk = {
+        getSession: () => null,
+      };
+      const client = new HustleIncognitoClient({
+        sdk: mockSdk,
+        apiKey: 'fallback-api-key', // Provide fallback
+      });
+
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ data: [] }),
+      });
+      // @ts-ignore - Accessing private property for testing
+      client.fetchImpl = mockFetch;
+
+      await client.getTools();
+
+      // Should not have Authorization header since SDK session is null
+      const callArgs = mockFetch.mock.calls[0][1];
+      expect(callArgs.headers.Authorization).toBeUndefined();
+    });
+
+    test('should auto-resolve vaultId from SDK session', async () => {
+      const mockSdk = {
+        getSession: () => ({
+          authToken: 'test-token',
+          user: { vaultId: 'session-vault-123' },
+        }),
+      };
+      const client = new HustleIncognitoClient({
+        sdk: mockSdk,
+      });
+
+      // Mock the rawStream method to return predefined chunks
+      const mockRawStream = async function* () {
+        yield { prefix: '0', data: 'Hello', raw: '0:Hello' };
+        yield { prefix: 'f', data: { messageId: 'msg123' }, raw: 'f:{"messageId":"msg123"}' };
+      };
+
+      // @ts-ignore - Mocking private method
+      client.rawStream = mockRawStream;
+
+      // Call chat WITHOUT providing vaultId - should use SDK session
+      const response = (await client.chat([{ role: 'user', content: 'Test' }])) as ProcessedResponse;
+
+      expect(response.content).toBe('Hello');
+    });
+
+    test('should auto-resolve vaultId from SDK getVaultInfo', async () => {
+      const mockSdk = {
+        getSession: () => ({ authToken: 'test-token' }), // No user.vaultId
+        getVaultInfo: vi.fn().mockResolvedValue({ vaultId: 'vault-info-456' }),
+      };
+      const client = new HustleIncognitoClient({
+        sdk: mockSdk,
+      });
+
+      // Mock the rawStream method
+      const mockRawStream = async function* () {
+        yield { prefix: '0', data: 'Hello', raw: '0:Hello' };
+        yield { prefix: 'f', data: { messageId: 'msg123' }, raw: 'f:{"messageId":"msg123"}' };
+      };
+
+      // @ts-ignore - Mocking private method
+      client.rawStream = mockRawStream;
+
+      // Call chat WITHOUT providing vaultId - should call getVaultInfo
+      const response = (await client.chat([{ role: 'user', content: 'Test' }])) as ProcessedResponse;
+
+      expect(mockSdk.getVaultInfo).toHaveBeenCalled();
+      expect(response.content).toBe('Hello');
+    });
+
+    test('should ignore explicit vaultId when using SDK auth (session determines vaultId)', async () => {
+      const mockSdk = {
+        getSession: () => ({
+          authToken: 'test-token',
+          user: { vaultId: 'session-vault-123' },
+        }),
+      };
+      const client = new HustleIncognitoClient({
+        sdk: mockSdk,
+      });
+
+      let capturedVaultId: string | undefined;
+
+      // Mock the rawStream method to capture the vaultId
+      // @ts-ignore - Mocking private method
+      client.rawStream = async function* (options: any) {
+        capturedVaultId = options.vaultId;
+        yield { prefix: '0', data: 'Hello', raw: '0:Hello' };
+        yield { prefix: 'f', data: { messageId: 'msg123' }, raw: 'f:{"messageId":"msg123"}' };
+      };
+
+      // Call chat WITH explicit vaultId - should be ignored, use session vaultId
+      await client.chat([{ role: 'user', content: 'Test' }], { vaultId: 'explicit-vault-789' });
+
+      // When using SDK auth, the session vaultId is always used
+      expect(capturedVaultId).toBe('session-vault-123');
+    });
+
+    test('should allow explicit vaultId with raw JWT (no SDK)', async () => {
+      const client = new HustleIncognitoClient({
+        jwt: 'test-token',
+      });
+
+      let capturedVaultId: string | undefined;
+
+      // Mock the rawStream method to capture the vaultId
+      // @ts-ignore - Mocking private method
+      client.rawStream = async function* (options: any) {
+        capturedVaultId = options.vaultId;
+        yield { prefix: '0', data: 'Hello', raw: '0:Hello' };
+        yield { prefix: 'f', data: { messageId: 'msg123' }, raw: 'f:{"messageId":"msg123"}' };
+      };
+
+      // Raw JWT with explicit vaultId should work
+      await client.chat([{ role: 'user', content: 'Test' }], { vaultId: 'my-vault' });
+
+      expect(capturedVaultId).toBe('my-vault');
+    });
+
+    test('should throw error when no vaultId provided and no SDK', async () => {
+      const client = new HustleIncognitoClient({
+        jwt: 'test-token',
+      });
+
+      // Call chat WITHOUT providing vaultId and without SDK
+      await expect(client.chat([{ role: 'user', content: 'Test' }])).rejects.toThrow(
+        'vaultId is required'
+      );
+    });
+
+    test('should throw error when no vaultId provided with API key auth', async () => {
+      const client = new HustleIncognitoClient({
+        apiKey: 'test-api-key',
+      });
+
+      // Call chat WITHOUT providing vaultId
+      await expect(client.chat([{ role: 'user', content: 'Test' }])).rejects.toThrow(
+        'vaultId is required'
+      );
+    });
+
+    test('should use explicit vaultId when using API key auth', async () => {
+      const client = new HustleIncognitoClient({
+        apiKey: 'test-api-key',
+      });
+
+      let capturedVaultId: string | undefined;
+
+      // Mock the rawStream method to capture the vaultId
+      // @ts-ignore - Mocking private method
+      client.rawStream = async function* (options: any) {
+        capturedVaultId = options.vaultId;
+        yield { prefix: '0', data: 'Hello', raw: '0:Hello' };
+        yield { prefix: 'f', data: { messageId: 'msg123' }, raw: 'f:{"messageId":"msg123"}' };
+      };
+
+      // Call chat WITH explicit vaultId
+      await client.chat([{ role: 'user', content: 'Test' }], { vaultId: 'explicit-vault-789' });
+
+      expect(capturedVaultId).toBe('explicit-vault-789');
     });
   });
 });

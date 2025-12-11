@@ -3,6 +3,7 @@ import type {
   Attachment,
   ChatMessage,
   ChatOptions,
+  EmblemAuthProvider,
   HustleIncognitoClientOptions,
   HustleRequest,
   ProcessedResponse,
@@ -25,41 +26,91 @@ const API_ENDPOINTS = {
 };
 
 /**
+ * Resolves the JWT token from various auth provider options.
+ * Priority: getJwt() > jwt > sdk.getSession().authToken
+ */
+async function resolveJwt(auth: EmblemAuthProvider): Promise<string | null> {
+  // Try getJwt function first
+  if (typeof auth.getJwt === 'function') {
+    const jwt = await auth.getJwt();
+    if (jwt) return jwt;
+  }
+
+  // Try static jwt
+  if (auth.jwt) {
+    return auth.jwt;
+  }
+
+  // Try SDK session
+  if (auth.sdk?.getSession) {
+    const session = auth.sdk.getSession();
+    if (session?.authToken) {
+      return session.authToken;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Client for interacting with the Emblem Vault Hustle Incognito Agent API.
  */
 export class HustleIncognitoClient {
   private readonly baseUrl: string;
-  private readonly apiKey: string;
+  private readonly apiKey?: string;
   private readonly userKey?: string;
   private readonly userSecret?: string;
   private readonly sdkVersion: string = SDK_VERSION;
   private readonly fetchImpl: FetchLike;
   private readonly debug: boolean;
   private readonly cookie?: string;
+  private readonly authProvider: EmblemAuthProvider;
 
   /**
    * Creates an instance of HustleIncognitoClient.
    * @param options - Configuration options for the client.
    */
   constructor(options: HustleIncognitoClientOptions) {
-    if (!options.apiKey) {
-      throw new Error('API key is required.');
+    // Store auth provider options for JWT resolution
+    this.authProvider = {
+      jwt: options.jwt,
+      getJwt: options.getJwt,
+      getAuthHeaders: options.getAuthHeaders,
+      sdk: options.sdk,
+    };
+
+    // Validate that at least one auth method is provided
+    const hasApiKey = !!options.apiKey;
+    const hasJwtAuth = !!(options.jwt || options.getJwt || options.sdk || options.getAuthHeaders);
+
+    if (!hasApiKey && !hasJwtAuth) {
+      throw new Error(
+        'Authentication required: provide apiKey, jwt, getJwt(), sdk, or getAuthHeaders()'
+      );
     }
+
     this.apiKey = options.apiKey;
+    // Browser-safe environment variable access
+    const getEnv = (key: string): string | undefined => {
+      if (typeof process !== 'undefined' && process.env) {
+        return process.env[key];
+      }
+      return undefined;
+    };
     this.baseUrl =
       options.hustleApiUrl ||
-      (process.env && process.env['HUSTLE_API_URL']) ||
+      getEnv('HUSTLE_API_URL') ||
       API_ENDPOINTS.PRODUCTION;
     this.userKey = options.userKey;
     this.userSecret = options.userSecret;
     const defaultFetch: FetchLike = options.fetch
       ? (options.fetch as FetchLike)
       : typeof window !== 'undefined'
-      ? (window.fetch.bind(window) as FetchLike)
-      : (fetch as FetchLike);
+        ? (window.fetch.bind(window) as FetchLike)
+        : (fetch as FetchLike);
     this.fetchImpl = defaultFetch;
     this.debug = options.debug || false;
-    this.cookie = options.cookie || (process.env && process.env['COOKIE']);
+    this.cookie = options.cookie || getEnv('COOKIE');
 
     // Debug info
     if (this.debug) {
@@ -67,10 +118,69 @@ export class HustleIncognitoClient {
         `[${new Date().toISOString()}] Emblem Vault Hustle Incognito SDK v${this.sdkVersion}`
       );
       console.log(`[${new Date().toISOString()}] Using API endpoint: ${this.baseUrl}`);
+      console.log(
+        `[${new Date().toISOString()}] Auth mode: ${hasApiKey ? 'API Key' : 'JWT/SDK'}`
+      );
       if (this.cookie) {
         console.log(`[${new Date().toISOString()}] Using cookie from environment`);
       }
     }
+  }
+
+  /**
+   * Resolves the vaultId from various sources.
+   * Priority:
+   * 1. SDK session user.vaultId (when using SDK auth - vaultId tied to JWT)
+   * 2. SDK getVaultInfo() (when using SDK auth - vaultId tied to JWT)
+   * 3. Explicitly provided vaultId (required for API key auth, optional fallback for raw JWT)
+   * @private
+   */
+  private async resolveVaultId(providedVaultId?: string): Promise<string> {
+    // When using SDK auth, vaultId is determined by the authenticated session
+    if (this.authProvider.sdk) {
+      // Try to get from SDK session user.vaultId
+      if (this.authProvider.sdk.getSession) {
+        const session = this.authProvider.sdk.getSession();
+        if (session?.user?.vaultId) {
+          if (providedVaultId && providedVaultId !== session.user.vaultId && this.debug) {
+            console.log(
+              `[${new Date().toISOString()}] Ignoring provided vaultId (${providedVaultId}) - using session vaultId: ${session.user.vaultId}`
+            );
+          }
+          if (this.debug) {
+            console.log(
+              `[${new Date().toISOString()}] Using vaultId from SDK session: ${session.user.vaultId}`
+            );
+          }
+          return session.user.vaultId;
+        }
+      }
+
+      // Try SDK's getVaultInfo method if available
+      if (this.authProvider.sdk.getVaultInfo) {
+        const vaultInfo = await this.authProvider.sdk.getVaultInfo();
+        if (vaultInfo?.vaultId) {
+          if (providedVaultId && providedVaultId !== vaultInfo.vaultId && this.debug) {
+            console.log(
+              `[${new Date().toISOString()}] Ignoring provided vaultId (${providedVaultId}) - using vaultInfo vaultId: ${vaultInfo.vaultId}`
+            );
+          }
+          if (this.debug) {
+            console.log(
+              `[${new Date().toISOString()}] Using vaultId from SDK getVaultInfo: ${vaultInfo.vaultId}`
+            );
+          }
+          return vaultInfo.vaultId;
+        }
+      }
+    }
+
+    // For raw JWT/getJwt/getAuthHeaders or API key auth - use provided vaultId
+    if (providedVaultId) {
+      return providedVaultId;
+    }
+
+    throw new Error('vaultId is required. Provide it explicitly or use SDK auth with a valid session.');
   }
 
   /**
@@ -84,19 +194,22 @@ export class HustleIncognitoClient {
    */
   public async chat(
     messages: ChatMessage[],
-    options: ChatOptions = { vaultId: 'unspecified-incognito' },
+    options: ChatOptions = {},
     overrideFunc: Function | null = null
   ): Promise<ProcessedResponse | RawChunk[]> {
+    // Resolve vaultId (from options, SDK session, or SDK getVaultInfo)
+    const vaultId = await this.resolveVaultId(options.vaultId);
+
     // Implement override pattern
     if (overrideFunc && typeof overrideFunc === 'function') {
       if (this.debug)
         console.log(`[${new Date().toISOString()}] Using override function for chat method`);
-      return await overrideFunc(this.apiKey, { messages, ...options });
+      return await overrideFunc(this.apiKey, { messages, ...options, vaultId });
     }
 
     if (this.debug)
       console.log(
-        `[${new Date().toISOString()}] Sending chat request with ${messages.length} messages to vault ${options.vaultId}`
+        `[${new Date().toISOString()}] Sending chat request with ${messages.length} messages to vault ${vaultId}`
       );
 
     // Default implementation
@@ -108,7 +221,7 @@ export class HustleIncognitoClient {
         );
       const chunks: RawChunk[] = [];
       for await (const chunk of this.rawStream({
-        vaultId: options.vaultId,
+        vaultId,
         messages,
         userApiKey: options.userApiKey,
         externalWalletAddress: options.externalWalletAddress,
@@ -132,7 +245,7 @@ export class HustleIncognitoClient {
     const toolResults: any[] = [];
 
     for await (const chunk of this.chatStream({
-      vaultId: options.vaultId,
+      vaultId,
       messages,
       userApiKey: options.userApiKey,
       externalWalletAddress: options.externalWalletAddress,
@@ -189,12 +302,16 @@ export class HustleIncognitoClient {
     options: StreamOptions,
     overrideFunc: Function | null = null
   ): AsyncIterable<StreamChunk | RawChunk> {
+    // Resolve vaultId (from options, SDK session, or SDK getVaultInfo)
+    const vaultId = await this.resolveVaultId(options.vaultId);
+    const resolvedOptions = { ...options, vaultId };
+
     // Implement override pattern
     if (overrideFunc && typeof overrideFunc === 'function') {
       if (this.debug)
         console.log(`[${new Date().toISOString()}] Using override function for chatStream method`);
       // For custom stream handling, yield generator from override function
-      yield* overrideFunc(this.apiKey, options);
+      yield* overrideFunc(this.apiKey, resolvedOptions);
       return;
     }
 
@@ -202,7 +319,7 @@ export class HustleIncognitoClient {
     if (options.processChunks === false) {
       if (this.debug)
         console.log(`[${new Date().toISOString()}] Process chunks disabled, using raw stream`);
-      yield* this.rawStream(options);
+      yield* this.rawStream(resolvedOptions);
       return;
     }
 
@@ -210,7 +327,7 @@ export class HustleIncognitoClient {
       console.log(`[${new Date().toISOString()}] Processing stream chunks into structured data`);
 
     // Otherwise, process chunks into structured data
-    for await (const chunk of this.rawStream(options)) {
+    for await (const chunk of this.rawStream(resolvedOptions)) {
       if (this.debug)
         console.log(`[${new Date().toISOString()}] Processing chunk:`, JSON.stringify(chunk));
 
@@ -286,16 +403,20 @@ export class HustleIncognitoClient {
     options: RawStreamOptions,
     overrideFunc: Function | null = null
   ): AsyncIterable<RawChunk> {
+    // Resolve vaultId (from options, SDK session, or SDK getVaultInfo)
+    const vaultId = await this.resolveVaultId(options.vaultId);
+    const resolvedOptions = { ...options, vaultId };
+
     // Implement override pattern
     if (overrideFunc && typeof overrideFunc === 'function') {
       if (this.debug)
         console.log(`[${new Date().toISOString()}] Using override function for rawStream method`);
       // For custom stream handling, yield generator from override function
-      yield* overrideFunc(this.apiKey, options);
+      yield* overrideFunc(this.apiKey, resolvedOptions);
       return;
     }
 
-    const requestBody = this.prepareRequestBody(options);
+    const requestBody = this.prepareRequestBody(resolvedOptions);
     if (this.debug) {
       console.log(
         `[${new Date().toISOString()}] Prepared request body:`,
@@ -429,7 +550,7 @@ export class HustleIncognitoClient {
     // GET /api/tools/categories
     const response = await this.fetchImpl(`${this.baseUrl}/api/tools/categories`, {
       method: 'GET',
-      headers: this.getHeaders(),
+      headers: await this.getHeaders(),
       mode: 'cors',
     });
 
@@ -611,7 +732,7 @@ export class HustleIncognitoClient {
       );
     }
 
-    const headers = this.getHeaders();
+    const headers = await this.getHeaders();
     // Remove Content-Type header to let the browser/undici set it with boundary for FormData
     delete headers['Content-Type'];
 
@@ -655,10 +776,8 @@ export class HustleIncognitoClient {
     selectedToolCategories?: string[];
     attachments?: Attachment[];
   }): HustleRequest {
+    // apiKey is optional when using JWT authentication (via Authorization header)
     const apiKey = options.userApiKey || this.apiKey;
-    if (!apiKey) {
-      throw new Error('API key is required');
-    }
 
     // Transform attachments to match real Hustle app format
     const transformedMessages = [...options.messages];
@@ -714,17 +833,16 @@ export class HustleIncognitoClient {
    * @private
    */
   private async createRequest(requestBody: HustleRequest): Promise<Response> {
+    const headers = await this.getHeaders();
+
     if (this.debug) {
       console.log(`[${new Date().toISOString()}] Making POST request to ${this.baseUrl}/api/chat`);
-      console.log(
-        `[${new Date().toISOString()}] Request headers:`,
-        JSON.stringify(this.getHeaders())
-      );
+      console.log(`[${new Date().toISOString()}] Request headers:`, JSON.stringify(headers));
     }
 
     const response = await this.fetchImpl(`${this.baseUrl}/api/chat`, {
       method: 'POST',
-      headers: this.getHeaders(),
+      headers,
       body: JSON.stringify(requestBody),
       mode: 'cors',
     });
@@ -741,16 +859,43 @@ export class HustleIncognitoClient {
   }
 
   /**
+   * Resolves authentication headers for a request.
+   * Called fresh on each request to support JWT refresh from SDK.
+   * @private
+   */
+  private async resolveAuthHeaders(): Promise<Record<string, string>> {
+    // Try getAuthHeaders first (highest priority)
+    if (typeof this.authProvider.getAuthHeaders === 'function') {
+      const customHeaders = await this.authProvider.getAuthHeaders();
+      if (customHeaders && typeof customHeaders === 'object') {
+        return customHeaders;
+      }
+    }
+
+    // Try JWT auth (from sdk, getJwt, or static jwt)
+    const jwt = await resolveJwt(this.authProvider);
+    if (jwt) {
+      return { Authorization: `Bearer ${jwt}` };
+    }
+
+    // Fall back to API key (handled in request body, not headers)
+    return {};
+  }
+
+  /**
    * Constructs the necessary headers for API requests.
    * @private
    */
-  private getHeaders(): Record<string, string> {
+  private async getHeaders(): Promise<Record<string, string>> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'User-Agent': `HustleIncognito-SDK/${this.sdkVersion}`,
     };
 
-    // Note: API key goes in the request body for this API, not in headers
+    // Add auth headers (JWT Bearer token if using SDK/JWT auth)
+    const authHeaders = await this.resolveAuthHeaders();
+    Object.assign(headers, authHeaders);
+
     headers['x-mcp-mode'] = 'true';
     if (this.userKey) {
       headers['X-User-Key'] = this.userKey;

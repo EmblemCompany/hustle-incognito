@@ -1,9 +1,9 @@
 /**
  * Integration tests for HustleIncognitoClient
- * 
+ *
  * These tests interact with the live API and require valid credentials.
  * They are meant to be run manually and not as part of the automated test suite.
- * 
+ *
  * To run: npx vitest run tests/integration.test.ts
  */
 import * as path from 'path';
@@ -11,9 +11,11 @@ import * as fs from 'fs';
 
 import dotenv from 'dotenv';
 import { describe, test, expect, beforeEach, afterEach } from 'vitest';
+import { Wallet } from 'ethers';
 
 import { HustleIncognitoClient } from '../src';
 import type { ProcessedResponse, ChatMessage, StreamChunk } from '../src/types';
+
 
 
 // Load environment variables
@@ -345,4 +347,107 @@ describe.skipIf(shouldSkip)('HustleIncognitoClient Integration Tests', () => {
     console.log('Chat response with multiple attachments received');
     console.log('Response preview:', response.content.substring(0, 200) + '...');
   }); // Use global timeout
+});
+
+// Skip signature auth tests if credentials not available
+const shouldSkipSignatureAuth = !process.env.TEST_PRIVATE_KEY || !process.env.TEST_APP_ID || process.env.CI === 'true';
+
+describe.skipIf(shouldSkipSignatureAuth)('Signature-based Authentication Tests', () => {
+  const AUTH_API_URL = process.env.AUTH_API_URL || 'https://api.emblemvault.ai';
+
+  test('should authenticate with wallet signature and return expected vaultId', async () => {
+    const privateKey = process.env.TEST_PRIVATE_KEY!;
+    const appId = process.env.TEST_APP_ID!;
+    const expectedVaultId = process.env.TEST_EXPECTED_VAULT_ID!;
+
+    const wallet = new Wallet(privateKey);
+    const address = wallet.address;
+
+    // Sign a simple message
+    const message = `Sign in to ${appId}`;
+    const signature = await wallet.signMessage(message);
+
+    console.log('Wallet address:', address);
+    console.log('Message:', message);
+
+    // Call the verify-external endpoint
+    const response = await fetch(`${AUTH_API_URL}/api/auth/wallet/verify-external`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        appId,
+        network: 'ethereum',
+        message,
+        signature,
+        address
+      })
+    });
+
+    const data = await response.json();
+    console.log('Auth response status:', response.status);
+    console.log('Auth response:', JSON.stringify(data, null, 2));
+
+    expect(response.ok).toBe(true);
+    expect(data.success).toBe(true);
+    expect(data.session).toBeDefined();
+    expect(data.session.user).toBeDefined();
+    expect(data.session.user.vaultId).toBe(expectedVaultId);
+    expect(data.session.authToken).toBeDefined();
+
+    console.log('Authenticated successfully!');
+    console.log('VaultId:', data.session.user.vaultId);
+    console.log('EVM Address:', data.session.user.evmAddress);
+  });
+
+  // Skip this test until the chat API supports JWT auth
+  test.skip('should use JWT from signature auth to chat with HustleIncognitoClient', async () => {
+    const privateKey = process.env.TEST_PRIVATE_KEY!;
+    const appId = process.env.TEST_APP_ID!;
+
+    const wallet = new Wallet(privateKey);
+    const address = wallet.address;
+
+    // Sign and authenticate
+    const message = `Sign in to ${appId}`;
+    const signature = await wallet.signMessage(message);
+
+    const authResponse = await fetch(`${AUTH_API_URL}/api/auth/wallet/verify-external`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        appId,
+        network: 'ethereum',
+        message,
+        signature,
+        address
+      })
+    });
+
+    expect(authResponse.ok).toBe(true);
+    const authData = await authResponse.json();
+    const jwt = authData.session.authToken;
+    const vaultId = authData.session.user.vaultId;
+
+    console.log('Authenticated, now testing chat with JWT auth...');
+    console.log('VaultId from auth:', vaultId);
+    console.log('JWT:', jwt.substring(0, 50) + '...');
+
+    // Create client with JWT auth and send chat
+    const client = new HustleIncognitoClient({
+      jwt,
+      debug: process.env.DEBUG === 'true'
+    });
+
+    const response = await client.chat(
+      [{ role: 'user' as const, content: 'Hello, are you there?' }],
+      { vaultId }
+    ) as ProcessedResponse;
+
+    expect(response).toBeDefined();
+    expect(typeof response.content).toBe('string');
+    expect(response.content.length).toBeGreaterThan(0);
+
+    console.log('Chat with JWT auth successful!');
+    console.log('Response preview:', response.content.substring(0, 100) + '...');
+  });
 });
