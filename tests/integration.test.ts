@@ -399,8 +399,8 @@ describe.skipIf(shouldSkipSignatureAuth)('Signature-based Authentication Tests',
     console.log('EVM Address:', data.session.user.evmAddress);
   });
 
-  // Skip this test until the chat API supports JWT auth
-  test.skip('should use JWT from signature auth to chat with HustleIncognitoClient', async () => {
+  // JWT auth is now supported via EmblemAuth
+  test('should use JWT from signature auth to chat with HustleIncognitoClient', async () => {
     const privateKey = process.env.TEST_PRIVATE_KEY!;
     const appId = process.env.TEST_APP_ID!;
 
@@ -435,7 +435,8 @@ describe.skipIf(shouldSkipSignatureAuth)('Signature-based Authentication Tests',
     // Create client with JWT auth and send chat
     const client = new HustleIncognitoClient({
       jwt,
-      debug: process.env.DEBUG === 'true'
+      hustleApiUrl: process.env.HUSTLE_API_URL || 'https://agenthustle.ai',
+      debug: true  // Always enable debug for this test
     });
 
     const response = await client.chat(

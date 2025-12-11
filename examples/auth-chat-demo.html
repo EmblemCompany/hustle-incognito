@@ -238,7 +238,9 @@
       log('Initializing Emblem Auth SDK...');
 
       authSDK = new window.EmblemAuth.EmblemAuthSDK({
-        appId: 'agenthustle.ai',
+        appId: 'dev.agenthustle.ai',
+        apiUrl: 'https://dev-api.emblemvault.ai',
+        modalUrl: 'https://dev-auth.emblemvault.ai/connect',
         onSuccess: (session) => {
           log('Auth success! VaultId: ' + session.user?.vaultId);
           handleAuthSuccess(session);
@@ -259,21 +261,49 @@
       }
     }
 
+    // Decode JWT payload (without verification)
+    function decodeJwt(token) {
+      try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+        const payload = JSON.parse(atob(parts[1]));
+        return payload;
+      } catch (e) {
+        return null;
+      }
+    }
+
     // Handle successful authentication
     function handleAuthSuccess(session) {
       authStatus.textContent = `Authenticated as vault ${session.user?.vaultId}`;
       authStatus.className = 'status connected';
-      sessionInfo.textContent = JSON.stringify(session, null, 2);
+
+      // Decode JWT claims for display
+      const jwtClaims = session.authToken ? decodeJwt(session.authToken) : null;
+      const sessionWithClaims = {
+        ...session,
+        _jwtClaims: jwtClaims ? {
+          iss: jwtClaims.iss,
+          aud: jwtClaims.aud,
+          sub: jwtClaims.sub,
+          appId: jwtClaims.appId,
+          identifier: jwtClaims.identifier,
+          iat: jwtClaims.iat ? new Date(jwtClaims.iat * 1000).toISOString() : null,
+          exp: jwtClaims.exp ? new Date(jwtClaims.exp * 1000).toISOString() : null,
+          scope: jwtClaims.scope
+        } : null
+      };
+      sessionInfo.textContent = JSON.stringify(sessionWithClaims, null, 2);
 
       loginBtn.style.display = 'none';
       logoutBtn.style.display = 'inline-block';
 
       // Create Hustle client with SDK auth
-      // TEMPORARY: Override to local dev server for testing
-      log('Creating HustleIncognitoClient with SDK auth (local dev)...');
+      // Using experimental endpoint with dev auth
+      log('Creating HustleIncognitoClient with SDK auth (experimental)...');
       hustleClient = new HustleIncognitoClient({
         sdk: authSDK,
-        hustleApiUrl: 'http://localhost:3001',
+        hustleApiUrl: 'https://experimental.agenthustle.ai',
         debug: true
       });
 
