@@ -53,10 +53,26 @@ async function main() {
       ? parseInt(args[portIndex + 1])
       : (process.env.PORT || 3000);
 
-    // Check for required environment variables
+    // =========================================================================
+    // ENVIRONMENT-BASED CONFIGURATION
+    // =========================================================================
+    // This server is configured entirely via environment variables.
+    // No hardcoded URLs or defaults - all configuration must come from .env
+    // or environment variables:
+    //
+    //   HUSTLE_API_KEY   - Required. Your Hustle API key
+    //   HUSTLE_API_URL   - Required. API endpoint (e.g., https://agenthustle.ai)
+    //   VAULT_ID         - Optional. Default vault ID (defaults to 'default')
+    //   PORT             - Optional. Server port (defaults to 3000)
+    //   DEBUG            - Optional. Enable debug logging (set to 'true')
+    //
+    // For production: HUSTLE_API_URL=https://agenthustle.ai
+    // For development: HUSTLE_API_URL=https://dev.agenthustle.ai
+    // =========================================================================
+
     const API_KEY = process.env.HUSTLE_API_KEY;
-    const DEFAULT_VAULT_ID = process.env.VAULT_ID || 'default';
     const BASE_URL = process.env.HUSTLE_API_URL;
+    const DEFAULT_VAULT_ID = process.env.VAULT_ID || 'default';
 
     if (!API_KEY) {
       console.error('Error: HUSTLE_API_KEY environment variable is required');
@@ -64,14 +80,21 @@ async function main() {
       process.exit(1);
     }
 
-    // Initialize the client
+    if (!BASE_URL) {
+      console.error('Error: HUSTLE_API_URL environment variable is required');
+      console.error('Set to https://agenthustle.ai for production or https://dev.agenthustle.ai for development');
+      process.exit(1);
+    }
+
+    // Initialize the client with environment-based configuration
     const client = new HustleIncognitoClient({
       apiKey: API_KEY,
-      debug: process.env.DEBUG === 'true',
-      ...(BASE_URL && { hustleApiUrl: BASE_URL })
+      hustleApiUrl: BASE_URL,
+      debug: process.env.DEBUG === 'true'
     });
 
     console.log('✓ Hustle Incognito client initialized');
+    console.log(`  API URL: ${BASE_URL}`);
 
     /**
      * Parse JSON body from request
