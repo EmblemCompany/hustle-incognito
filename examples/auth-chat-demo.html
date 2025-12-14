@@ -1034,6 +1034,9 @@
       emblemAuthAppId: 'dev.agenthustle.ai',
       emblemAuthApiUrl: 'https://dev-api.emblemvault.ai',
       emblemAuthModalUrl: 'https://dev-auth.emblemvault.ai/connect',
+
+      // Enable SDK debug logging (set to false for production)
+      debug: true,
     };
     // =========================================================================
 
@@ -1462,7 +1465,7 @@
       hustleClient = new HustleIncognitoClient({
         sdk: authSDK,
         hustleApiUrl: CONFIG.hustleApiUrl,
-        debug: true
+        debug: CONFIG.debug
       });
 
       // Subscribe to tool events
