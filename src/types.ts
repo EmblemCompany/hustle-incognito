@@ -462,10 +462,16 @@ export interface ChatResponse {
 export interface ToolCall {
   /** Unique ID for this tool call */
   toolCallId?: string;
+  /** @deprecated Use toolCallId instead */
+  id?: string;
   /** The name of the tool being called */
   toolName?: string;
+  /** @deprecated Use toolName instead */
+  name?: string;
   /** Arguments passed to the tool */
   args?: Record<string, unknown>;
+  /** @deprecated Use args instead */
+  arguments?: Record<string, unknown>;
 }
 
 /**
@@ -474,8 +480,12 @@ export interface ToolCall {
 export interface ToolResult {
   /** The ID of the tool call. */
   toolCallId: string;
+  /** @deprecated Use toolCallId instead */
+  id?: string;
   /** The name of the tool that was called. */
   toolName?: string;
+  /** @deprecated Use toolName instead */
+  name?: string;
   /** The result of the tool execution. */
   result: unknown;
 }

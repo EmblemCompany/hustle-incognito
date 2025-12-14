@@ -979,11 +979,24 @@ describe('HustleIncognitoClient', () => {
 
       expect(response.content).toBe('Checking... Done!');
       expect(response.toolCalls).toHaveLength(2);
-      expect(response.toolCalls[0]).toEqual({ toolCallId: 'call-1', toolName: 'get_price', args: { symbol: 'BTC' } });
-      expect(response.toolCalls[1]).toEqual({ toolCallId: 'call-2', toolName: 'get_balance', args: {} });
+      // Check both new and backward-compatible field names
+      expect(response.toolCalls[0]).toEqual({
+        toolCallId: 'call-1', toolName: 'get_price', args: { symbol: 'BTC' },
+        id: 'call-1', name: 'get_price', arguments: { symbol: 'BTC' }
+      });
+      expect(response.toolCalls[1]).toEqual({
+        toolCallId: 'call-2', toolName: 'get_balance', args: {},
+        id: 'call-2', name: 'get_balance', arguments: {}
+      });
       expect(response.toolResults).toHaveLength(2);
-      expect(response.toolResults[0]).toEqual({ toolCallId: 'call-1', result: { price: 50000 } });
-      expect(response.toolResults[1]).toEqual({ toolCallId: 'call-2', result: { balance: 1.5 } });
+      expect(response.toolResults[0]).toEqual({
+        toolCallId: 'call-1', result: { price: 50000 },
+        id: 'call-1', name: undefined
+      });
+      expect(response.toolResults[1]).toEqual({
+        toolCallId: 'call-2', result: { balance: 1.5 },
+        id: 'call-2', name: undefined
+      });
     });
 
     test('should aggregate path info in response', async () => {

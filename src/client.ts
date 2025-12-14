@@ -98,10 +98,21 @@ class StreamProcessor {
           this.pathInfo = chunk.value;
           break;
         case 'tool_call':
-          this.toolCalls.push(chunk.value);
+          // Add backward-compatible aliases
+          this.toolCalls.push({
+            ...chunk.value,
+            id: chunk.value.toolCallId,
+            name: chunk.value.toolName,
+            arguments: chunk.value.args,
+          });
           break;
         case 'tool_result':
-          this.toolResults.push(chunk.value);
+          // Add backward-compatible aliases
+          this.toolResults.push({
+            ...chunk.value,
+            id: chunk.value.toolCallId,
+            name: chunk.value.toolName,
+          });
           break;
         case 'reasoning':
           this.reasoning = chunk.value;
