@@ -18,13 +18,27 @@ async function main() {
     
     // Load environment variables
     dotenv.config();
-    
+
+    // =========================================================================
+    // ENVIRONMENT-BASED CONFIGURATION
+    // =========================================================================
+    // This CLI reads configuration from environment variables (.env file).
+    // All settings can be overridden at runtime using CLI commands.
+    //
+    //   HUSTLE_API_KEY   - Required. Your Hustle API key
+    //   HUSTLE_API_URL   - Optional. API endpoint (default: https://agenthustle.ai)
+    //   VAULT_ID         - Optional. Default vault ID (default: 'default')
+    //   DEBUG            - Optional. Enable debug logging (set to 'true')
+    //
+    // For production: HUSTLE_API_URL=https://agenthustle.ai
+    // For development: HUSTLE_API_URL=https://dev.agenthustle.ai
+    // =========================================================================
+
     // Parse command line arguments
     const args = process.argv.slice(2);
     const initialDebugMode = args.includes('--debug');
     const initialStreamMode = args.includes('--stream');
-    
-    // Check for required environment variables
+
     const ENV_API_KEY = process.env.HUSTLE_API_KEY;
     const ENV_VAULT_ID = process.env.VAULT_ID || 'default';
     const ENV_DEBUG = process.env.DEBUG === 'true';
@@ -44,11 +58,15 @@ async function main() {
       baseUrl: ENV_API_URL || 'https://agenthustle.ai',  // API base URL
       apiKey: ENV_API_KEY,  // API key for authentication
       vaultId: ENV_VAULT_ID,  // Vault ID for requests
-      retainHistory: true  // Whether to retain conversation history
+      retainHistory: true,  // Whether to retain conversation history
+      model: null  // Selected model ID (null = use API default)
     };
-    
+
     // Store available tools
     let availableTools = [];
+
+    // Store available models
+    let availableModels = [];
     
     // Store pending attachments for the next message
     let pendingAttachments = [];
@@ -82,7 +100,12 @@ async function main() {
           messages,
           processChunks: true
         };
-        
+
+        // Add model if selected
+        if (settings.model) {
+          streamOptions.model = settings.model;
+        }
+
         // Add selected tools if any
         if (settings.selectedTools.length > 0) {
           streamOptions.selectedToolCategories = settings.selectedTools;
@@ -144,6 +167,9 @@ async function main() {
       console.log('  /baseurl <url> - Set the API base URL');
       console.log('  /apikey <key>  - Set the API key');
       console.log('  /vaultid <id>  - Set the vault ID');
+      console.log('  /models     - List available models');
+      console.log('  /model <id> - Set the model to use');
+      console.log('  /model clear - Clear model selection (use API default)');
       console.log('  /tools      - Manage tool categories');
       console.log('  /tools add <id> - Add a tool category');
       console.log('  /tools remove <id> - Remove a tool category');
@@ -160,6 +186,7 @@ async function main() {
       console.log(`  Base URL:  ${settings.baseUrl}`);
       console.log(`  API Key:   ${settings.apiKey.substring(0, 8)}...${settings.apiKey.substring(settings.apiKey.length - 4)}`);
       console.log(`  Vault ID:  ${settings.vaultId}`);
+      console.log(`  Model:     ${settings.model || 'API default'}`);
       console.log(`  Streaming: ${settings.stream ? 'ON' : 'OFF'}`);
       console.log(`  Debug:     ${settings.debug ? 'ON' : 'OFF'}`);
       console.log(`  History:   ${settings.retainHistory ? 'ON' : 'OFF'}`);
@@ -233,7 +260,44 @@ async function main() {
         console.error('Error fetching tools:', error.message);
       }
     }
-    
+
+    // Manage models
+    async function manageModels() {
+      try {
+        // Fetch available models if not already loaded
+        if (availableModels.length === 0) {
+          console.log('\nFetching available models...');
+          availableModels = await client.getModels();
+        }
+
+        // Display available models
+        console.log('\n=== Available Models ===\n');
+
+        availableModels.forEach((model) => {
+          const isSelected = settings.model === model.id;
+          const status = isSelected ? '>' : ' ';
+          const pricing = model.pricing;
+          const promptPrice = pricing?.prompt ? `$${(parseFloat(pricing.prompt) * 1000000).toFixed(2)}/M` : 'N/A';
+          const completionPrice = pricing?.completion ? `$${(parseFloat(pricing.completion) * 1000000).toFixed(2)}/M` : 'N/A';
+
+          console.log(`${status} ${model.name}`);
+          console.log(`    ID: ${model.id}`);
+          console.log(`    Context: ${model.context_length?.toLocaleString() || 'N/A'} tokens`);
+          console.log(`    Pricing: ${promptPrice} prompt, ${completionPrice} completion`);
+          console.log('');
+        });
+
+        console.log('Current model:', settings.model || 'API default');
+        console.log('\nCommands:');
+        console.log('  /model <id>   - Select a model by ID');
+        console.log('  /model clear  - Use API default model');
+        console.log('  /models       - Show this list again');
+
+      } catch (error) {
+        console.error('Error fetching models:', error.message);
+      }
+    }
+
     // Process commands (now async to handle /tools)
     async function processCommand(command) {
       if (command === '/help') {
@@ -456,7 +520,35 @@ async function main() {
         }
         return true;
       }
-      
+
+      if (command === '/models') {
+        await manageModels();
+        return true;
+      }
+
+      if (command.startsWith('/model')) {
+        const parts = command.split(' ');
+        if (parts.length === 1) {
+          // Just "/model" - show current model
+          console.log(`Current model: ${settings.model || 'API default'}`);
+          console.log('Usage: /model <id> or /model clear');
+          return true;
+        }
+
+        const modelArg = parts.slice(1).join(' ');
+
+        if (modelArg === 'clear') {
+          settings.model = null;
+          console.log('Model selection cleared. Using API default.');
+          return true;
+        }
+
+        // Set the model
+        settings.model = modelArg;
+        console.log(`Model set to: ${settings.model}`);
+        return true;
+      }
+
       if (command === '/attachments') {
         if (pendingAttachments.length === 0) {
           console.log('No pending attachments.');
@@ -563,7 +655,12 @@ async function main() {
           } else {
             // Get response from the AI (non-streaming)
             const chatOptions = { vaultId: settings.vaultId };
-            
+
+            // Add model if selected
+            if (settings.model) {
+              chatOptions.model = settings.model;
+            }
+
             // Add selected tools if any
             if (settings.selectedTools.length > 0) {
               chatOptions.selectedToolCategories = settings.selectedTools;
