@@ -505,9 +505,11 @@
       overflow-y: auto;
     }
     .message {
-      margin-bottom: 12px;
-      padding: 8px 12px;
+      margin-bottom: 16px;
+      padding: 12px 16px;
       border-radius: 8px;
+      font-size: 15px;
+      line-height: 1.7;
     }
     .message.user {
       background: #1e3a5f;
@@ -520,7 +522,8 @@
     .message .role {
       font-size: 11px;
       color: #8892a4;
-      margin-bottom: 4px;
+      text-transform: lowercase;
+      margin-bottom: 6px;
     }
     .message-content h1, .message-content h2, .message-content h3 {
       color: #fff;
@@ -530,14 +533,15 @@
     .message-content h2 { font-size: 1.2em; }
     .message-content h3 { font-size: 1.1em; }
     .message-content p {
-      margin-bottom: 8px;
-      line-height: 1.6;
+      margin-bottom: 12px;
+      line-height: 1.7;
     }
     .message-content ul, .message-content ol {
-      margin: 8px 0 8px 20px;
+      margin: 12px 0 12px 24px;
     }
     .message-content li {
-      margin-bottom: 4px;
+      margin-bottom: 8px;
+      line-height: 1.6;
     }
     .message-content code {
       background: #0f141a;
@@ -909,6 +913,107 @@
       font-size: 11px;
       color: #6b7280;
       margin-top: 6px;
+    }
+
+    /* Mobile Responsive Styles */
+    @media (max-width: 768px) {
+      body {
+        padding: 16px;
+      }
+      .container {
+        padding: 0 16px;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      .subtitle {
+        font-size: 14px;
+      }
+      .auth-section {
+        width: 100%;
+      }
+      .connected-btn {
+        font-size: 13px;
+        padding: 8px 12px;
+      }
+      .chat-wrapper {
+        padding: 0 16px 16px 16px;
+        margin: 0 -16px;
+      }
+      .chat-wrapper .card {
+        border-radius: 12px;
+      }
+      .chat-header {
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .chat-header h2 {
+        font-size: 1.1rem;
+      }
+      .settings-wrapper {
+        width: 100%;
+        justify-content: flex-end;
+      }
+      .settings-btn {
+        width: 36px;
+        height: 36px;
+      }
+      .message {
+        padding: 10px 12px;
+        font-size: 14px;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+      .message-content ul, .message-content ol {
+        margin-left: 16px;
+      }
+      .chat-input input {
+        font-size: 16px; /* Prevents iOS zoom */
+      }
+      .file-upload-btn {
+        padding: 8px;
+      }
+      .btn {
+        padding: 10px 16px;
+        font-size: 14px;
+      }
+      .modal {
+        width: 95%;
+        max-height: 90vh;
+        margin: 5vh auto;
+      }
+      .setting-textarea {
+        font-size: 16px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 12px;
+      }
+      .container {
+        padding: 0 12px;
+      }
+      h1 {
+        font-size: 1.3rem;
+      }
+      .demo-nav {
+        font-size: 13px;
+      }
+      .chat-wrapper {
+        padding: 0 12px 12px 12px;
+        margin: 0 -12px;
+      }
+      .chat-header {
+        padding-bottom: 8px;
+      }
+      .message {
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .messages {
+        padding: 12px;
+      }
     }
   </style>
 </head>
