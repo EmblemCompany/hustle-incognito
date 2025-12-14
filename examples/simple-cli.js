@@ -87,13 +87,39 @@ async function main() {
     // Store conversation history
     const messages = [];
     
+    // Spinner frames for loading animation
+    const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+    let spinnerInterval = null;
+    let spinnerIndex = 0;
+
+    function startSpinner() {
+      spinnerIndex = 0;
+      process.stdout.write(spinnerFrames[0]);
+      spinnerInterval = setInterval(() => {
+        // Clear spinner character and write next frame
+        process.stdout.write('\b' + spinnerFrames[spinnerIndex]);
+        spinnerIndex = (spinnerIndex + 1) % spinnerFrames.length;
+      }, 80);
+    }
+
+    function stopSpinner() {
+      if (spinnerInterval) {
+        clearInterval(spinnerInterval);
+        spinnerInterval = null;
+        // Clear the spinner character
+        process.stdout.write('\b \b');
+      }
+    }
+
     // Stream the response from the API
     async function streamResponse(messages) {
       let fullText = '';
       let toolCalls = [];
-      
+      let firstChunkReceived = false;
+
       process.stdout.write('\nAgent: ');
-      
+      startSpinner();
+
       try {
         const streamOptions = {
           vaultId: settings.vaultId,
@@ -110,34 +136,46 @@ async function main() {
         if (settings.selectedTools.length > 0) {
           streamOptions.selectedToolCategories = settings.selectedTools;
         }
-        
+
         // Add pending attachments if any
         if (pendingAttachments.length > 0) {
           streamOptions.attachments = [...pendingAttachments];
+          stopSpinner();
           console.log(`\n📎 Including ${pendingAttachments.length} attachment(s)`);
+          startSpinner();
           // Clear pending attachments after adding them
           pendingAttachments = [];
         }
-        
+
         for await (const chunk of client.chatStream(streamOptions)) {
           if ('type' in chunk) {
             switch (chunk.type) {
               case 'text':
+                if (!firstChunkReceived) {
+                  stopSpinner();
+                  firstChunkReceived = true;
+                }
                 process.stdout.write(chunk.value);
                 fullText += chunk.value;
                 break;
-                
+
               case 'tool_call':
+                if (!firstChunkReceived) {
+                  stopSpinner();
+                  firstChunkReceived = true;
+                }
                 toolCalls.push(chunk.value);
                 break;
-                
+
               case 'finish':
+                stopSpinner();
                 process.stdout.write('\n');
                 break;
             }
           }
         }
       } catch (error) {
+        stopSpinner();
         console.error(`\nError during streaming: ${error.message}`);
       }
       
