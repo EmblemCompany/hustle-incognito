@@ -92,9 +92,13 @@ async function main() {
     let spinnerInterval = null;
     let spinnerIndex = 0;
 
+    // ANSI escape codes to hide/show cursor
+    const hideCursor = '\x1B[?25l';
+    const showCursor = '\x1B[?25h';
+
     function startSpinner() {
       spinnerIndex = 0;
-      process.stdout.write(spinnerFrames[0]);
+      process.stdout.write(hideCursor + spinnerFrames[0]);
       spinnerInterval = setInterval(() => {
         // Clear spinner character and write next frame
         process.stdout.write('\b' + spinnerFrames[spinnerIndex]);
@@ -106,8 +110,8 @@ async function main() {
       if (spinnerInterval) {
         clearInterval(spinnerInterval);
         spinnerInterval = null;
-        // Clear the spinner character
-        process.stdout.write('\b \b');
+        // Clear the spinner character and show cursor again
+        process.stdout.write('\b \b' + showCursor);
       }
     }
 
