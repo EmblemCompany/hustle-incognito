@@ -230,12 +230,12 @@ describe.skipIf(shouldSkip)('HustleIncognitoClient Integration Tests', () => {
     }
     
     expect(chunks.length).toBeGreaterThan(0);
-    expect(textChunks).toBeGreaterThan(0);
     console.log(`Processed ${chunks.length} chunks, including ${textChunks} text chunks`);
-    
-    // We may not always see a tool call depending on the API response
-    // So we'll just log whether we saw one or not
     console.log('Saw tool call:', sawToolCall);
+
+    // The response should have either text or tool calls (or both)
+    // Some queries may trigger direct tool calls without any text
+    expect(textChunks > 0 || sawToolCall).toBe(true);
   }); // Use global timeout
   
   test('should upload image file and return attachment info', async () => {
