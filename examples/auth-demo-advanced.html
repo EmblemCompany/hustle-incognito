@@ -1,0 +1,3283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hustle Incognito + Emblem Auth Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      height: 100%;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0b0d10;
+      color: #e6eef8;
+      min-height: 100vh;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+    }
+    .container {
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+      flex-shrink: 0;
+      padding: 0 24px;
+    }
+    h1 {
+      margin-bottom: 8px;
+      color: #fff;
+    }
+    .subtitle {
+      color: #8892a4;
+      margin-bottom: 12px;
+    }
+    .demo-nav {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+    .demo-nav-item {
+      color: #4c9aff;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .demo-nav-item:hover {
+      color: #7bb6ff;
+    }
+    .demo-nav-item.active {
+      color: #e6eef8;
+      font-weight: 500;
+    }
+    .demo-nav-separator {
+      color: #333;
+    }
+    /* Auth Section Styles */
+    .auth-section {
+      margin-bottom: 20px;
+      width: 100%;
+    }
+    .connect-container {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .connect-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #1a1f25;
+      border: 1px solid #333;
+      color: #e6eef8;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .connect-btn:hover {
+      background: #252b33;
+      border-color: #444;
+    }
+    .connect-icon {
+      font-size: 16px;
+    }
+    .connected-container {
+      position: relative;
+      display: flex;
+      justify-content: flex-start;
+      gap: 8px;
+    }
+    .connected-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+    }
+    .connected-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      border: 1px solid #10b981;
+      color: #10b981;
+      padding: 8px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .connected-check {
+      color: #10b981;
+    }
+    .connected-dot {
+      color: #555;
+    }
+    .short-address {
+      color: #8892a4;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 13px;
+    }
+    .dropdown-arrow {
+      color: #8892a4;
+      font-size: 10px;
+      margin-left: 4px;
+    }
+    .logout-icon-btn {
+      background: transparent;
+      border: 1px solid #333;
+      color: #8892a4;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .logout-icon-btn:hover {
+      border-color: #dc2626;
+      color: #dc2626;
+    }
+    .vault-info-wrapper {
+      position: relative;
+    }
+    .vault-info-wrapper:hover .vault-info {
+      display: block;
+    }
+    .vault-info {
+      display: none;
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 8px;
+      background: #12161b;
+      border: 1px solid #222b35;
+      border-radius: 12px;
+      padding: 16px;
+      min-width: 380px;
+      z-index: 100;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .vault-info-header {
+      font-size: 11px;
+      font-weight: 600;
+      color: #8892a4;
+      letter-spacing: 0.5px;
+      margin-bottom: 16px;
+    }
+    .vault-info-row {
+      margin-bottom: 12px;
+    }
+    .vault-info-row:last-child {
+      margin-bottom: 0;
+    }
+    .vault-label {
+      display: block;
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+    .vault-value-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .vault-value {
+      font-size: 14px;
+      color: #e6eef8;
+      font-weight: 500;
+      flex: 1;
+    }
+    .vault-value.mono {
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 13px;
+      word-break: break-all;
+    }
+    .copy-btn {
+      background: transparent;
+      border: 1px solid #333;
+      color: #8892a4;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .copy-btn:hover {
+      background: #1a1f25;
+      border-color: #4c9aff;
+      color: #4c9aff;
+    }
+    .copy-btn.copied {
+      background: #10b981;
+      border-color: #10b981;
+      color: white;
+    }
+    .debug-toggle {
+      display: flex;
+      justify-content: center;
+      margin: 20px 0;
+      flex-shrink: 0;
+    }
+    .debug-toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: 1px solid #333;
+      color: #6b7280;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+    .debug-toggle-btn:hover {
+      border-color: #4c9aff;
+      color: #4c9aff;
+    }
+    .debug-toggle-btn.active {
+      border-color: #4c9aff;
+      color: #4c9aff;
+      background: rgba(76, 154, 255, 0.1);
+    }
+    .debug-icon {
+      font-size: 14px;
+    }
+    .card {
+      background: #12161b;
+      border: 1px solid #222b35;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    h2 {
+      color: #4c9aff;
+      margin-bottom: 16px;
+      font-size: 1.25rem;
+    }
+    .chat-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .chat-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .chat-header h2 {
+      margin: 0;
+      line-height: 40px;
+    }
+    .chat-name {
+      font-size: 13px;
+      color: #8892a4;
+      background: #1a1f25;
+      padding: 4px 10px;
+      border-radius: 4px;
+      max-width: 150px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .chat-actions-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+    .chat-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .chat-action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+      height: 40px;
+      background: #1a1f25;
+      border: 1px solid #333;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #8892a4;
+      font-size: 12px;
+      transition: all 0.2s;
+      gap: 4px;
+    }
+    .chat-action-btn:hover:not(:disabled) {
+      background: #252b33;
+      border-color: #4c9aff;
+      color: #4c9aff;
+    }
+    .chat-action-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .modal-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #1a1f25;
+      color: #fff;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    .modal-input:focus {
+      outline: none;
+      border-color: #4c9aff;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+    .modal-btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .modal-btn-primary {
+      background: #4c9aff;
+      border: none;
+      color: white;
+    }
+    .modal-btn-primary:hover {
+      background: #7bb6ff;
+    }
+    .modal-btn-secondary {
+      background: transparent;
+      border: 1px solid #333;
+      color: #8892a4;
+    }
+    .modal-btn-secondary:hover {
+      border-color: #4c9aff;
+      color: #4c9aff;
+    }
+    .modal-btn-danger {
+      background: #dc2626;
+      border: none;
+      color: white;
+    }
+    .modal-btn-danger:hover {
+      background: #ef4444;
+    }
+    /* Chat List Styles */
+    .chat-list-section {
+      margin-bottom: 20px;
+    }
+    .chat-list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .chat-list-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: #8892a4;
+    }
+    .chat-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .chat-list-empty {
+      font-size: 13px;
+      color: #6b7280;
+      font-style: italic;
+      padding: 12px;
+      text-align: center;
+      background: #0f141a;
+      border-radius: 8px;
+    }
+    .chat-list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: #1a1f25;
+      border: 1px solid #333;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chat-list-item:hover {
+      background: #252b33;
+      border-color: #4c9aff;
+    }
+    .chat-list-item.active {
+      border-color: #4c9aff;
+      background: rgba(76, 154, 255, 0.1);
+    }
+    .chat-list-item-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .chat-list-item-name {
+      font-size: 14px;
+      color: #e6eef8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .chat-list-item-meta {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+    .chat-list-item-actions {
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .chat-list-item:hover .chat-list-item-actions {
+      opacity: 1;
+    }
+    .chat-list-item-share,
+    .chat-list-item-delete {
+      background: transparent;
+      border: none;
+      color: #6b7280;
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 14px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    .chat-list-item-share:hover {
+      color: #4c9aff;
+      background: rgba(76, 154, 255, 0.1);
+    }
+    .chat-list-item-share.copied {
+      color: #22c55e;
+    }
+    .chat-list-item-delete:hover {
+      color: #dc2626;
+      background: rgba(220, 38, 38, 0.1);
+    }
+    .copy-feedback {
+      position: absolute;
+      right: 0;
+      top: -28px;
+      background: #22c55e;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      white-space: nowrap;
+      animation: fadeInOut 2s ease-in-out;
+      z-index: 10;
+    }
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateY(4px); }
+      15% { opacity: 1; transform: translateY(0); }
+      85% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-4px); }
+    }
+    .chat-list-item-actions {
+      position: relative;
+    }
+    /* Sidebar Drawer */
+    .chat-layout-wrapper {
+      position: relative;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding: 0 24px 24px 24px;
+    }
+    .chat-layout {
+      display: flex;
+      gap: 0;
+      max-width: 900px;
+      margin: 0 auto;
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      position: relative;
+    }
+    .sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      background: #12171d;
+      border: 1px solid #333;
+      border-radius: 12px 0 0 12px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: width 0.3s ease, opacity 0.3s ease;
+    }
+    .sidebar.collapsed {
+      width: 0;
+      border: none;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      border-bottom: 1px solid #333;
+    }
+    .sidebar-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e6eef8;
+    }
+    .sidebar-toggle {
+      background: transparent;
+      border: none;
+      color: #8892a4;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    .sidebar-toggle:hover {
+      color: #4c9aff;
+      background: rgba(76, 154, 255, 0.1);
+    }
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+    .sidebar .chat-list-section {
+      margin-bottom: 0;
+      display: block !important;
+    }
+    .sidebar .chat-list-header {
+      display: none;
+    }
+    .main-content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .main-content .card {
+      border-radius: 0 12px 12px 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 0;
+    }
+    .sidebar.collapsed + .main-content .card {
+      border-radius: 12px;
+    }
+    /* Toggle button when sidebar is collapsed */
+    .sidebar-open-btn {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translate(-100%, -50%);
+      background: #1a1f25;
+      border: 1px solid #333;
+      border-right: none;
+      border-radius: 8px 0 0 8px;
+      color: #8892a4;
+      cursor: pointer;
+      padding: 12px 8px;
+      transition: all 0.2s;
+      z-index: 10;
+    }
+    .sidebar-open-btn:hover {
+      background: #252b33;
+      color: #4c9aff;
+      border-color: #4c9aff;
+    }
+    .sidebar-open-btn.hidden {
+      display: none;
+    }
+    .btn {
+      background: #4c9aff;
+      border: none;
+      color: white;
+      font-weight: 600;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-right: 8px;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .btn:hover {
+      background: #7bb6ff;
+    }
+    .btn:disabled {
+      background: #333;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: #333;
+    }
+    .btn-secondary:hover {
+      background: #444;
+    }
+    .btn-danger {
+      background: #dc2626;
+    }
+    .btn-danger:hover {
+      background: #ef4444;
+    }
+    .status {
+      padding: 12px;
+      background: #0f141a;
+      border-radius: 8px;
+      margin: 12px 0;
+      font-size: 14px;
+    }
+    .status.connected {
+      border-left: 4px solid #10b981;
+    }
+    .status.disconnected {
+      border-left: 4px solid #f59e0b;
+    }
+    pre {
+      background: #0f141a;
+      padding: 16px;
+      border-radius: 8px;
+      overflow: auto;
+      font-size: 13px;
+      max-height: 200px;
+    }
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex: 1;
+      min-height: 0;
+    }
+    .tool-activity {
+      display: flex;
+      justify-content: center;
+      min-height: 0;
+    }
+    .tool-activity:not(:empty) {
+      padding: 4px 0;
+    }
+    .tool-chip {
+      position: relative;
+      padding: 2px 10px;
+      font-size: 10px;
+      color: #4c9aff;
+      cursor: default;
+      animation: fadeInGlow 0.3s ease-out, glow 1.5s ease-in-out infinite;
+    }
+    .tool-chip.complete {
+      animation: fadeInGlow 0.3s ease-out;
+      opacity: 0.5;
+    }
+    .tool-chip .tool-tooltip {
+      display: none;
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-bottom: 6px;
+      padding: 8px 10px;
+      background: #1a1f25;
+      border: 1px solid #333;
+      border-radius: 6px;
+      font-size: 9px;
+      color: #a0aec0;
+      white-space: pre;
+      max-width: 300px;
+      max-height: 200px;
+      overflow: auto;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .tool-chip:hover .tool-tooltip {
+      display: block;
+    }
+    .tool-summary {
+      font-size: 10px;
+      color: #6b7280;
+      padding: 8px 12px;
+      background: #0f141a;
+      border-radius: 6px;
+      max-width: 100%;
+    }
+    .tool-summary-header {
+      color: #9ca3af;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .tool-summary-header:hover {
+      color: #d1d5db;
+    }
+    .tool-summary-details {
+      display: none;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #1f2937;
+      line-height: 1.6;
+    }
+    .tool-summary.expanded .tool-summary-details {
+      display: block;
+    }
+    .tool-summary-label {
+      color: #9ca3af;
+    }
+    .tool-name-link {
+      color: #4c9aff;
+      cursor: pointer;
+      text-decoration: underline;
+      text-decoration-style: dotted;
+    }
+    .tool-name-link:hover {
+      color: #6bb3ff;
+    }
+    .tool-detail {
+      margin-top: 8px;
+      padding: 8px;
+      background: #1a1f25;
+      border-radius: 4px;
+      border-left: 2px solid #4c9aff;
+    }
+    .tool-detail-section {
+      margin-bottom: 6px;
+    }
+    .tool-detail-section:last-child {
+      margin-bottom: 0;
+    }
+    .tool-detail-title {
+      color: #9ca3af;
+      font-size: 9px;
+      margin-bottom: 2px;
+    }
+    .tool-detail-content {
+      color: #d1d5db;
+      font-size: 9px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 150px;
+      overflow: auto;
+    }
+    @keyframes fadeInGlow {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes glow {
+      0%, 100% {
+        opacity: 1;
+        text-shadow: 0 0 4px rgba(76, 154, 255, 0.6);
+      }
+      50% {
+        opacity: 0.6;
+        text-shadow: 0 0 8px rgba(76, 154, 255, 0.9);
+      }
+    }
+    .chat-input {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+    }
+    .chat-input input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #1a1f25;
+      color: #fff;
+      font-size: 14px;
+    }
+    .chat-input input:focus {
+      outline: none;
+      border-color: #4c9aff;
+    }
+    .messages {
+      background: #0f141a;
+      border-radius: 8px;
+      padding: 16px;
+      flex: 1;
+      min-height: 200px;
+      overflow-y: auto;
+    }
+    .message {
+      margin-bottom: 12px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      position: relative;
+    }
+    .message.user {
+      background: #1e3a5f;
+      margin-left: 40px;
+    }
+    .message.assistant {
+      background: #1a2633;
+      margin-right: 40px;
+    }
+    .message .role {
+      font-size: 11px;
+      color: #8892a4;
+      margin-bottom: 4px;
+    }
+    .message-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .message-actions {
+      display: flex;
+      gap: 4px;
+    }
+    .message-action {
+      background: transparent;
+      border: none;
+      color: #6b7280;
+      cursor: pointer;
+      padding: 2px 6px;
+      font-size: 12px;
+      border-radius: 4px;
+      opacity: 0;
+      transition: all 0.2s;
+    }
+    .message:hover .message-action {
+      opacity: 1;
+    }
+    .message-action:hover {
+      color: #4c9aff;
+      background: rgba(76, 154, 255, 0.1);
+    }
+    .message-action.delete:hover {
+      color: #dc2626;
+      background: rgba(220, 38, 38, 0.1);
+    }
+    .message-content h1, .message-content h2, .message-content h3 {
+      color: #fff;
+      margin: 12px 0 8px 0;
+    }
+    .message-content h1 { font-size: 1.4em; }
+    .message-content h2 { font-size: 1.2em; }
+    .message-content h3 { font-size: 1.1em; }
+    .message-content p {
+      margin-bottom: 8px;
+      line-height: 1.6;
+    }
+    .message-content ul, .message-content ol {
+      margin: 8px 0 8px 20px;
+    }
+    .message-content li {
+      margin-bottom: 4px;
+    }
+    .message-content code {
+      background: #0f141a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 0.9em;
+    }
+    .message-content pre {
+      background: #0f141a;
+      padding: 12px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    .message-content pre code {
+      padding: 0;
+      background: none;
+    }
+    .message-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 0.9em;
+    }
+    .message-content th, .message-content td {
+      border: 1px solid #333;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    .message-content th {
+      background: #1a1f25;
+      font-weight: 600;
+    }
+    .message-content tr:nth-child(even) {
+      background: rgba(255,255,255,0.02);
+    }
+    .message-content a {
+      color: #4c9aff;
+      text-decoration: none;
+    }
+    .message-content a:hover {
+      text-decoration: underline;
+    }
+    .message-content strong {
+      color: #fff;
+      font-weight: 600;
+    }
+    .message-content em {
+      color: #a0aec0;
+    }
+    .message-content blockquote {
+      border-left: 3px solid #4c9aff;
+      padding-left: 12px;
+      margin: 8px 0;
+      color: #a0aec0;
+    }
+    .loading {
+      color: #8892a4;
+      font-style: italic;
+    }
+    .error {
+      color: #ef4444;
+      padding: 12px;
+      background: rgba(239, 68, 68, 0.1);
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+    .system-prompt-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #1a1f25;
+      color: #fff;
+      font-size: 13px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 60px;
+      margin-top: 8px;
+    }
+    .system-prompt-input:focus {
+      outline: none;
+      border-color: #4c9aff;
+    }
+    .chat-input-row {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+    }
+    .file-upload-area {
+      display: flex;
+      align-items: stretch;
+    }
+    .file-upload-area.has-files .file-upload-btn {
+      background: #1a2633;
+      border-color: #4c9aff;
+    }
+    .file-input {
+      display: none;
+    }
+    .file-upload-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      background: #1a1f25;
+      border: 1px solid #333;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .file-upload-btn:hover {
+      background: #252b33;
+      border-color: #4c9aff;
+    }
+    .file-upload-icon {
+      font-size: 18px;
+    }
+    .uploaded-files {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .uploaded-file {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      background: #1a1f25;
+      border-radius: 6px;
+      border: 1px solid #333;
+    }
+    .uploaded-file img {
+      width: 40px;
+      height: 40px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+    .uploaded-file-name {
+      font-size: 12px;
+      color: #e6eef8;
+      max-width: 100px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .remove-file-btn {
+      background: #dc2626;
+      color: white;
+      border: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .remove-file-btn:hover {
+      background: #ef4444;
+    }
+    .uploading {
+      color: #4c9aff;
+      font-size: 12px;
+      font-style: italic;
+    }
+    /* Model label above buttons */
+    .selected-model-label {
+      font-size: 10px;
+      color: rgba(76, 154, 255, 0.8);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: right;
+      min-height: 14px;
+    }
+    .settings-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background: #1a1f25;
+      border: 1px solid #333;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #8892a4;
+      transition: all 0.2s;
+    }
+    .settings-btn svg {
+      width: 22px;
+      height: 22px;
+    }
+    .settings-btn:hover:not(:disabled) {
+      background: #252b33;
+      border-color: #4c9aff;
+      color: #4c9aff;
+    }
+    .settings-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    /* Modal Styles */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-overlay.open {
+      display: flex;
+    }
+    .modal {
+      background: #12161b;
+      border: 1px solid #222b35;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      border-bottom: 1px solid #222b35;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: #6b7280;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .modal-close:hover {
+      color: #fff;
+    }
+    .modal-body {
+      padding: 24px;
+    }
+    .setting-group {
+      margin-bottom: 24px;
+    }
+    .setting-group:last-child {
+      margin-bottom: 0;
+    }
+    .setting-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #e6eef8;
+      margin-bottom: 8px;
+    }
+    .setting-description {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+    .setting-select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #1a1f25;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .setting-select:focus {
+      outline: none;
+      border-color: #4c9aff;
+    }
+    .setting-select:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .setting-textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #1a1f25;
+      color: #fff;
+      font-size: 13px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 100px;
+    }
+    .setting-textarea:focus {
+      outline: none;
+      border-color: #4c9aff;
+    }
+    .setting-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #1a1f25;
+      border: 1px solid #333;
+      border-radius: 8px;
+    }
+    .toggle-label {
+      font-size: 14px;
+      color: #e6eef8;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 48px;
+      height: 26px;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #333;
+      transition: 0.3s;
+      border-radius: 26px;
+    }
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+    .toggle-switch input:checked + .toggle-slider {
+      background-color: #4c9aff;
+    }
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(22px);
+    }
+    .model-info {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Agent Hustle SDK</h1>
+    <p class="subtitle">Advanced streaming chat demo with EmblemAuth support</p>
+    <div class="demo-nav">
+      <a href="auth-demo-simple.html" class="demo-nav-item">Basic</a>
+      <span class="demo-nav-separator">|</span>
+      <span class="demo-nav-item active">Advanced</span>
+    </div>
+
+    <!-- Authentication Section -->
+    <div class="auth-section">
+      <!-- Not Connected State -->
+      <div id="connectContainer" class="connect-container">
+        <button id="loginBtn" class="connect-btn">
+          <span class="connect-icon">→</span>
+          Connect
+        </button>
+      </div>
+
+      <!-- Connected State -->
+      <div id="connectedContainer" class="connected-container" style="display:none;">
+        <div class="connected-header">
+          <div class="vault-info-wrapper">
+            <button id="connectedBtn" class="connected-btn">
+              <span class="connected-check">✓</span>
+              <span>Connected</span>
+              <span class="connected-dot">•</span>
+              <span id="shortAddress" class="short-address">0x0000...0000</span>
+              <span class="dropdown-arrow">▾</span>
+            </button>
+
+            <div id="vaultInfo" class="vault-info">
+              <div class="vault-info-header">VAULT INFORMATION</div>
+              <div class="vault-info-row">
+                <span class="vault-label">Vault ID</span>
+                <div class="vault-value-row">
+                  <span id="vaultIdDisplay" class="vault-value">#0</span>
+                  <button class="copy-btn" onclick="copyToClipboard('vaultIdDisplay', this)">Copy</button>
+                </div>
+              </div>
+              <div class="vault-info-row">
+                <span class="vault-label">Connected Wallet</span>
+                <div class="vault-value-row">
+                  <span id="walletDisplay" class="vault-value mono">0x0000000000000000000000000000000000000000</span>
+                  <button class="copy-btn" onclick="copyToClipboard('walletDisplay', this)">Copy</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <button id="logoutBtn" class="logout-icon-btn" title="Disconnect">⏻</button>
+        </div>
+      </div>
+    </div>
+    <div id="authStatus" style="display:none;"></div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title">Settings</span>
+          <button id="closeSettingsBtn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <!-- Model Selection -->
+          <div class="setting-group">
+            <label class="setting-label">Model</label>
+            <p class="setting-description">Select the AI model to use for chat responses</p>
+            <select id="modelSelect" class="setting-select">
+              <option value="">Default (server decides)</option>
+            </select>
+            <div id="modelInfo" class="model-info"></div>
+          </div>
+
+          <!-- Skip Server System Prompt -->
+          <div class="setting-group">
+            <label class="setting-label">Server System Prompt</label>
+            <div class="setting-toggle">
+              <span class="toggle-label">Skip server-provided system prompt</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="skipServerPromptToggle">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <p class="setting-description" style="margin-top: 8px;">When enabled, the server's default system prompt will not be used</p>
+          </div>
+
+          <!-- Custom System Prompt -->
+          <div class="setting-group">
+            <label class="setting-label">Custom System Prompt</label>
+            <p class="setting-description">Provide instructions for how the AI should behave</p>
+            <textarea id="systemPromptModal" class="setting-textarea" placeholder="You are a helpful assistant..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    <pre id="sessionInfo" style="display:none;">No active session</pre>
+
+    <!-- Chat Modal (multi-purpose) -->
+    <div id="chatModal" class="modal-overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <span id="chatModalTitle" class="modal-title">Save Chat</span>
+          <button id="closeChatModal" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p id="chatModalDesc" class="setting-description" style="margin-bottom: 16px;">Enter a name for this chat:</p>
+          <div id="chatModalCurrentName" style="display:none; margin-bottom: 12px;">
+            <span style="font-size: 12px; color: #6b7280;">Current name:</span>
+            <span id="chatModalCurrentNameValue" style="font-size: 14px; color: #e6eef8; font-weight: 500; margin-left: 8px;"></span>
+          </div>
+          <div id="chatModalInputGroup" style="margin-bottom: 16px;">
+            <input type="text" id="chatModalInput" class="modal-input" placeholder="My Chat..." style="margin-bottom: 0;">
+          </div>
+          <div class="modal-actions">
+            <button id="chatModalCancelBtn" class="modal-btn modal-btn-secondary">Cancel</button>
+            <button id="chatModalDiscardBtn" class="modal-btn modal-btn-danger" style="display:none;">Discard</button>
+            <button id="chatModalDeleteBtn" class="modal-btn modal-btn-danger" style="display:none;">Delete</button>
+            <button id="chatModalSaveAsNewBtn" class="modal-btn modal-btn-secondary" style="display:none;">Save as New</button>
+            <button id="chatModalSaveBtn" class="modal-btn modal-btn-primary">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- End container -->
+
+    <!-- Chat Layout with Sidebar -->
+    <div class="chat-layout-wrapper">
+      <div class="chat-layout">
+        <button id="sidebarOpenBtn" class="sidebar-open-btn hidden" title="Show saved chats">☰</button>
+        <!-- Sidebar with Saved Chats -->
+        <div id="sidebar" class="sidebar collapsed">
+          <div class="sidebar-header">
+            <span class="sidebar-title">Saved Chats</span>
+            <button id="sidebarCloseBtn" class="sidebar-toggle" title="Hide sidebar">✕</button>
+          </div>
+          <div class="sidebar-content">
+            <div id="chatListSection" class="chat-list-section">
+              <div id="chatList" class="chat-list">
+                <div class="chat-list-empty">No saved chats yet</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+          <!-- Chat Card -->
+          <div class="card">
+      <div class="chat-header">
+        <div class="chat-header-left">
+          <h2>Chat</h2>
+          <span id="chatNameDisplay" class="chat-name" style="display:none;"></span>
+        </div>
+        <div class="chat-actions-wrapper">
+          <span id="selectedModelLabel" class="selected-model-label"></span>
+          <div class="chat-actions">
+            <button id="newChatBtn" class="chat-action-btn" disabled title="New Chat">+ New</button>
+            <button id="saveChatBtn" class="chat-action-btn" disabled title="Save Chat">💾 Save</button>
+            <button id="settingsBtn" class="settings-btn" title="Settings" disabled>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="chat-container">
+        <div id="messages" class="messages">
+          <div class="loading">Connect to start chatting...</div>
+        </div>
+        <div id="toolActivity" class="tool-activity"></div>
+        <div class="chat-input-row">
+          <div class="file-upload-area" id="uploadArea">
+            <input type="file" id="fileInput" class="file-input" accept="image/*" multiple>
+            <label for="fileInput" class="file-upload-btn" title="Attach images">
+              <span class="file-upload-icon">📎</span>
+            </label>
+            <span id="uploadStatus" class="uploading" style="display:none;"></span>
+          </div>
+          <div class="chat-input">
+            <input type="text" id="messageInput" placeholder="Type a message..." disabled>
+            <button id="sendBtn" class="btn" disabled>Send</button>
+          </div>
+        </div>
+        <div id="uploadedFiles" class="uploaded-files"></div>
+      </div>
+      <div id="chatError" class="error" style="display:none;"></div>
+    </div><!-- End card -->
+        </div><!-- End main-content -->
+      </div><!-- End chat-layout -->
+    </div><!-- End chat-layout-wrapper -->
+
+    <!-- Debug Toggle -->
+    <div class="debug-toggle">
+      <button id="debugToggle" class="debug-toggle-btn">
+        <span class="debug-icon">⚙</span>
+        Debug
+      </button>
+    </div>
+    <div id="debugCard" class="card" style="display:none; max-width: 900px; margin: 0 auto 20px auto;">
+      <h2>Debug Log</h2>
+      <pre id="debugLog">Waiting for initialization...</pre>
+    </div>
+
+  <!-- Load Marked.js for markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <!-- Load Emblem Auth SDK from CDN -->
+  <script src="https://unpkg.com/emblem-auth-sdk@latest/dist/emblem-auth.min.js"></script>
+
+  <!-- Load Hustle Incognito from local build -->
+  <script type="module">
+    import { HustleIncognitoClient } from '../dist/browser/hustle-incognito.esm.js';
+
+    // =========================================================================
+    // DEVELOPMENT ENVIRONMENT OVERRIDES
+    // =========================================================================
+    // This demo is configured to use development environments.
+    // For production, these overrides are NOT necessary - the SDKs use
+    // production URLs by default:
+    //   - HustleIncognitoClient defaults to: https://agenthustle.ai
+    //   - EmblemAuthSDK apiUrl defaults to: https://api.emblemvault.ai
+    //   - EmblemAuthSDK modalUrl defaults to: https://auth.emblemvault.ai/connect
+    //
+    // For production, simply use: new EmblemAuthSDK({ appId: 'agenthustle.ai' })
+    // and new HustleIncognitoClient({ sdk: authSDK }) without URL overrides.
+    // =========================================================================
+    // Toggle this flag to switch between local and dev environments
+    const USE_LOCAL_API = false;
+
+    const CONFIG = USE_LOCAL_API ? {
+      // ===================== LOCAL DEVELOPMENT =====================
+      // Hustle Incognito API
+      hustleApiUrl: 'https://dev.agenthustle.ai',
+
+      // Emblem Auth SDK - pointing to LOCAL API server
+      emblemAuthAppId: 'dev.agenthustle.ai',
+      emblemAuthApiUrl: 'http://localhost:3001',
+      emblemAuthModalUrl: 'https://dev-auth.emblemvault.ai/connect',
+
+      // Enable SDK debug logging
+      debug: true,
+    } : {
+      // ===================== DEV ENVIRONMENT =====================
+      // Hustle Incognito API (default: https://agenthustle.ai)
+      hustleApiUrl: 'https://dev.agenthustle.ai',
+
+      // Emblem Auth SDK (defaults: api.emblemvault.ai, auth.emblemvault.ai)
+      emblemAuthAppId: 'dev.agenthustle.ai',
+      emblemAuthApiUrl: 'https://dev-api.emblemvault.ai',
+      emblemAuthModalUrl: 'https://dev-auth.emblemvault.ai/connect',
+
+      // Enable SDK debug logging (set to false for production)
+      debug: false,
+    };
+    // =========================================================================
+
+    // Make it available globally for debugging
+    window.HustleIncognitoClient = HustleIncognitoClient;
+
+    // State
+    let authSDK = null;
+    let hustleClient = null;
+    let messages = [];
+    let uploadedAttachments = [];
+    let availableModels = [];
+    let settings = {
+      model: '',
+      skipServerPrompt: false,
+      systemPrompt: ''
+    };
+
+    // Chat persistence state
+    let currentChatName = null; // null = unsaved/active chat
+    const STORAGE_KEY_ACTIVE = 'hustle_active_chat';
+    const STORAGE_KEY_SAVED = 'hustle_saved_chats';
+    const STORAGE_KEY_CURRENT = 'hustle_current_chat_name';
+
+    // Modal state
+    // Modes: 'save-unsaved', 'save-named', 'new-unsaved', 'new-named', 'load-unsaved', 'delete'
+    let modalMode = null;
+    let modalPendingAction = null; // For load/delete: { type: 'load'|'delete', chatName: string }
+
+    // DOM elements
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const authStatus = document.getElementById('authStatus');
+    const sessionInfo = document.getElementById('sessionInfo');
+    const connectContainer = document.getElementById('connectContainer');
+    const connectedContainer = document.getElementById('connectedContainer');
+    const shortAddressSpan = document.getElementById('shortAddress');
+    const vaultIdDisplay = document.getElementById('vaultIdDisplay');
+    const walletDisplay = document.getElementById('walletDisplay');
+    const messagesDiv = document.getElementById('messages');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const chatError = document.getElementById('chatError');
+    const debugLog = document.getElementById('debugLog');
+    const debugToggle = document.getElementById('debugToggle');
+    const debugCard = document.getElementById('debugCard');
+    const fileInput = document.getElementById('fileInput');
+    const uploadArea = document.getElementById('uploadArea');
+    const uploadStatus = document.getElementById('uploadStatus');
+    const uploadedFilesDiv = document.getElementById('uploadedFiles');
+    // Settings elements
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsModal = document.getElementById('settingsModal');
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const modelSelect = document.getElementById('modelSelect');
+    const modelInfo = document.getElementById('modelInfo');
+    const skipServerPromptToggle = document.getElementById('skipServerPromptToggle');
+    const systemPromptModal = document.getElementById('systemPromptModal');
+    const selectedModelLabel = document.getElementById('selectedModelLabel');
+    const toolActivity = document.getElementById('toolActivity');
+    // Chat persistence elements
+    const newChatBtn = document.getElementById('newChatBtn');
+    const saveChatBtn = document.getElementById('saveChatBtn');
+    const chatNameDisplay = document.getElementById('chatNameDisplay');
+    const chatListSection = document.getElementById('chatListSection');
+    const chatListDiv = document.getElementById('chatList');
+    // Chat modal elements
+    const chatModal = document.getElementById('chatModal');
+    const chatModalTitle = document.getElementById('chatModalTitle');
+    const chatModalDesc = document.getElementById('chatModalDesc');
+    const chatModalCurrentName = document.getElementById('chatModalCurrentName');
+    const chatModalCurrentNameValue = document.getElementById('chatModalCurrentNameValue');
+    const chatModalInputGroup = document.getElementById('chatModalInputGroup');
+    const chatModalInput = document.getElementById('chatModalInput');
+    const chatModalCancelBtn = document.getElementById('chatModalCancelBtn');
+    const chatModalDiscardBtn = document.getElementById('chatModalDiscardBtn');
+    const chatModalDeleteBtn = document.getElementById('chatModalDeleteBtn');
+    const chatModalSaveAsNewBtn = document.getElementById('chatModalSaveAsNewBtn');
+    const chatModalSaveBtn = document.getElementById('chatModalSaveBtn');
+    const closeChatModalBtn = document.getElementById('closeChatModal');
+    // Sidebar elements
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOpenBtn = document.getElementById('sidebarOpenBtn');
+    const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
+
+    // Tool activity tracking
+    const activeTools = new Map(); // toolCallId -> element
+
+    function addToolChip(toolCallId, toolName, args) {
+      if (activeTools.has(toolCallId)) return;
+      const chip = document.createElement('div');
+      chip.className = 'tool-chip';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = toolName;
+      chip.appendChild(nameSpan);
+
+      if (args && Object.keys(args).length > 0) {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'tool-tooltip';
+        tooltip.textContent = JSON.stringify(args, null, 2);
+        chip.appendChild(tooltip);
+      }
+
+      toolActivity.appendChild(chip);
+      activeTools.set(toolCallId, chip);
+    }
+
+    function removeToolChip(toolCallId) {
+      const chip = activeTools.get(toolCallId);
+      if (chip) {
+        chip.remove();
+        activeTools.delete(toolCallId);
+      }
+    }
+
+    function clearToolChips() {
+      toolActivity.innerHTML = '';
+      activeTools.clear();
+    }
+
+    function showToolSummary(response) {
+      clearToolChips();
+
+      const toolCount = response.toolCalls?.length || 0;
+      const hasSummarizationInfo = response.pathInfo?.thresholdReached || response.pathInfo?.summary;
+
+      // Show if we have tools OR summarization info
+      if (toolCount === 0 && !hasSummarizationInfo) return;
+
+      const summary = document.createElement('div');
+      summary.className = 'tool-summary';
+
+      // Build a map of toolCallId -> result
+      const resultMap = new Map();
+      (response.toolResults || []).forEach(r => {
+        resultMap.set(r.toolCallId, r.result);
+      });
+
+      const reasoning = response.reasoning?.thinking || '';
+      const categories = response.devToolsInfo?.qualifiedCategories || response.reasoning?.categories || [];
+      const availableCount = response.devToolsInfo?.toolCount || 0;
+
+      // Build clickable tool names
+      const toolLinks = response.toolCalls.map((t, i) => {
+        const name = t.toolName || 'unknown';
+        return `<span class="tool-name-link" data-tool-index="${i}">${name}</span>`;
+      }).join(', ');
+
+      // Determine header text based on what info we have
+      const headerText = toolCount > 0
+        ? `Used ${toolCount} tool${toolCount !== 1 ? 's' : ''}`
+        : 'Context Info';
+
+      summary.innerHTML = `
+        <div class="tool-summary-header">
+          <span>▸</span> ${headerText}
+        </div>
+        <div class="tool-summary-details">
+          ${reasoning ? `<div><span class="tool-summary-label">Reasoning:</span> ${reasoning}</div>` : ''}
+          ${categories.length ? `<div><span class="tool-summary-label">Categories:</span> ${categories.join(', ')}</div>` : ''}
+          ${availableCount ? `<div><span class="tool-summary-label">Available:</span> ${availableCount} tools</div>` : ''}
+          ${toolCount > 0 ? `<div><span class="tool-summary-label">Used:</span> ${toolLinks}</div>` : ''}
+          <div class="tool-detail-container"></div>
+          ${response.pathInfo?.thresholdReached ? `
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #1f2937;">
+              <span class="tool-summary-label" style="color: #f59e0b;">⚠ Context threshold reached</span>
+              <div style="margin-top: 4px;">
+                Tokens: ${response.pathInfo.totalTokens}/${response.pathInfo.threshold} |
+                Retain: ${response.pathInfo.messageRetentionCount} messages
+              </div>
+            </div>
+          ` : ''}
+          ${response.pathInfo?.summary ? `
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #1f2937;">
+              <span class="tool-summary-label" style="color: #10b981;">📝 Conversation Summary</span>
+              <div style="margin-top: 4px; font-size: 12px; color: #9ca3af; max-height: 150px; overflow-y: auto; padding: 8px; background: #0d1117; border-radius: 4px; white-space: pre-wrap;">
+                ${response.pathInfo.summary}
+              </div>
+              ${response.pathInfo.summaryEndIndex ? `
+                <div style="margin-top: 4px; font-size: 11px; color: #6b7280;">
+                  Summary covers messages up to index ${response.pathInfo.summaryEndIndex}
+                </div>
+              ` : ''}
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      summary.querySelector('.tool-summary-header').addEventListener('click', () => {
+        summary.classList.toggle('expanded');
+        summary.querySelector('.tool-summary-header span').textContent =
+          summary.classList.contains('expanded') ? '▾' : '▸';
+      });
+
+      // Handle tool name clicks
+      const detailContainer = summary.querySelector('.tool-detail-container');
+      summary.querySelectorAll('.tool-name-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(link.dataset.toolIndex);
+          const tool = response.toolCalls[idx];
+          const result = resultMap.get(tool.toolCallId);
+
+          // Toggle: if already showing this tool, hide it
+          if (detailContainer.dataset.activeIndex === String(idx)) {
+            detailContainer.innerHTML = '';
+            detailContainer.dataset.activeIndex = '';
+            return;
+          }
+
+          detailContainer.dataset.activeIndex = idx;
+          detailContainer.innerHTML = `
+            <div class="tool-detail">
+              <div class="tool-detail-section">
+                <div class="tool-detail-title">Request (${tool.toolName}):</div>
+                <div class="tool-detail-content">${JSON.stringify(tool.args || {}, null, 2)}</div>
+              </div>
+              <div class="tool-detail-section">
+                <div class="tool-detail-title">Result:</div>
+                <div class="tool-detail-content">${JSON.stringify(result, null, 2)}</div>
+              </div>
+            </div>
+          `;
+        });
+      });
+
+      toolActivity.appendChild(summary);
+    }
+
+    function markToolComplete(toolCallId) {
+      const chip = activeTools.get(toolCallId);
+      if (chip) chip.classList.add('complete');
+    }
+
+    // Debug logging
+    function log(msg) {
+      const time = new Date().toLocaleTimeString();
+      debugLog.textContent = `[${time}] ${msg}\n` + debugLog.textContent;
+      console.log(`[${time}]`, msg);
+    }
+
+    // Settings functions
+    function openSettings() {
+      settingsModal.classList.add('open');
+      // Sync UI with current settings
+      modelSelect.value = settings.model;
+      skipServerPromptToggle.checked = settings.skipServerPrompt;
+      systemPromptModal.value = settings.systemPrompt;
+      updateModelInfo();
+    }
+
+    function closeSettings() {
+      settingsModal.classList.remove('open');
+    }
+
+    async function loadModels() {
+      if (!hustleClient) return;
+
+      log('Loading available models...');
+      modelSelect.disabled = true;
+
+      try {
+        availableModels = await hustleClient.getModels();
+        log(`Loaded ${availableModels.length} models`);
+
+        // Clear existing options except default
+        modelSelect.innerHTML = '<option value="">Default (server decides)</option>';
+
+        // Group models by provider
+        const grouped = {};
+        availableModels.forEach(model => {
+          const [provider] = model.id.split('/');
+          if (!grouped[provider]) grouped[provider] = [];
+          grouped[provider].push(model);
+        });
+
+        // Add grouped options
+        Object.keys(grouped).sort().forEach(provider => {
+          const group = document.createElement('optgroup');
+          group.label = provider.charAt(0).toUpperCase() + provider.slice(1);
+
+          grouped[provider].forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.textContent = model.name;
+            group.appendChild(option);
+          });
+
+          modelSelect.appendChild(group);
+        });
+
+        // Restore saved selection
+        if (settings.model) {
+          modelSelect.value = settings.model;
+        }
+
+        modelSelect.disabled = false;
+        updateModelInfo();
+      } catch (error) {
+        log('Failed to load models: ' + error.message);
+        modelSelect.disabled = false;
+      }
+    }
+
+    function updateModelInfo() {
+      const selectedId = modelSelect.value;
+      if (!selectedId) {
+        modelInfo.textContent = '';
+        return;
+      }
+
+      const model = availableModels.find(m => m.id === selectedId);
+      if (model) {
+        const contextK = Math.round(model.context_length / 1000);
+        const promptCost = parseFloat(model.pricing?.prompt || 0) * 1000000;
+        const completionCost = parseFloat(model.pricing?.completion || 0) * 1000000;
+        modelInfo.textContent = `Context: ${contextK}K tokens | Cost: $${promptCost.toFixed(2)}/$${completionCost.toFixed(2)} per 1M tokens`;
+      }
+    }
+
+    function updateModelLabel() {
+      if (settings.model) {
+        // Extract just the model name (e.g., "claude-sonnet-4" from "anthropic/claude-sonnet-4")
+        const modelName = settings.model.split('/').pop() || settings.model;
+        selectedModelLabel.textContent = modelName;
+      } else {
+        selectedModelLabel.textContent = '';
+      }
+    }
+
+    function saveSettings() {
+      settings.model = modelSelect.value;
+      settings.skipServerPrompt = skipServerPromptToggle.checked;
+      settings.systemPrompt = systemPromptModal.value;
+
+      // Persist to localStorage
+      localStorage.setItem('hustle_auth_demo_settings', JSON.stringify(settings));
+      log('Settings saved: model=' + (settings.model || 'default') + ', skipServerPrompt=' + settings.skipServerPrompt);
+      updateModelLabel();
+    }
+
+    function loadSettings() {
+      const saved = localStorage.getItem('hustle_auth_demo_settings');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          settings = { ...settings, ...parsed };
+          log('Loaded settings from storage');
+          updateModelLabel();
+        } catch (e) {
+          log('Failed to load settings: ' + e.message);
+        }
+      }
+    }
+
+    // =========================================================================
+    // Chat Persistence Functions
+    // =========================================================================
+
+    // Save active (unnamed) chat to localStorage
+    function saveActiveChat() {
+      const data = {
+        messages,
+        timestamp: Date.now(),
+        settings: {
+          model: settings.model,
+          skipServerPrompt: settings.skipServerPrompt,
+          systemPrompt: settings.systemPrompt
+        }
+      };
+      localStorage.setItem(STORAGE_KEY_ACTIVE, JSON.stringify(data));
+    }
+
+    // Load active chat from localStorage
+    function loadActiveChat() {
+      const saved = localStorage.getItem(STORAGE_KEY_ACTIVE);
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          if (data.messages && data.messages.length > 0) {
+            messages = data.messages;
+
+            // Restore settings if available
+            if (data.settings) {
+              settings.model = data.settings.model || '';
+              settings.skipServerPrompt = data.settings.skipServerPrompt || false;
+              settings.systemPrompt = data.settings.systemPrompt || '';
+
+              // Update UI to reflect loaded settings
+              modelSelect.value = settings.model;
+              skipServerPromptToggle.checked = settings.skipServerPrompt;
+              systemPromptModal.value = settings.systemPrompt;
+              updateModelLabel();
+              updateModelInfo();
+            }
+
+            log('Restored active chat (' + messages.length + ' messages)');
+            return true;
+          }
+        } catch (e) {
+          log('Failed to load active chat: ' + e.message);
+        }
+      }
+      return false;
+    }
+
+    // Clear active chat from localStorage
+    function clearActiveChat() {
+      localStorage.removeItem(STORAGE_KEY_ACTIVE);
+    }
+
+    // Get all saved chats
+    function getSavedChats() {
+      const saved = localStorage.getItem(STORAGE_KEY_SAVED);
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          return {};
+        }
+      }
+      return {};
+    }
+
+    // Save a named chat (includes settings)
+    function saveNamedChat(name, chatMessages) {
+      const chats = getSavedChats();
+      chats[name] = {
+        messages: chatMessages,
+        timestamp: Date.now(),
+        settings: {
+          model: settings.model,
+          skipServerPrompt: settings.skipServerPrompt,
+          systemPrompt: settings.systemPrompt
+        }
+      };
+      localStorage.setItem(STORAGE_KEY_SAVED, JSON.stringify(chats));
+      log('Saved chat: ' + name);
+    }
+
+    // Load a named chat (restores settings)
+    function loadNamedChat(name) {
+      const chats = getSavedChats();
+      if (chats[name]) {
+        messages = chats[name].messages;
+        currentChatName = name;
+        // Persist the selection
+        localStorage.setItem(STORAGE_KEY_CURRENT, name);
+
+        // Restore settings if available
+        if (chats[name].settings) {
+          settings.model = chats[name].settings.model || '';
+          settings.skipServerPrompt = chats[name].settings.skipServerPrompt || false;
+          settings.systemPrompt = chats[name].settings.systemPrompt || '';
+
+          // Update UI to reflect loaded settings
+          modelSelect.value = settings.model;
+          skipServerPromptToggle.checked = settings.skipServerPrompt;
+          systemPromptModal.value = settings.systemPrompt;
+          updateModelLabel();
+          updateModelInfo();
+        }
+
+        updateChatNameDisplay();
+        renderMessages();
+        log('Loaded chat: ' + name + ' (with settings)');
+        return true;
+      }
+      return false;
+    }
+
+    // Get the persisted current chat name
+    function getPersistedChatName() {
+      return localStorage.getItem(STORAGE_KEY_CURRENT);
+    }
+
+    // Clear the persisted current chat name
+    function clearPersistedChatName() {
+      localStorage.removeItem(STORAGE_KEY_CURRENT);
+    }
+
+    // Delete a named chat
+    function deleteNamedChat(name) {
+      const chats = getSavedChats();
+      if (chats[name]) {
+        delete chats[name];
+        localStorage.setItem(STORAGE_KEY_SAVED, JSON.stringify(chats));
+        log('Deleted chat: ' + name);
+      }
+    }
+
+    // Update chat name display in header
+    function updateChatNameDisplay() {
+      if (currentChatName) {
+        chatNameDisplay.textContent = currentChatName;
+        chatNameDisplay.style.display = 'inline-block';
+      } else {
+        chatNameDisplay.style.display = 'none';
+      }
+    }
+
+    // Render the saved chats list
+    function renderChatList() {
+      const chats = getSavedChats();
+      const chatNames = Object.keys(chats).sort((a, b) => {
+        // Sort by timestamp descending (most recent first)
+        return (chats[b].timestamp || 0) - (chats[a].timestamp || 0);
+      });
+
+      if (chatNames.length === 0) {
+        chatListDiv.innerHTML = '<div class="chat-list-empty">No saved chats yet</div>';
+        return;
+      }
+
+      chatListDiv.innerHTML = chatNames.map(name => {
+        const chat = chats[name];
+        const msgCount = chat.messages?.length || 0;
+        const isActive = name === currentChatName;
+        const date = chat.timestamp ? new Date(chat.timestamp).toLocaleDateString() : '';
+
+        return `
+          <div class="chat-list-item ${isActive ? 'active' : ''}" data-chat-name="${escapeAttr(name)}">
+            <div class="chat-list-item-info">
+              <div class="chat-list-item-name">${escapeHtml(name)}</div>
+              <div class="chat-list-item-meta">${msgCount} messages${date ? ' • ' + date : ''}</div>
+            </div>
+            <div class="chat-list-item-actions">
+              <button class="chat-list-item-share" data-share-chat="${escapeAttr(name)}" title="Share">🔗</button>
+              <button class="chat-list-item-delete" data-delete-chat="${escapeAttr(name)}" title="Delete">🗑</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Add click handlers
+      chatListDiv.querySelectorAll('.chat-list-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          // Don't load if clicking action buttons
+          if (e.target.closest('.chat-list-item-actions')) return;
+          const chatName = item.dataset.chatName;
+          handleLoadChat(chatName);
+        });
+      });
+
+      chatListDiv.querySelectorAll('.chat-list-item-share').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const chatName = btn.dataset.shareChat;
+          handleShareChat(chatName);
+        });
+      });
+
+      chatListDiv.querySelectorAll('.chat-list-item-delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const chatName = btn.dataset.deleteChat;
+          handleDeleteSavedChat(chatName);
+        });
+      });
+    }
+
+    // Escape HTML attribute
+    function escapeAttr(str) {
+      return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // Handle loading a saved chat
+    function handleLoadChat(name) {
+      // If current chat is unsaved with messages, show modal
+      if (!currentChatName && messages.length > 0) {
+        openModal('load-unsaved', { type: 'load', chatName: name });
+        return;
+      }
+
+      loadNamedChat(name);
+      renderChatList();
+    }
+
+    // Handle deleting a saved chat
+    function handleDeleteSavedChat(name) {
+      openModal('delete', { type: 'delete', chatName: name });
+    }
+
+    // Handle sharing a saved chat
+    function handleShareChat(name) {
+      const chats = getSavedChats();
+      const chat = chats[name];
+      if (!chat) {
+        showError('Chat not found');
+        return;
+      }
+
+      // Create share data object
+      const shareData = {
+        name: name,
+        messages: chat.messages || [],
+        settings: chat.settings || {}
+      };
+
+      // Encode to base64
+      const jsonStr = JSON.stringify(shareData);
+      const base64 = btoa(unescape(encodeURIComponent(jsonStr)));
+
+      // Create share URL
+      const url = new URL(window.location.href);
+      url.search = ''; // Clear existing params
+      url.searchParams.set('share', base64);
+
+      // Copy to clipboard
+      navigator.clipboard.writeText(url.toString()).then(() => {
+        log('Share URL copied to clipboard');
+        // Show brief feedback
+        const btn = document.querySelector(`[data-share-chat="${CSS.escape(name)}"]`);
+        if (btn) {
+          const originalText = btn.textContent;
+          btn.textContent = '✓';
+          btn.classList.add('copied');
+          // Show "Link copied" tooltip
+          showCopyFeedback(btn);
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.classList.remove('copied');
+          }, 2000);
+        }
+      }).catch(err => {
+        log('Failed to copy share URL: ' + err.message);
+        // Fallback: show URL in prompt
+        prompt('Share URL:', url.toString());
+      });
+    }
+
+    // Show copy feedback tooltip
+    function showCopyFeedback(btn) {
+      const feedback = document.createElement('div');
+      feedback.className = 'copy-feedback';
+      feedback.textContent = 'Link copied!';
+      btn.parentElement.appendChild(feedback);
+      setTimeout(() => feedback.remove(), 2000);
+    }
+
+    // Pending share data for conflict resolution
+    let pendingShareData = null;
+
+    // Load shared chat from URL parameter
+    function loadSharedChat() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const shareParam = urlParams.get('share');
+
+      if (!shareParam) return false;
+
+      try {
+        // Decode base64
+        const jsonStr = decodeURIComponent(escape(atob(shareParam)));
+        const shareData = JSON.parse(jsonStr);
+
+        if (!shareData.name || !shareData.messages) {
+          throw new Error('Invalid share data');
+        }
+
+        log('Loading shared chat: ' + shareData.name);
+
+        // Clear the URL parameter immediately
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.search = '';
+        window.history.replaceState({}, '', cleanUrl.toString());
+
+        // Check if name already exists
+        const chats = getSavedChats();
+        if (chats[shareData.name]) {
+          // Conflict - store pending data and show modal
+          pendingShareData = shareData;
+          openModal('share-conflict');
+          return 'conflict';
+        }
+
+        // No conflict - save directly
+        saveSharedChat(shareData.name, shareData);
+        return true;
+      } catch (err) {
+        log('Failed to load shared chat: ' + err.message);
+        showError('Failed to load shared chat: Invalid share link');
+        return false;
+      }
+    }
+
+    // Save shared chat data
+    function saveSharedChat(chatName, shareData) {
+      const chats = getSavedChats();
+      chats[chatName] = {
+        messages: shareData.messages,
+        timestamp: Date.now(),
+        settings: shareData.settings || {}
+      };
+      localStorage.setItem(STORAGE_KEY_SAVED, JSON.stringify(chats));
+
+      // Load it as the current chat
+      currentChatName = chatName;
+      messages = [...shareData.messages];
+      localStorage.setItem(STORAGE_KEY_CURRENT, chatName);
+
+      // Apply settings if present
+      if (shareData.settings) {
+        settings.model = shareData.settings.model || '';
+        settings.skipServerPrompt = shareData.settings.skipServerPrompt || false;
+        settings.systemPrompt = shareData.settings.systemPrompt || '';
+      }
+
+      log('Shared chat loaded and saved as: ' + chatName);
+    }
+
+    // Handle share conflict: Override existing
+    function handleShareOverride() {
+      if (!pendingShareData) return;
+      saveSharedChat(pendingShareData.name, pendingShareData);
+      updateShareUI();
+      pendingShareData = null;
+      closeModal();
+    }
+
+    // Handle share conflict: Save as new
+    function handleShareSaveAsNew() {
+      if (!pendingShareData) return;
+      const chats = getSavedChats();
+      let chatName = pendingShareData.name;
+      let counter = 1;
+      while (chats[chatName]) {
+        chatName = `${pendingShareData.name} (${counter})`;
+        counter++;
+      }
+      saveSharedChat(chatName, pendingShareData);
+      updateShareUI();
+      pendingShareData = null;
+      closeModal();
+    }
+
+    // Handle share conflict: Ignore
+    function handleShareIgnore() {
+      pendingShareData = null;
+      closeModal();
+    }
+
+    // Update UI after loading shared chat
+    function updateShareUI() {
+      updateChatNameDisplay();
+      updateModelLabel();
+      modelSelect.value = settings.model;
+      skipServerPromptToggle.checked = settings.skipServerPrompt;
+      systemPromptModal.value = settings.systemPrompt;
+      renderMessages();
+      renderChatList();
+      openSidebar();
+    }
+
+    // =========================================================================
+    // Modal Functions
+    // =========================================================================
+
+    // Reset all modal buttons to hidden
+    function resetModalButtons() {
+      chatModalDiscardBtn.style.display = 'none';
+      chatModalDeleteBtn.style.display = 'none';
+      chatModalSaveAsNewBtn.style.display = 'none';
+      chatModalCurrentName.style.display = 'none';
+      chatModalInputGroup.style.display = 'block';
+      chatModalInput.style.borderColor = '#333';
+    }
+
+    // Open modal with specific mode
+    function openModal(mode, pendingAction = null) {
+      modalMode = mode;
+      modalPendingAction = pendingAction;
+      resetModalButtons();
+
+      switch (mode) {
+        case 'save-unsaved':
+          // Saving an unsaved chat - just need name
+          chatModalTitle.textContent = 'Save Chat';
+          chatModalDesc.textContent = 'Enter a name for this chat:';
+          chatModalInput.value = '';
+          chatModalInput.placeholder = 'My Chat...';
+          chatModalSaveBtn.textContent = 'Save';
+          break;
+
+        case 'save-named':
+          // Saving a named chat - show current name, allow rename or save as new
+          chatModalTitle.textContent = 'Save Chat';
+          chatModalDesc.textContent = 'Update this chat or save as a new chat:';
+          chatModalCurrentName.style.display = 'block';
+          chatModalCurrentNameValue.textContent = currentChatName;
+          chatModalInput.value = currentChatName;
+          chatModalInput.placeholder = 'Enter new name...';
+          chatModalSaveAsNewBtn.style.display = 'inline-block';
+          chatModalSaveBtn.textContent = 'Update';
+          break;
+
+        case 'new-unsaved':
+          // Starting new chat when current is unsaved
+          chatModalTitle.textContent = 'Save Current Chat?';
+          chatModalDesc.textContent = 'You have an unsaved chat. Enter a name to save it, or discard it:';
+          chatModalInput.value = '';
+          chatModalInput.placeholder = 'My Chat...';
+          chatModalDiscardBtn.style.display = 'inline-block';
+          chatModalSaveBtn.textContent = 'Save & New';
+          break;
+
+        case 'new-named':
+          // Starting new chat when current is named - offer to save changes
+          chatModalTitle.textContent = 'Save Changes?';
+          chatModalDesc.textContent = 'Save changes to current chat before starting a new one?';
+          chatModalCurrentName.style.display = 'block';
+          chatModalCurrentNameValue.textContent = currentChatName;
+          chatModalInputGroup.style.display = 'none';
+          chatModalDiscardBtn.style.display = 'inline-block';
+          chatModalDiscardBtn.textContent = 'Don\'t Save';
+          chatModalSaveBtn.textContent = 'Save & New';
+          break;
+
+        case 'load-unsaved':
+          // Loading a chat when current is unsaved
+          chatModalTitle.textContent = 'Save Current Chat?';
+          chatModalDesc.textContent = 'You have an unsaved chat. Save it before loading "' + pendingAction.chatName + '"?';
+          chatModalInput.value = '';
+          chatModalInput.placeholder = 'My Chat...';
+          chatModalDiscardBtn.style.display = 'inline-block';
+          chatModalDiscardBtn.textContent = 'Discard';
+          chatModalSaveBtn.textContent = 'Save & Load';
+          break;
+
+        case 'delete':
+          // Confirm deletion
+          chatModalTitle.textContent = 'Delete Chat?';
+          chatModalDesc.textContent = 'Are you sure you want to delete "' + pendingAction.chatName + '"? This cannot be undone.';
+          chatModalInputGroup.style.display = 'none';
+          chatModalDeleteBtn.style.display = 'inline-block';
+          chatModalSaveBtn.style.display = 'none';
+          break;
+
+        case 'share-conflict':
+          // Shared chat name conflicts with existing
+          chatModalTitle.textContent = 'Chat Already Exists';
+          chatModalDesc.textContent = 'A chat named "' + pendingShareData.name + '" already exists. What would you like to do?';
+          chatModalInputGroup.style.display = 'none';
+          chatModalSaveBtn.textContent = 'Override';
+          chatModalSaveAsNewBtn.style.display = 'inline-block';
+          chatModalSaveAsNewBtn.textContent = 'Save as New';
+          chatModalDiscardBtn.style.display = 'inline-block';
+          chatModalDiscardBtn.textContent = 'Ignore';
+          break;
+      }
+
+      chatModal.classList.add('open');
+      if (chatModalInputGroup.style.display !== 'none') {
+        chatModalInput.focus();
+      }
+    }
+
+    // Close modal
+    function closeModal() {
+      chatModal.classList.remove('open');
+      chatModalInput.value = '';
+      modalMode = null;
+      modalPendingAction = null;
+      // Reset discard button text
+      chatModalDiscardBtn.textContent = 'Discard';
+      chatModalSaveBtn.style.display = 'inline-block';
+    }
+
+    // Handle Save button click in modal
+    function handleModalSave() {
+      const inputName = chatModalInput.value.trim();
+
+      // Validate input if visible
+      if (chatModalInputGroup.style.display !== 'none' && !inputName) {
+        chatModalInput.style.borderColor = '#dc2626';
+        return;
+      }
+
+      switch (modalMode) {
+        case 'save-unsaved':
+          saveNamedChat(inputName, messages);
+          currentChatName = inputName;
+          localStorage.setItem(STORAGE_KEY_CURRENT, inputName);
+          clearActiveChat();
+          updateChatNameDisplay();
+          renderChatList();
+          break;
+
+        case 'save-named':
+          // Update existing chat (use input name which may be same or different)
+          saveNamedChat(inputName, messages);
+          // If name changed, delete old one
+          if (inputName !== currentChatName) {
+            deleteNamedChat(currentChatName);
+          }
+          currentChatName = inputName;
+          localStorage.setItem(STORAGE_KEY_CURRENT, inputName);
+          updateChatNameDisplay();
+          renderChatList();
+          break;
+
+        case 'new-unsaved':
+          saveNamedChat(inputName, messages);
+          clearActiveChat();
+          renderChatList();
+          startNewChat();
+          break;
+
+        case 'new-named':
+          // Save current chat then start new
+          saveNamedChat(currentChatName, messages);
+          renderChatList();
+          startNewChat();
+          break;
+
+        case 'load-unsaved':
+          // Save current then load new
+          saveNamedChat(inputName, messages);
+          clearActiveChat();
+          renderChatList();
+          loadNamedChat(modalPendingAction.chatName);
+          renderChatList();
+          break;
+
+        case 'share-conflict':
+          // Override existing chat with shared one
+          handleShareOverride();
+          return; // handleShareOverride calls closeModal
+      }
+
+      // Open sidebar to show saved chats
+      openSidebar();
+      closeModal();
+    }
+
+    // Handle Save as New button click
+    function handleModalSaveAsNew() {
+      // Handle share-conflict case
+      if (modalMode === 'share-conflict') {
+        handleShareSaveAsNew();
+        return;
+      }
+
+      const inputName = chatModalInput.value.trim();
+      if (!inputName) {
+        chatModalInput.style.borderColor = '#dc2626';
+        return;
+      }
+
+      // Save as new chat (don't delete old one)
+      saveNamedChat(inputName, messages);
+      currentChatName = inputName;
+      localStorage.setItem(STORAGE_KEY_CURRENT, inputName);
+      clearActiveChat();
+      updateChatNameDisplay();
+      renderChatList();
+      openSidebar();
+      closeModal();
+    }
+
+    // Handle Discard button click
+    function handleModalDiscard() {
+      switch (modalMode) {
+        case 'new-unsaved':
+        case 'new-named':
+          clearActiveChat();
+          startNewChat();
+          break;
+
+        case 'load-unsaved':
+          clearActiveChat();
+          loadNamedChat(modalPendingAction.chatName);
+          renderChatList();
+          break;
+
+        case 'share-conflict':
+          // Ignore the shared chat
+          handleShareIgnore();
+          return;
+      }
+      closeModal();
+    }
+
+    // Handle Delete button click
+    function handleModalDelete() {
+      if (modalMode === 'delete' && modalPendingAction) {
+        const chatName = modalPendingAction.chatName;
+        deleteNamedChat(chatName);
+
+        // If we deleted the currently loaded chat, start new
+        if (chatName === currentChatName) {
+          startNewChat();
+        }
+
+        renderChatList();
+      }
+      closeModal();
+    }
+
+    // Start a new chat
+    function startNewChat() {
+      messages = [];
+      currentChatName = null;
+      clearActiveChat();
+      clearPersistedChatName();
+
+      // Reset settings to defaults
+      settings.model = '';
+      settings.skipServerPrompt = false;
+      settings.systemPrompt = '';
+
+      // Update UI to reflect cleared settings
+      modelSelect.value = '';
+      skipServerPromptToggle.checked = false;
+      systemPromptModal.value = '';
+      updateModelLabel();
+
+      updateChatNameDisplay();
+      renderMessages();
+      renderChatList();
+      log('Started new chat (settings cleared)');
+    }
+
+    // Handle New button click
+    function handleNewChat() {
+      if (messages.length === 0) {
+        // No messages, just start fresh
+        startNewChat();
+        return;
+      }
+
+      if (currentChatName) {
+        // Named chat - ask if they want to save changes
+        openModal('new-named');
+      } else {
+        // Unsaved messages - show save/discard modal
+        openModal('new-unsaved');
+      }
+    }
+
+    // Handle Save button click
+    function handleSaveChat() {
+      if (messages.length === 0) {
+        return;
+      }
+
+      if (currentChatName) {
+        // Already has a name - offer to update or save as new
+        openModal('save-named');
+      } else {
+        // Needs a name
+        openModal('save-unsaved');
+      }
+    }
+
+    // Initialize Emblem Auth SDK
+    function initAuth() {
+      if (!window.EmblemAuth) {
+        log('ERROR: EmblemAuth SDK not loaded!');
+        return;
+      }
+
+      log('Initializing Emblem Auth SDK...');
+
+      authSDK = new window.EmblemAuth.EmblemAuthSDK({
+        appId: CONFIG.emblemAuthAppId,
+        apiUrl: CONFIG.emblemAuthApiUrl,
+        modalUrl: CONFIG.emblemAuthModalUrl,
+        onSuccess: (session) => {
+          log('Auth success! VaultId: ' + session.user?.vaultId);
+          handleAuthSuccess(session);
+        },
+        onError: (error) => {
+          log('Auth error: ' + error.message);
+          showError(error.message);
+        }
+      });
+
+      // Check for existing session
+      const existingSession = authSDK.getSession();
+      if (existingSession) {
+        log('Found existing session');
+        handleAuthSuccess(existingSession);
+      } else {
+        log('No existing session');
+      }
+    }
+
+    // Decode JWT payload (without verification)
+    function decodeJwt(token) {
+      try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+        const payload = JSON.parse(atob(parts[1]));
+        return payload;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Handle successful authentication
+    // Helper to truncate address
+    function truncateAddress(address) {
+      if (!address || address.length < 10) return address || '';
+      return `${address.slice(0, 6)}...${address.slice(-4)}`;
+    }
+
+    // Copy to clipboard helper
+    window.copyToClipboard = async function(elementId, btn) {
+      const element = document.getElementById(elementId);
+      const text = element.textContent.replace('#', ''); // Remove # prefix from vault ID
+
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'Copy';
+          btn.classList.remove('copied');
+        }, 1500);
+      } catch (err) {
+        log('Failed to copy: ' + err.message);
+      }
+    };
+
+    function handleAuthSuccess(session) {
+      // Get wallet/identifier from JWT claims
+      const jwtClaims = session.authToken ? decodeJwt(session.authToken) : null;
+      const identifier = jwtClaims?.identifier || session.user?.identifier || '';
+      const walletAddress = identifier.includes(':') ? identifier.split(':')[1] : identifier;
+      const vaultId = session.user?.vaultId || '';
+
+      // Update UI - show connected state
+      connectContainer.style.display = 'none';
+      connectedContainer.style.display = 'block';
+
+      // Update vault info display
+      shortAddressSpan.textContent = truncateAddress(walletAddress);
+      vaultIdDisplay.textContent = `#${vaultId}`;
+      walletDisplay.textContent = walletAddress;
+
+      // Store session info for debugging
+      const sessionWithClaims = {
+        ...session,
+        _jwtClaims: jwtClaims ? {
+          iss: jwtClaims.iss,
+          aud: jwtClaims.aud,
+          sub: jwtClaims.sub,
+          appId: jwtClaims.appId,
+          identifier: jwtClaims.identifier,
+          iat: jwtClaims.iat ? new Date(jwtClaims.iat * 1000).toISOString() : null,
+          exp: jwtClaims.exp ? new Date(jwtClaims.exp * 1000).toISOString() : null,
+          scope: jwtClaims.scope
+        } : null
+      };
+      sessionInfo.textContent = JSON.stringify(sessionWithClaims, null, 2);
+
+      // Create Hustle client with SDK auth
+      log('Creating HustleIncognitoClient with SDK auth (experimental)...');
+      hustleClient = new HustleIncognitoClient({
+        sdk: authSDK,
+        hustleApiUrl: CONFIG.hustleApiUrl,
+        debug: CONFIG.debug
+      });
+
+      // Subscribe to tool events
+      hustleClient.on('tool_start', (event) => {
+        clearToolChips(); // Clear previous tool before showing new one
+        addToolChip(event.toolCallId, event.toolName, event.args);
+      });
+      hustleClient.on('tool_end', (event) => {
+        // Mark as complete but keep visible
+        markToolComplete(event.toolCallId);
+      });
+      hustleClient.on('stream_end', (event) => {
+        showToolSummary(event.response);
+      });
+
+      // Expose test function for summarization debugging
+      window.testSummarization = () => {
+        console.log('=== TESTING SUMMARIZATION FLOW ===');
+
+        // Step 1: Simulate server response with thresholdReached
+        console.log('Step 1: Simulating server response with thresholdReached=true');
+        const fakePathInfo1 = {
+          type: 'token_usage',
+          thresholdReached: true,
+          messageRetentionCount: 1,
+          totalTokens: 25000,
+          threshold: 3000
+        };
+
+        // Manually call the internal update (for testing only)
+        hustleClient['updateSummarizationState'](fakePathInfo1);
+        console.log('Current state after step 1:', hustleClient.getSummarizationState());
+
+        // Step 2: Simulate what the SDK would send on next request
+        console.log('\nStep 2: Next request would include trimIndex:', hustleClient.getSummarizationState().messageRetentionCount);
+
+        // Step 3: Simulate server response WITH summary
+        console.log('\nStep 3: Simulating server response WITH summary');
+        const fakePathInfo2 = {
+          type: 'token_usage',
+          thresholdReached: false,
+          messageRetentionCount: 1,
+          totalTokens: 5000,
+          threshold: 3000,
+          summary: 'This is a test summary of the conversation. The user discussed various topics including quantum computing, naval warfare, and religious themes.',
+          summaryEndIndex: 5
+        };
+
+        hustleClient['updateSummarizationState'](fakePathInfo2);
+        console.log('Current state after step 3:', hustleClient.getSummarizationState());
+
+        console.log('\n=== TEST COMPLETE ===');
+        console.log('Final state:', JSON.stringify(hustleClient.getSummarizationState(), null, 2));
+
+        return hustleClient.getSummarizationState();
+      };
+
+      window.clearSummarizationState = () => {
+        hustleClient.clearSummarizationState();
+        console.log('Summarization state cleared:', hustleClient.getSummarizationState());
+      };
+
+      window.getSummarizationState = () => {
+        const state = hustleClient.getSummarizationState();
+        console.log('Current summarization state:', JSON.stringify(state, null, 2));
+        return state;
+      };
+
+      console.log('Test functions available: testSummarization(), getSummarizationState(), clearSummarizationState()');
+
+      // Enable chat and settings
+      messageInput.disabled = false;
+      sendBtn.disabled = false;
+      settingsBtn.disabled = false;
+      newChatBtn.disabled = false;
+      saveChatBtn.disabled = false;
+
+      // Check for shared chat in URL first
+      const sharedChatLoaded = loadSharedChat();
+
+      if (sharedChatLoaded === true) {
+        // Shared chat was loaded successfully, update UI
+        updateShareUI();
+      } else if (sharedChatLoaded === 'conflict') {
+        // Conflict modal is showing, still load normal UI in background
+        const persistedName = getPersistedChatName();
+        if (persistedName && loadNamedChat(persistedName)) {
+          log('Restored named chat: ' + persistedName);
+        } else if (loadActiveChat()) {
+          renderMessages();
+        } else {
+          messagesDiv.innerHTML = '<div class="loading">Ready to chat! Type a message...</div>';
+        }
+      } else {
+        // Try to restore previous chat session
+        const persistedName = getPersistedChatName();
+        if (persistedName && loadNamedChat(persistedName)) {
+          // Successfully loaded the previously selected named chat
+          log('Restored named chat: ' + persistedName);
+        } else if (loadActiveChat()) {
+          // Fall back to active (unnamed) chat
+          renderMessages();
+        } else {
+          // No chat to restore
+          messagesDiv.innerHTML = '<div class="loading">Ready to chat! Type a message...</div>';
+        }
+      }
+
+      // Render saved chats list
+      renderChatList();
+
+      // Load models for settings
+      loadModels();
+
+      log(`Connected: vault #${vaultId}, wallet ${truncateAddress(walletAddress)}`);
+    }
+
+    // Handle logout
+    function handleLogout() {
+      if (authSDK) {
+        authSDK.logout();
+      }
+      hustleClient = null;
+
+      // Reset UI to disconnected state
+      connectContainer.style.display = 'flex';
+      connectedContainer.style.display = 'none';
+
+      // Reset vault info
+      shortAddressSpan.textContent = '0x0000...0000';
+      vaultIdDisplay.textContent = '#0';
+      walletDisplay.textContent = '';
+      sessionInfo.textContent = 'No active session';
+
+      // Disable chat and settings
+      messageInput.disabled = true;
+      sendBtn.disabled = true;
+      settingsBtn.disabled = true;
+      newChatBtn.disabled = true;
+      saveChatBtn.disabled = true;
+      messages = [];
+      currentChatName = null;
+      updateChatNameDisplay();
+      messagesDiv.innerHTML = '<div class="loading">Connect to start chatting...</div>';
+
+      // Clear attachments and models on logout
+      clearAttachments();
+      availableModels = [];
+      modelSelect.innerHTML = '<option value="">Default (server decides)</option>';
+
+      // Hide chat list
+      chatListSection.style.display = 'none';
+
+      log('Disconnected');
+    }
+
+    // Render messages
+    // Configure marked for safe rendering
+    marked.setOptions({
+      breaks: true,
+      gfm: true
+    });
+
+    function renderMessages() {
+      if (messages.length === 0) {
+        messagesDiv.innerHTML = '<div class="loading">Ready to chat! Type a message...</div>';
+        return;
+      }
+
+      messagesDiv.innerHTML = messages.map((m, index) => {
+        // Parse markdown for assistant messages, escape HTML for user messages
+        const content = m.role === 'assistant'
+          ? marked.parse(m.content || '')
+          : escapeHtml(m.content || '');
+        const retryBtn = m.role === 'user'
+          ? `<button class="message-action retry" data-index="${index}" title="Retry from here">↻</button>`
+          : '';
+        return `
+          <div class="message ${m.role}">
+            <div class="message-header">
+              <div class="role">${m.role}</div>
+              <div class="message-actions">
+                ${retryBtn}
+                <button class="message-action delete" data-index="${index}" title="Delete message">✕</button>
+              </div>
+            </div>
+            <div class="message-content">${content}</div>
+          </div>
+        `;
+      }).join('');
+
+      // Add delete handlers
+      messagesDiv.querySelectorAll('.message-action.delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const index = parseInt(e.target.dataset.index, 10);
+          deleteMessage(index);
+        });
+      });
+
+      // Add retry handlers
+      messagesDiv.querySelectorAll('.message-action.retry').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const index = parseInt(e.target.dataset.index, 10);
+          retryFromMessage(index);
+        });
+      });
+
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+      // Auto-save chat
+      if (messages.length > 0) {
+        if (currentChatName) {
+          // Save to named chat
+          saveNamedChat(currentChatName, messages);
+        } else {
+          // Save to active (unnamed) chat
+          saveActiveChat();
+        }
+      }
+    }
+
+    // Helper to escape HTML in user messages
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Delete a message by index
+    function deleteMessage(index) {
+      if (index >= 0 && index < messages.length) {
+        messages.splice(index, 1);
+        renderMessages(); // This will also auto-save
+        log('Deleted message at index ' + index);
+      }
+    }
+
+    // Retry from a user message - resubmit from that point
+    async function retryFromMessage(index) {
+      if (index < 0 || index >= messages.length) return;
+      if (messages[index].role !== 'user') return;
+      if (!hustleClient) {
+        showError('Please login first');
+        return;
+      }
+
+      const userContent = messages[index].content;
+
+      // Slice messages to keep only those before this user message
+      messages = messages.slice(0, index);
+      renderMessages();
+
+      log('Retrying from message at index ' + index);
+
+      // Now re-send the user message
+      sendBtn.disabled = true;
+      messageInput.disabled = true;
+
+      messages.push({ role: 'user', content: userContent });
+      renderMessages();
+
+      // Add empty assistant message that we'll stream into
+      messages.push({ role: 'assistant', content: '' });
+      renderMessages();
+
+      try {
+        // Build chat messages for API (same pattern as sendMessage)
+        const chatMessages = [];
+        if (settings.systemPrompt) {
+          chatMessages.push({ role: 'system', content: settings.systemPrompt });
+        }
+        chatMessages.push(...messages.slice(0, -1).map(m => ({ role: m.role, content: m.content })));
+
+        // Build options
+        const chatOptions = {
+          messages: chatMessages,
+          processChunks: true
+        };
+
+        if (settings.model) {
+          chatOptions.model = settings.model;
+        }
+
+        if (settings.skipServerPrompt) {
+          chatOptions.overrideSystemPrompt = true;
+        }
+
+        // Use chatStream (same as sendMessage)
+        const stream = hustleClient.chatStream(chatOptions);
+
+        let fullContent = '';
+
+        for await (const chunk of stream) {
+          if (chunk.type === 'text') {
+            if (activeTools.size > 0) clearToolChips();
+            fullContent += chunk.value;
+            messages[messages.length - 1].content = fullContent;
+            renderMessages();
+          } else if (chunk.type === 'tool_call') {
+            log('Tool call: ' + JSON.stringify(chunk.value).substring(0, 100));
+          } else if (chunk.type === 'tool_result') {
+            log('Tool result received');
+          } else if (chunk.type === 'error') {
+            throw new Error(chunk.value?.message || 'Stream error');
+          }
+        }
+
+        if (!fullContent) {
+          messages[messages.length - 1].content = '(No response)';
+          renderMessages();
+        }
+
+        log('Retry complete: ' + fullContent.substring(0, 50) + '...');
+      } catch (error) {
+        log('Retry failed: ' + error.message);
+        showError('Retry failed: ' + error.message);
+        messages[messages.length - 1].content = '❌ Error: ' + error.message;
+        renderMessages();
+      } finally {
+        sendBtn.disabled = false;
+        messageInput.disabled = false;
+        messageInput.focus();
+      }
+    }
+
+    // Handle file selection and upload via SDK
+    async function handleFileUpload(files) {
+      if (!hustleClient) {
+        showError('Please login first to upload files');
+        return;
+      }
+
+      for (const file of files) {
+        if (!file.type.startsWith('image/')) {
+          log('Skipping non-image file: ' + file.name);
+          continue;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+          showError(`File ${file.name} is too large. Maximum size is 5MB.`);
+          continue;
+        }
+
+        uploadStatus.textContent = `Uploading ${file.name}...`;
+        uploadStatus.style.display = 'inline';
+        log('Uploading file: ' + file.name);
+
+        try {
+          // Upload using the SDK's uploadFile method (accepts File in browser)
+          const attachment = await hustleClient.uploadFile(file);
+          uploadedAttachments.push(attachment);
+          log('Upload successful: ' + attachment.url);
+          renderUploadedFiles();
+        } catch (error) {
+          log('Upload failed: ' + error.message);
+          showError(`Failed to upload ${file.name}: ${error.message}`);
+        }
+      }
+
+      uploadStatus.style.display = 'none';
+      fileInput.value = '';
+    }
+
+    // Render uploaded files
+    function renderUploadedFiles() {
+      const count = uploadedAttachments.length;
+
+      if (count > 0) {
+        uploadArea.classList.add('has-files');
+      } else {
+        uploadArea.classList.remove('has-files');
+      }
+
+      uploadedFilesDiv.innerHTML = uploadedAttachments.map((attachment, index) => `
+        <div class="uploaded-file">
+          <img src="${attachment.url}" alt="${attachment.name}">
+          <span class="uploaded-file-name">${attachment.name}</span>
+          <button class="remove-file-btn" onclick="removeAttachment(${index})">x</button>
+        </div>
+      `).join('');
+    }
+
+    // Remove attachment
+    window.removeAttachment = function(index) {
+      uploadedAttachments.splice(index, 1);
+      renderUploadedFiles();
+      log('Removed attachment');
+    };
+
+    // Clear all attachments
+    function clearAttachments() {
+      uploadedAttachments = [];
+      renderUploadedFiles();
+    }
+
+    // Send a chat message with streaming
+    async function sendMessage() {
+      const content = messageInput.value.trim();
+      if (!content || !hustleClient) return;
+
+      messageInput.value = '';
+      sendBtn.disabled = true;
+      messageInput.disabled = true;
+
+      messages.push({ role: 'user', content });
+      renderMessages();
+
+      // Add empty assistant message that we'll stream into
+      messages.push({ role: 'assistant', content: '' });
+      renderMessages();
+
+      log('Sending message (streaming): ' + content.substring(0, 50) + '...');
+
+      try {
+        chatError.style.display = 'none';
+
+        // Build messages array with optional system prompt
+        const chatMessages = [];
+
+        // Add system prompt as first message if provided
+        if (settings.systemPrompt) {
+          chatMessages.push({ role: 'system', content: settings.systemPrompt });
+        }
+
+        // Add conversation history (excluding the empty assistant message we just added)
+        chatMessages.push(...messages.slice(0, -1).map(m => ({ role: m.role, content: m.content })));
+
+        // Use chatStream for real-time streaming
+        const chatOptions = {
+          messages: chatMessages,
+          processChunks: true
+        };
+
+        // Add model if selected
+        if (settings.model) {
+          chatOptions.model = settings.model;
+          log('Using model: ' + settings.model);
+        }
+
+        // Add overrideSystemPrompt if enabled
+        if (settings.skipServerPrompt) {
+          chatOptions.overrideSystemPrompt = true;
+          log('Overriding server-provided system prompt');
+        }
+
+        // Add attachments if any
+        if (uploadedAttachments.length > 0) {
+          chatOptions.attachments = [...uploadedAttachments];
+          log('Including ' + uploadedAttachments.length + ' attachment(s) in request');
+        }
+
+        const stream = hustleClient.chatStream(chatOptions);
+
+        // Clear attachments after adding to request
+        clearAttachments();
+
+        let fullContent = '';
+
+        for await (const chunk of stream) {
+          if (chunk.type === 'text') {
+            if (activeTools.size > 0) clearToolChips(); // Clear tool display when agent starts replying
+            fullContent += chunk.value;
+            // Update the last message with accumulated content
+            messages[messages.length - 1].content = fullContent;
+            renderMessages();
+          } else if (chunk.type === 'tool_call') {
+            log('Tool call: ' + JSON.stringify(chunk.value).substring(0, 100));
+          } else if (chunk.type === 'tool_result') {
+            log('Tool result received');
+          } else if (chunk.type === 'error') {
+            throw new Error(chunk.value?.message || 'Stream error');
+          }
+        }
+
+        // NEW: Access the aggregated ProcessedResponse after streaming
+        const processedResponse = await stream.response;
+        log('ProcessedResponse: ' + JSON.stringify(processedResponse, null, 2));
+
+        if (!fullContent) {
+          messages[messages.length - 1].content = '(No response)';
+          renderMessages();
+        }
+
+        log('Stream complete: ' + fullContent.substring(0, 50) + '...');
+      } catch (error) {
+        // Update assistant message with error
+        messages[messages.length - 1].content = '❌ Error: ' + error.message;
+        renderMessages();
+        showError(error.message);
+        log('Chat error: ' + error.message);
+      } finally {
+        sendBtn.disabled = false;
+        messageInput.disabled = false;
+        messageInput.focus();
+      }
+    }
+
+    // Show error
+    function showError(msg) {
+      chatError.textContent = msg;
+      chatError.style.display = 'block';
+    }
+
+    // Event listeners
+    loginBtn.addEventListener('click', () => {
+      log('Opening auth modal...');
+      authSDK.openAuthModal();
+    });
+
+    logoutBtn.addEventListener('click', handleLogout);
+
+    sendBtn.addEventListener('click', sendMessage);
+
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        handleFileUpload(e.target.files);
+      }
+    });
+
+    // Debug toggle
+    debugToggle.addEventListener('click', () => {
+      const isVisible = debugCard.style.display !== 'none';
+      debugCard.style.display = isVisible ? 'none' : 'block';
+      debugToggle.classList.toggle('active', !isVisible);
+    });
+
+    // Settings event listeners
+    settingsBtn.addEventListener('click', openSettings);
+    closeSettingsBtn.addEventListener('click', closeSettings);
+
+    // Close modal when clicking outside
+    settingsModal.addEventListener('click', (e) => {
+      if (e.target === settingsModal) closeSettings();
+    });
+
+    // Save settings on change
+    modelSelect.addEventListener('change', () => {
+      saveSettings();
+      updateModelInfo();
+    });
+
+    skipServerPromptToggle.addEventListener('change', saveSettings);
+
+    systemPromptModal.addEventListener('input', saveSettings);
+
+    // Chat persistence event listeners
+    newChatBtn.addEventListener('click', handleNewChat);
+    saveChatBtn.addEventListener('click', handleSaveChat);
+
+    // Chat modal event listeners
+    closeChatModalBtn.addEventListener('click', closeModal);
+    chatModalCancelBtn.addEventListener('click', closeModal);
+    chatModalSaveBtn.addEventListener('click', handleModalSave);
+    chatModalSaveAsNewBtn.addEventListener('click', handleModalSaveAsNew);
+    chatModalDiscardBtn.addEventListener('click', handleModalDiscard);
+    chatModalDeleteBtn.addEventListener('click', handleModalDelete);
+
+    // Close chat modal when clicking outside
+    chatModal.addEventListener('click', (e) => {
+      if (e.target === chatModal) closeModal();
+    });
+
+    // Handle Enter key in chat name input
+    chatModalInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleModalSave();
+    });
+
+    // Sidebar toggle functions
+    function openSidebar() {
+      sidebar.classList.remove('collapsed');
+      sidebarOpenBtn.classList.add('hidden');
+      localStorage.setItem('hustle_sidebar_open', 'true');
+    }
+
+    function closeSidebar() {
+      sidebar.classList.add('collapsed');
+      sidebarOpenBtn.classList.remove('hidden');
+      localStorage.setItem('hustle_sidebar_open', 'false');
+    }
+
+    function initSidebar() {
+      const savedState = localStorage.getItem('hustle_sidebar_open');
+      // Default to open if there are saved chats, closed otherwise
+      const chats = getSavedChats();
+      const hasSavedChats = Object.keys(chats).length > 0;
+
+      if (savedState === 'true' || (savedState === null && hasSavedChats)) {
+        openSidebar();
+      } else {
+        closeSidebar();
+      }
+    }
+
+    // Sidebar event listeners
+    sidebarOpenBtn.addEventListener('click', openSidebar);
+    sidebarCloseBtn.addEventListener('click', closeSidebar);
+
+    // Initialize on load
+    log('Page loaded, initializing...');
+    loadSettings();
+    initSidebar();
+    initAuth();
+  </script>
+</body>
+</html>

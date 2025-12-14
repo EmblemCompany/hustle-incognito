@@ -56,7 +56,7 @@ Then open `http://localhost:8080` to see all available demos.
 
 ## Examples
 
-### 1. Auth Chat Demo (`auth-chat-demo.html`) - Recommended
+### 1. Auth Chat Demo (`auth-demo-simple.html`) - Recommended
 
 A full-featured browser demo showing EmblemAuthSDK integration with JWT authentication.
 
@@ -72,7 +72,7 @@ A full-featured browser demo showing EmblemAuthSDK integration with JWT authenti
 **Usage:**
 
 1. Start a local server (see Quick Start above)
-2. Navigate to `auth-chat-demo.html`
+2. Navigate to `auth-demo-simple.html`
 3. Click "Sign In" to authenticate via EmblemAuthSDK
 4. Once authenticated, you can chat with the AI agent
 
@@ -252,7 +252,7 @@ data: {"reason":"stop","usage":{},"fullText":"Solana is..."}
 - `finish` - Stream completion with metadata
 - `error` - Error information
 
-### 4. Demo UI (`demo-ui.html`) - Legacy
+### 4. Server Chat (`server-chat.html`) - Legacy
 
 A simpler browser test interface using API key authentication. Use this if you need to test with an API key rather than EmblemAuth.
 
@@ -265,7 +265,7 @@ A simpler browser test interface using API key authentication. Use this if you n
 **Usage:**
 
 1. Start a local server (see Quick Start above)
-2. Navigate to `demo-ui.html`
+2. Navigate to `server-chat.html`
 3. Enter your API key and vault ID in the settings panel
 4. Start chatting
 

@@ -559,16 +559,23 @@ async function main() {
      * Serve API key demo UI (deprecated)
      */
     function handleDemoUI(req, res) {
-      serveHtmlFile(res, 'demo-ui.html', {
+      serveHtmlFile(res, 'server-chat.html', {
         '{{VAULT_ID_PLACEHOLDER}}': DEFAULT_VAULT_ID
       });
     }
 
     /**
-     * Serve Emblem Auth demo
+     * Serve Emblem Auth demo (simple)
      */
     function handleAuthDemo(req, res) {
-      serveHtmlFile(res, 'auth-chat-demo.html');
+      serveHtmlFile(res, 'auth-demo-simple.html');
+    }
+
+    /**
+     * Serve Emblem Auth demo (advanced)
+     */
+    function handleAuthDemoAdvanced(req, res) {
+      serveHtmlFile(res, 'auth-demo-advanced.html');
     }
 
     /**
@@ -639,12 +646,16 @@ async function main() {
         return handleLandingPage(req, res);
       }
 
-      if (pathname === '/demo-ui.html' && method === 'GET') {
+      if (pathname === '/server-chat.html' && method === 'GET') {
         return handleDemoUI(req, res);
       }
 
-      if (pathname === '/auth-chat-demo.html' && method === 'GET') {
+      if (pathname === '/auth-demo-simple.html' && method === 'GET') {
         return handleAuthDemo(req, res);
+      }
+
+      if (pathname === '/auth-demo-advanced.html' && method === 'GET') {
+        return handleAuthDemoAdvanced(req, res);
       }
 
       // Serve SDK browser build files
@@ -689,8 +700,9 @@ async function main() {
       console.log('');
       console.log('  Demo Pages:');
       console.log(`    /                         - Landing page (choose demo)`);
-      console.log(`    /auth-chat-demo.html      - Emblem Auth demo (recommended)`);
-      console.log(`    /demo-ui.html             - API Key demo (deprecated)`);
+      console.log(`    /auth-demo-simple.html    - Emblem Auth demo (basic)`);
+      console.log(`    /auth-demo-advanced.html  - Emblem Auth demo (advanced)`);
+      console.log(`    /server-chat.html         - API Key demo (deprecated)`);
       console.log('');
       console.log('  API Endpoints:');
       console.log(`    GET  /health              - Health check`);

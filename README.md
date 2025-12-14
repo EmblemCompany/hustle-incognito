@@ -39,7 +39,7 @@ console.log(response.content);
 
 Looking for complete, working examples? Check out the [`examples/`](./examples) directory:
 
-- **[Auth Chat Demo](./examples/auth-chat-demo.html)** *(Recommended)* - Full-featured browser demo with EmblemAuthSDK, streaming, tool visualization, and summarization display
+- **[Auth Chat Demo](./examples/auth-demo-simple.html)** *(Recommended)* - Full-featured browser demo with EmblemAuthSDK, streaming, tool visualization, and summarization display
 - **[Simple CLI](./examples/simple-cli.js)** - Interactive command-line chat with streaming, tool categories, and image upload
 - **[HTTP Server](./examples/simple-server.js)** - REST API server with SSE streaming endpoint
 
@@ -873,7 +873,7 @@ For production browser apps, combine with EmblemAuthSDK for secure JWT authentic
 </script>
 ```
 
-See the [Auth Chat Demo](./examples/auth-chat-demo.html) for a complete working example.
+See the [Auth Chat Demo](./examples/auth-demo-simple.html) for a complete working example.
 
 ## 🛠️ Contributing & Development
 
