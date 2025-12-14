@@ -1009,9 +1009,9 @@
   <!-- Load Emblem Auth SDK from CDN -->
   <script src="https://unpkg.com/emblem-auth-sdk@latest/dist/emblem-auth.min.js"></script>
 
-  <!-- Load Hustle Incognito from CDN -->
+  <!-- Load Hustle Incognito from local build -->
   <script type="module">
-    import { HustleIncognitoClient } from 'https://unpkg.com/hustle-incognito@latest/dist/browser/hustle-incognito.esm.js';
+    import { HustleIncognitoClient } from '../dist/browser/hustle-incognito.esm.js';
 
     // =========================================================================
     // DEVELOPMENT ENVIRONMENT OVERRIDES
@@ -1026,7 +1026,23 @@
     // For production, simply use: new EmblemAuthSDK({ appId: 'agenthustle.ai' })
     // and new HustleIncognitoClient({ sdk: authSDK }) without URL overrides.
     // =========================================================================
-    const CONFIG = {
+    // Toggle this flag to switch between local and dev environments
+    const USE_LOCAL_API = false;
+
+    const CONFIG = USE_LOCAL_API ? {
+      // ===================== LOCAL DEVELOPMENT =====================
+      // Hustle Incognito API
+      hustleApiUrl: 'https://dev.agenthustle.ai',
+
+      // Emblem Auth SDK - pointing to LOCAL API server
+      emblemAuthAppId: 'dev.agenthustle.ai',
+      emblemAuthApiUrl: 'http://localhost:3001',
+      emblemAuthModalUrl: 'https://dev-auth.emblemvault.ai/connect',
+
+      // Enable SDK debug logging
+      debug: true,
+    } : {
+      // ===================== DEV ENVIRONMENT =====================
       // Hustle Incognito API (default: https://agenthustle.ai)
       hustleApiUrl: 'https://dev.agenthustle.ai',
 
@@ -1036,7 +1052,7 @@
       emblemAuthModalUrl: 'https://dev-auth.emblemvault.ai/connect',
 
       // Enable SDK debug logging (set to false for production)
-      debug: true,
+      debug: false,
     };
     // =========================================================================
 

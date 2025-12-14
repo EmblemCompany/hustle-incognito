@@ -393,24 +393,27 @@ export class HustleIncognitoClient {
     });
 
     // Create the generator that yields chunks while accumulating them
-    const self = this;
+    // Bind methods to preserve 'this' context inside the generator
+    const emit = this.emit.bind(this);
+    const chatStreamGenerator = this._chatStreamGenerator.bind(this);
+    const updateSummarizationState = this.updateSummarizationState.bind(this);
     const generator = (async function* () {
       try {
-        self.emit({ type: 'stream_start' });
-        for await (const chunk of self._chatStreamGenerator(options, overrideFunc)) {
+        emit({ type: 'stream_start' });
+        for await (const chunk of chatStreamGenerator(options, overrideFunc)) {
           processor.processChunk(chunk);
 
           // Emit events for tool activity
           if ('type' in chunk) {
             if (chunk.type === 'tool_call' && chunk.value) {
-              self.emit({
+              emit({
                 type: 'tool_start',
                 toolCallId: chunk.value.toolCallId || '',
                 toolName: chunk.value.toolName || '',
                 args: chunk.value.args,
               });
             } else if (chunk.type === 'tool_result' && chunk.value) {
-              self.emit({
+              emit({
                 type: 'tool_end',
                 toolCallId: chunk.value.toolCallId || '',
                 toolName: chunk.value.toolName,
@@ -425,10 +428,10 @@ export class HustleIncognitoClient {
 
         // Update summarization state from pathInfo
         if (response.pathInfo) {
-          self.updateSummarizationState(response.pathInfo);
+          updateSummarizationState(response.pathInfo);
         }
 
-        self.emit({ type: 'stream_end', response });
+        emit({ type: 'stream_end', response });
         responseResolve!(response);
       } catch (error) {
         responseReject!(error);
@@ -1304,14 +1307,12 @@ export class HustleIncognitoClient {
       : 0;
 
     // Find the actual index in the full messages array
-    let systemCount = 0;
     let nonSystemCount = 0;
     let calculatedTrimIndex = 0;
 
     for (let i = 0; i < messages.length; i++) {
-      if (messages[i].role === 'system') {
-        systemCount++;
-      } else {
+      const message = messages[i];
+      if (message && message.role !== 'system') {
         if (nonSystemCount === keepFromIndex) {
           calculatedTrimIndex = i;
           break;
