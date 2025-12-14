@@ -1013,6 +1013,30 @@
   <script type="module">
     import { HustleIncognitoClient } from 'https://unpkg.com/hustle-incognito@latest/dist/browser/hustle-incognito.esm.js';
 
+    // =========================================================================
+    // DEVELOPMENT ENVIRONMENT OVERRIDES
+    // =========================================================================
+    // This demo is configured to use development environments.
+    // For production, these overrides are NOT necessary - the SDKs use
+    // production URLs by default:
+    //   - HustleIncognitoClient defaults to: https://agenthustle.ai
+    //   - EmblemAuthSDK apiUrl defaults to: https://api.emblemvault.ai
+    //   - EmblemAuthSDK modalUrl defaults to: https://auth.emblemvault.ai/connect
+    //
+    // For production, simply use: new EmblemAuthSDK({ appId: 'agenthustle.ai' })
+    // and new HustleIncognitoClient({ sdk: authSDK }) without URL overrides.
+    // =========================================================================
+    const CONFIG = {
+      // Hustle Incognito API (default: https://agenthustle.ai)
+      hustleApiUrl: 'https://dev.agenthustle.ai',
+
+      // Emblem Auth SDK (defaults: api.emblemvault.ai, auth.emblemvault.ai)
+      emblemAuthAppId: 'dev.agenthustle.ai',
+      emblemAuthApiUrl: 'https://dev-api.emblemvault.ai',
+      emblemAuthModalUrl: 'https://dev-auth.emblemvault.ai/connect',
+    };
+    // =========================================================================
+
     // Make it available globally for debugging
     window.HustleIncognitoClient = HustleIncognitoClient;
 
@@ -1341,9 +1365,9 @@
       log('Initializing Emblem Auth SDK...');
 
       authSDK = new window.EmblemAuth.EmblemAuthSDK({
-        appId: 'dev.agenthustle.ai',
-        apiUrl: 'https://dev-api.emblemvault.ai',
-        modalUrl: 'https://dev-auth.emblemvault.ai/connect',
+        appId: CONFIG.emblemAuthAppId,
+        apiUrl: CONFIG.emblemAuthApiUrl,
+        modalUrl: CONFIG.emblemAuthModalUrl,
         onSuccess: (session) => {
           log('Auth success! VaultId: ' + session.user?.vaultId);
           handleAuthSuccess(session);
@@ -1437,7 +1461,7 @@
       log('Creating HustleIncognitoClient with SDK auth (experimental)...');
       hustleClient = new HustleIncognitoClient({
         sdk: authSDK,
-        hustleApiUrl: 'http://localhost:3001',
+        hustleApiUrl: CONFIG.hustleApiUrl,
         debug: true
       });
 
