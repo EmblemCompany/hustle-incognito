@@ -236,6 +236,16 @@
       margin-bottom: 16px;
       font-size: 1.25rem;
     }
+    .chat-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .chat-header h2 {
+      margin: 0;
+      line-height: 40px;
+    }
     .btn {
       background: #4c9aff;
       border: none;
@@ -292,6 +302,129 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
+    }
+    .tool-activity {
+      display: flex;
+      justify-content: center;
+      min-height: 0;
+    }
+    .tool-activity:not(:empty) {
+      padding: 4px 0;
+    }
+    .tool-chip {
+      position: relative;
+      padding: 2px 10px;
+      font-size: 10px;
+      color: #4c9aff;
+      cursor: default;
+      animation: fadeInGlow 0.3s ease-out, glow 1.5s ease-in-out infinite;
+    }
+    .tool-chip.complete {
+      animation: fadeInGlow 0.3s ease-out;
+      opacity: 0.5;
+    }
+    .tool-chip .tool-tooltip {
+      display: none;
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-bottom: 6px;
+      padding: 8px 10px;
+      background: #1a1f25;
+      border: 1px solid #333;
+      border-radius: 6px;
+      font-size: 9px;
+      color: #a0aec0;
+      white-space: pre;
+      max-width: 300px;
+      max-height: 200px;
+      overflow: auto;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    .tool-chip:hover .tool-tooltip {
+      display: block;
+    }
+    .tool-summary {
+      font-size: 10px;
+      color: #6b7280;
+      padding: 8px 12px;
+      background: #0f141a;
+      border-radius: 6px;
+      max-width: 100%;
+    }
+    .tool-summary-header {
+      color: #9ca3af;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .tool-summary-header:hover {
+      color: #d1d5db;
+    }
+    .tool-summary-details {
+      display: none;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #1f2937;
+      line-height: 1.6;
+    }
+    .tool-summary.expanded .tool-summary-details {
+      display: block;
+    }
+    .tool-summary-label {
+      color: #9ca3af;
+    }
+    .tool-name-link {
+      color: #4c9aff;
+      cursor: pointer;
+      text-decoration: underline;
+      text-decoration-style: dotted;
+    }
+    .tool-name-link:hover {
+      color: #6bb3ff;
+    }
+    .tool-detail {
+      margin-top: 8px;
+      padding: 8px;
+      background: #1a1f25;
+      border-radius: 4px;
+      border-left: 2px solid #4c9aff;
+    }
+    .tool-detail-section {
+      margin-bottom: 6px;
+    }
+    .tool-detail-section:last-child {
+      margin-bottom: 0;
+    }
+    .tool-detail-title {
+      color: #9ca3af;
+      font-size: 9px;
+      margin-bottom: 2px;
+    }
+    .tool-detail-content {
+      color: #d1d5db;
+      font-size: 9px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 150px;
+      overflow: auto;
+    }
+    @keyframes fadeInGlow {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes glow {
+      0%, 100% {
+        opacity: 1;
+        text-shadow: 0 0 4px rgba(76, 154, 255, 0.6);
+      }
+      50% {
+        opacity: 0.6;
+        text-shadow: 0 0 8px rgba(76, 154, 255, 0.9);
+      }
     }
     .chat-input {
       display: flex;
@@ -440,13 +573,12 @@
     }
     .chat-input-row {
       display: flex;
-      align-items: center;
+      align-items: stretch;
       gap: 8px;
     }
     .file-upload-area {
       display: flex;
-      align-items: center;
-      gap: 8px;
+      align-items: stretch;
     }
     .file-upload-area.has-files .file-upload-btn {
       background: #1a2633;
@@ -460,7 +592,6 @@
       align-items: center;
       justify-content: center;
       width: 44px;
-      height: 44px;
       background: #1a1f25;
       border: 1px solid #333;
       border-radius: 8px;
@@ -524,6 +655,209 @@
       font-size: 12px;
       font-style: italic;
     }
+    /* Settings Button */
+    .settings-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .selected-model-label {
+      font-size: 9px;
+      color: rgba(76, 154, 255, 0.6);
+      max-width: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: center;
+    }
+    .settings-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background: #1a1f25;
+      border: 1px solid #333;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #8892a4;
+      transition: all 0.2s;
+    }
+    .settings-btn svg {
+      width: 22px;
+      height: 22px;
+    }
+    .settings-btn:hover:not(:disabled) {
+      background: #252b33;
+      border-color: #4c9aff;
+      color: #4c9aff;
+    }
+    .settings-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    /* Modal Styles */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-overlay.open {
+      display: flex;
+    }
+    .modal {
+      background: #12161b;
+      border: 1px solid #222b35;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      border-bottom: 1px solid #222b35;
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: #6b7280;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .modal-close:hover {
+      color: #fff;
+    }
+    .modal-body {
+      padding: 24px;
+    }
+    .setting-group {
+      margin-bottom: 24px;
+    }
+    .setting-group:last-child {
+      margin-bottom: 0;
+    }
+    .setting-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #e6eef8;
+      margin-bottom: 8px;
+    }
+    .setting-description {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+    .setting-select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #1a1f25;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .setting-select:focus {
+      outline: none;
+      border-color: #4c9aff;
+    }
+    .setting-select:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .setting-textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      background: #1a1f25;
+      color: #fff;
+      font-size: 13px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 100px;
+    }
+    .setting-textarea:focus {
+      outline: none;
+      border-color: #4c9aff;
+    }
+    .setting-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #1a1f25;
+      border: 1px solid #333;
+      border-radius: 8px;
+    }
+    .toggle-label {
+      font-size: 14px;
+      color: #e6eef8;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 48px;
+      height: 26px;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #333;
+      transition: 0.3s;
+      border-radius: 26px;
+    }
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+    .toggle-switch input:checked + .toggle-slider {
+      background-color: #4c9aff;
+    }
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(22px);
+    }
+    .model-info {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 6px;
+    }
   </style>
 </head>
 <body>
@@ -576,19 +910,68 @@
       </div>
     </div>
     <div id="authStatus" style="display:none;"></div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title">Settings</span>
+          <button id="closeSettingsBtn" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <!-- Model Selection -->
+          <div class="setting-group">
+            <label class="setting-label">Model</label>
+            <p class="setting-description">Select the AI model to use for chat responses</p>
+            <select id="modelSelect" class="setting-select">
+              <option value="">Default (server decides)</option>
+            </select>
+            <div id="modelInfo" class="model-info"></div>
+          </div>
+
+          <!-- Skip Server System Prompt -->
+          <div class="setting-group">
+            <label class="setting-label">Server System Prompt</label>
+            <div class="setting-toggle">
+              <span class="toggle-label">Skip server-provided system prompt</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="skipServerPromptToggle">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <p class="setting-description" style="margin-top: 8px;">When enabled, the server's default system prompt will not be used</p>
+          </div>
+
+          <!-- Custom System Prompt -->
+          <div class="setting-group">
+            <label class="setting-label">Custom System Prompt</label>
+            <p class="setting-description">Provide instructions for how the AI should behave</p>
+            <textarea id="systemPromptModal" class="setting-textarea" placeholder="You are a helpful assistant..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
     <pre id="sessionInfo" style="display:none;">No active session</pre>
 
     <!-- Chat Card -->
     <div class="card">
-      <h2>Chat</h2>
-      <details style="margin-bottom: 12px;">
-        <summary style="cursor:pointer; color:#8892a4;">System Prompt (optional)</summary>
-        <textarea id="systemPrompt" class="system-prompt-input" placeholder="Enter a custom system prompt..."></textarea>
-      </details>
+      <div class="chat-header">
+        <h2>Chat</h2>
+        <div class="settings-wrapper">
+          <button id="settingsBtn" class="settings-btn" title="Settings" disabled>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+          <span id="selectedModelLabel" class="selected-model-label"></span>
+        </div>
+      </div>
       <div class="chat-container">
         <div id="messages" class="messages">
           <div class="loading">Connect to start chatting...</div>
         </div>
+        <div id="toolActivity" class="tool-activity"></div>
         <div class="chat-input-row">
           <div class="file-upload-area" id="uploadArea">
             <input type="file" id="fileInput" class="file-input" accept="image/*" multiple>
@@ -626,9 +1009,9 @@
   <!-- Load Emblem Auth SDK from CDN -->
   <script src="https://unpkg.com/emblem-auth-sdk@latest/dist/emblem-auth.min.js"></script>
 
-  <!-- Load Hustle Incognito browser build -->
+  <!-- Load Hustle Incognito from CDN -->
   <script type="module">
-    import { HustleIncognitoClient } from '/dist/browser/hustle-incognito.esm.js';
+    import { HustleIncognitoClient } from 'https://unpkg.com/hustle-incognito@latest/dist/browser/hustle-incognito.esm.js';
 
     // Make it available globally for debugging
     window.HustleIncognitoClient = HustleIncognitoClient;
@@ -638,6 +1021,12 @@
     let hustleClient = null;
     let messages = [];
     let uploadedAttachments = [];
+    let availableModels = [];
+    let settings = {
+      model: '',
+      skipServerPrompt: false,
+      systemPrompt: ''
+    };
 
     // DOM elements
     const loginBtn = document.getElementById('loginBtn');
@@ -656,17 +1045,290 @@
     const debugLog = document.getElementById('debugLog');
     const debugToggle = document.getElementById('debugToggle');
     const debugCard = document.getElementById('debugCard');
-    const systemPromptInput = document.getElementById('systemPrompt');
     const fileInput = document.getElementById('fileInput');
     const uploadArea = document.getElementById('uploadArea');
     const uploadStatus = document.getElementById('uploadStatus');
     const uploadedFilesDiv = document.getElementById('uploadedFiles');
+    // Settings elements
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsModal = document.getElementById('settingsModal');
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const modelSelect = document.getElementById('modelSelect');
+    const modelInfo = document.getElementById('modelInfo');
+    const skipServerPromptToggle = document.getElementById('skipServerPromptToggle');
+    const systemPromptModal = document.getElementById('systemPromptModal');
+    const selectedModelLabel = document.getElementById('selectedModelLabel');
+    const toolActivity = document.getElementById('toolActivity');
+
+    // Tool activity tracking
+    const activeTools = new Map(); // toolCallId -> element
+
+    function addToolChip(toolCallId, toolName, args) {
+      if (activeTools.has(toolCallId)) return;
+      const chip = document.createElement('div');
+      chip.className = 'tool-chip';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = toolName;
+      chip.appendChild(nameSpan);
+
+      if (args && Object.keys(args).length > 0) {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'tool-tooltip';
+        tooltip.textContent = JSON.stringify(args, null, 2);
+        chip.appendChild(tooltip);
+      }
+
+      toolActivity.appendChild(chip);
+      activeTools.set(toolCallId, chip);
+    }
+
+    function removeToolChip(toolCallId) {
+      const chip = activeTools.get(toolCallId);
+      if (chip) {
+        chip.remove();
+        activeTools.delete(toolCallId);
+      }
+    }
+
+    function clearToolChips() {
+      toolActivity.innerHTML = '';
+      activeTools.clear();
+    }
+
+    function showToolSummary(response) {
+      clearToolChips();
+
+      const toolCount = response.toolCalls?.length || 0;
+      const hasSummarizationInfo = response.pathInfo?.thresholdReached || response.pathInfo?.summary;
+
+      // Show if we have tools OR summarization info
+      if (toolCount === 0 && !hasSummarizationInfo) return;
+
+      const summary = document.createElement('div');
+      summary.className = 'tool-summary';
+
+      // Build a map of toolCallId -> result
+      const resultMap = new Map();
+      (response.toolResults || []).forEach(r => {
+        resultMap.set(r.toolCallId, r.result);
+      });
+
+      const reasoning = response.reasoning?.thinking || '';
+      const categories = response.devToolsInfo?.qualifiedCategories || response.reasoning?.categories || [];
+      const availableCount = response.devToolsInfo?.toolCount || 0;
+
+      // Build clickable tool names
+      const toolLinks = response.toolCalls.map((t, i) => {
+        const name = t.toolName || 'unknown';
+        return `<span class="tool-name-link" data-tool-index="${i}">${name}</span>`;
+      }).join(', ');
+
+      // Determine header text based on what info we have
+      const headerText = toolCount > 0
+        ? `Used ${toolCount} tool${toolCount !== 1 ? 's' : ''}`
+        : 'Context Info';
+
+      summary.innerHTML = `
+        <div class="tool-summary-header">
+          <span>▸</span> ${headerText}
+        </div>
+        <div class="tool-summary-details">
+          ${reasoning ? `<div><span class="tool-summary-label">Reasoning:</span> ${reasoning}</div>` : ''}
+          ${categories.length ? `<div><span class="tool-summary-label">Categories:</span> ${categories.join(', ')}</div>` : ''}
+          ${availableCount ? `<div><span class="tool-summary-label">Available:</span> ${availableCount} tools</div>` : ''}
+          ${toolCount > 0 ? `<div><span class="tool-summary-label">Used:</span> ${toolLinks}</div>` : ''}
+          <div class="tool-detail-container"></div>
+          ${response.pathInfo?.thresholdReached ? `
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #1f2937;">
+              <span class="tool-summary-label" style="color: #f59e0b;">⚠ Context threshold reached</span>
+              <div style="margin-top: 4px;">
+                Tokens: ${response.pathInfo.totalTokens}/${response.pathInfo.threshold} |
+                Retain: ${response.pathInfo.messageRetentionCount} messages
+              </div>
+            </div>
+          ` : ''}
+          ${response.pathInfo?.summary ? `
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #1f2937;">
+              <span class="tool-summary-label" style="color: #10b981;">📝 Conversation Summary</span>
+              <div style="margin-top: 4px; font-size: 12px; color: #9ca3af; max-height: 150px; overflow-y: auto; padding: 8px; background: #0d1117; border-radius: 4px; white-space: pre-wrap;">
+                ${response.pathInfo.summary}
+              </div>
+              ${response.pathInfo.summaryEndIndex ? `
+                <div style="margin-top: 4px; font-size: 11px; color: #6b7280;">
+                  Summary covers messages up to index ${response.pathInfo.summaryEndIndex}
+                </div>
+              ` : ''}
+            </div>
+          ` : ''}
+        </div>
+      `;
+
+      summary.querySelector('.tool-summary-header').addEventListener('click', () => {
+        summary.classList.toggle('expanded');
+        summary.querySelector('.tool-summary-header span').textContent =
+          summary.classList.contains('expanded') ? '▾' : '▸';
+      });
+
+      // Handle tool name clicks
+      const detailContainer = summary.querySelector('.tool-detail-container');
+      summary.querySelectorAll('.tool-name-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = parseInt(link.dataset.toolIndex);
+          const tool = response.toolCalls[idx];
+          const result = resultMap.get(tool.toolCallId);
+
+          // Toggle: if already showing this tool, hide it
+          if (detailContainer.dataset.activeIndex === String(idx)) {
+            detailContainer.innerHTML = '';
+            detailContainer.dataset.activeIndex = '';
+            return;
+          }
+
+          detailContainer.dataset.activeIndex = idx;
+          detailContainer.innerHTML = `
+            <div class="tool-detail">
+              <div class="tool-detail-section">
+                <div class="tool-detail-title">Request (${tool.toolName}):</div>
+                <div class="tool-detail-content">${JSON.stringify(tool.args || {}, null, 2)}</div>
+              </div>
+              <div class="tool-detail-section">
+                <div class="tool-detail-title">Result:</div>
+                <div class="tool-detail-content">${JSON.stringify(result, null, 2)}</div>
+              </div>
+            </div>
+          `;
+        });
+      });
+
+      toolActivity.appendChild(summary);
+    }
+
+    function markToolComplete(toolCallId) {
+      const chip = activeTools.get(toolCallId);
+      if (chip) chip.classList.add('complete');
+    }
 
     // Debug logging
     function log(msg) {
       const time = new Date().toLocaleTimeString();
       debugLog.textContent = `[${time}] ${msg}\n` + debugLog.textContent;
       console.log(`[${time}]`, msg);
+    }
+
+    // Settings functions
+    function openSettings() {
+      settingsModal.classList.add('open');
+      // Sync UI with current settings
+      modelSelect.value = settings.model;
+      skipServerPromptToggle.checked = settings.skipServerPrompt;
+      systemPromptModal.value = settings.systemPrompt;
+      updateModelInfo();
+    }
+
+    function closeSettings() {
+      settingsModal.classList.remove('open');
+    }
+
+    async function loadModels() {
+      if (!hustleClient) return;
+
+      log('Loading available models...');
+      modelSelect.disabled = true;
+
+      try {
+        availableModels = await hustleClient.getModels();
+        log(`Loaded ${availableModels.length} models`);
+
+        // Clear existing options except default
+        modelSelect.innerHTML = '<option value="">Default (server decides)</option>';
+
+        // Group models by provider
+        const grouped = {};
+        availableModels.forEach(model => {
+          const [provider] = model.id.split('/');
+          if (!grouped[provider]) grouped[provider] = [];
+          grouped[provider].push(model);
+        });
+
+        // Add grouped options
+        Object.keys(grouped).sort().forEach(provider => {
+          const group = document.createElement('optgroup');
+          group.label = provider.charAt(0).toUpperCase() + provider.slice(1);
+
+          grouped[provider].forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.textContent = model.name;
+            group.appendChild(option);
+          });
+
+          modelSelect.appendChild(group);
+        });
+
+        // Restore saved selection
+        if (settings.model) {
+          modelSelect.value = settings.model;
+        }
+
+        modelSelect.disabled = false;
+        updateModelInfo();
+      } catch (error) {
+        log('Failed to load models: ' + error.message);
+        modelSelect.disabled = false;
+      }
+    }
+
+    function updateModelInfo() {
+      const selectedId = modelSelect.value;
+      if (!selectedId) {
+        modelInfo.textContent = '';
+        return;
+      }
+
+      const model = availableModels.find(m => m.id === selectedId);
+      if (model) {
+        const contextK = Math.round(model.context_length / 1000);
+        const promptCost = parseFloat(model.pricing?.prompt || 0) * 1000000;
+        const completionCost = parseFloat(model.pricing?.completion || 0) * 1000000;
+        modelInfo.textContent = `Context: ${contextK}K tokens | Cost: $${promptCost.toFixed(2)}/$${completionCost.toFixed(2)} per 1M tokens`;
+      }
+    }
+
+    function updateModelLabel() {
+      if (settings.model) {
+        // Extract just the model name (e.g., "claude-sonnet-4" from "anthropic/claude-sonnet-4")
+        const modelName = settings.model.split('/').pop() || settings.model;
+        selectedModelLabel.textContent = modelName;
+      } else {
+        selectedModelLabel.textContent = '';
+      }
+    }
+
+    function saveSettings() {
+      settings.model = modelSelect.value;
+      settings.skipServerPrompt = skipServerPromptToggle.checked;
+      settings.systemPrompt = systemPromptModal.value;
+
+      // Persist to localStorage
+      localStorage.setItem('hustle_auth_demo_settings', JSON.stringify(settings));
+      log('Settings saved: model=' + (settings.model || 'default') + ', skipServerPrompt=' + settings.skipServerPrompt);
+      updateModelLabel();
+    }
+
+    function loadSettings() {
+      const saved = localStorage.getItem('hustle_auth_demo_settings');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          settings = { ...settings, ...parsed };
+          log('Loaded settings from storage');
+          updateModelLabel();
+        } catch (e) {
+          log('Failed to load settings: ' + e.message);
+        }
+      }
     }
 
     // Initialize Emblem Auth SDK
@@ -775,14 +1437,86 @@
       log('Creating HustleIncognitoClient with SDK auth (experimental)...');
       hustleClient = new HustleIncognitoClient({
         sdk: authSDK,
-        hustleApiUrl: 'https://experimental.agenthustle.ai',
+        hustleApiUrl: 'http://localhost:3001',
         debug: true
       });
 
-      // Enable chat
+      // Subscribe to tool events
+      hustleClient.on('tool_start', (event) => {
+        clearToolChips(); // Clear previous tool before showing new one
+        addToolChip(event.toolCallId, event.toolName, event.args);
+      });
+      hustleClient.on('tool_end', (event) => {
+        // Mark as complete but keep visible
+        markToolComplete(event.toolCallId);
+      });
+      hustleClient.on('stream_end', (event) => {
+        showToolSummary(event.response);
+      });
+
+      // Expose test function for summarization debugging
+      window.testSummarization = () => {
+        console.log('=== TESTING SUMMARIZATION FLOW ===');
+
+        // Step 1: Simulate server response with thresholdReached
+        console.log('Step 1: Simulating server response with thresholdReached=true');
+        const fakePathInfo1 = {
+          type: 'token_usage',
+          thresholdReached: true,
+          messageRetentionCount: 1,
+          totalTokens: 25000,
+          threshold: 3000
+        };
+
+        // Manually call the internal update (for testing only)
+        hustleClient['updateSummarizationState'](fakePathInfo1);
+        console.log('Current state after step 1:', hustleClient.getSummarizationState());
+
+        // Step 2: Simulate what the SDK would send on next request
+        console.log('\nStep 2: Next request would include trimIndex:', hustleClient.getSummarizationState().messageRetentionCount);
+
+        // Step 3: Simulate server response WITH summary
+        console.log('\nStep 3: Simulating server response WITH summary');
+        const fakePathInfo2 = {
+          type: 'token_usage',
+          thresholdReached: false,
+          messageRetentionCount: 1,
+          totalTokens: 5000,
+          threshold: 3000,
+          summary: 'This is a test summary of the conversation. The user discussed various topics including quantum computing, naval warfare, and religious themes.',
+          summaryEndIndex: 5
+        };
+
+        hustleClient['updateSummarizationState'](fakePathInfo2);
+        console.log('Current state after step 3:', hustleClient.getSummarizationState());
+
+        console.log('\n=== TEST COMPLETE ===');
+        console.log('Final state:', JSON.stringify(hustleClient.getSummarizationState(), null, 2));
+
+        return hustleClient.getSummarizationState();
+      };
+
+      window.clearSummarizationState = () => {
+        hustleClient.clearSummarizationState();
+        console.log('Summarization state cleared:', hustleClient.getSummarizationState());
+      };
+
+      window.getSummarizationState = () => {
+        const state = hustleClient.getSummarizationState();
+        console.log('Current summarization state:', JSON.stringify(state, null, 2));
+        return state;
+      };
+
+      console.log('Test functions available: testSummarization(), getSummarizationState(), clearSummarizationState()');
+
+      // Enable chat and settings
       messageInput.disabled = false;
       sendBtn.disabled = false;
+      settingsBtn.disabled = false;
       messagesDiv.innerHTML = '<div class="loading">Ready to chat! Type a message...</div>';
+
+      // Load models for settings
+      loadModels();
 
       log(`Connected: vault #${vaultId}, wallet ${truncateAddress(walletAddress)}`);
     }
@@ -804,14 +1538,17 @@
       walletDisplay.textContent = '';
       sessionInfo.textContent = 'No active session';
 
-      // Disable chat
+      // Disable chat and settings
       messageInput.disabled = true;
       sendBtn.disabled = true;
+      settingsBtn.disabled = true;
       messages = [];
       messagesDiv.innerHTML = '<div class="loading">Connect to start chatting...</div>';
 
-      // Clear attachments on logout
+      // Clear attachments and models on logout
       clearAttachments();
+      availableModels = [];
+      modelSelect.innerHTML = '<option value="">Default (server decides)</option>';
 
       log('Disconnected');
     }
@@ -944,12 +1681,11 @@
         chatError.style.display = 'none';
 
         // Build messages array with optional system prompt
-        const systemPrompt = systemPromptInput.value.trim();
         const chatMessages = [];
 
         // Add system prompt as first message if provided
-        if (systemPrompt) {
-          chatMessages.push({ role: 'system', content: systemPrompt });
+        if (settings.systemPrompt) {
+          chatMessages.push({ role: 'system', content: settings.systemPrompt });
         }
 
         // Add conversation history (excluding the empty assistant message we just added)
@@ -960,6 +1696,18 @@
           messages: chatMessages,
           processChunks: true
         };
+
+        // Add model if selected
+        if (settings.model) {
+          chatOptions.model = settings.model;
+          log('Using model: ' + settings.model);
+        }
+
+        // Add overrideSystemPrompt if enabled
+        if (settings.skipServerPrompt) {
+          chatOptions.overrideSystemPrompt = true;
+          log('Overriding server-provided system prompt');
+        }
 
         // Add attachments if any
         if (uploadedAttachments.length > 0) {
@@ -976,6 +1724,7 @@
 
         for await (const chunk of stream) {
           if (chunk.type === 'text') {
+            if (activeTools.size > 0) clearToolChips(); // Clear tool display when agent starts replying
             fullContent += chunk.value;
             // Update the last message with accumulated content
             messages[messages.length - 1].content = fullContent;
@@ -988,6 +1737,10 @@
             throw new Error(chunk.value?.message || 'Stream error');
           }
         }
+
+        // NEW: Access the aggregated ProcessedResponse after streaming
+        const processedResponse = await stream.response;
+        log('ProcessedResponse: ' + JSON.stringify(processedResponse, null, 2));
 
         if (!fullContent) {
           messages[messages.length - 1].content = '(No response)';
@@ -1041,23 +1794,28 @@
       debugToggle.classList.toggle('active', !isVisible);
     });
 
-    // Save system prompt to localStorage when changed
-    systemPromptInput.addEventListener('input', () => {
-      localStorage.setItem('hustle_auth_demo_system_prompt', systemPromptInput.value);
+    // Settings event listeners
+    settingsBtn.addEventListener('click', openSettings);
+    closeSettingsBtn.addEventListener('click', closeSettings);
+
+    // Close modal when clicking outside
+    settingsModal.addEventListener('click', (e) => {
+      if (e.target === settingsModal) closeSettings();
     });
 
-    // Load system prompt from localStorage
-    function loadSystemPrompt() {
-      const saved = localStorage.getItem('hustle_auth_demo_system_prompt');
-      if (saved) {
-        systemPromptInput.value = saved;
-        log('Loaded system prompt from storage');
-      }
-    }
+    // Save settings on change
+    modelSelect.addEventListener('change', () => {
+      saveSettings();
+      updateModelInfo();
+    });
+
+    skipServerPromptToggle.addEventListener('change', saveSettings);
+
+    systemPromptModal.addEventListener('input', saveSettings);
 
     // Initialize on load
     log('Page loaded, initializing...');
-    loadSystemPrompt();
+    loadSettings();
     initAuth();
   </script>
 </body>

@@ -11,6 +11,138 @@ export interface VaultInfo {
 }
 
 /**
+ * Token usage statistics from the API response.
+ */
+export interface TokenUsage {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  // Alternative property names the API might use
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+}
+
+/**
+ * Intent context that persists across conversation turns.
+ * Enables follow-up messages to maintain context (e.g., "buy that" knows which network you were on).
+ */
+export interface IntentContext {
+  /** Blockchain networks relevant to the current intent (e.g., ["solana", "ethereum"]) */
+  networks: string[];
+  /** Tool categories relevant to the current intent (e.g., ["required", "polymarket"]) */
+  categories: string[];
+  /** Human-readable description of the active intent */
+  activeIntent?: string;
+  /** Number of conversation turns since the intent was last updated */
+  turnsSinceUpdate: number;
+  /** Confidence score of the last intent detection (0-1) */
+  lastConfidence: number;
+}
+
+/**
+ * Reasoning information from the LLM about tool/category selection.
+ * Explains why certain tool categories were chosen for the request.
+ */
+export interface ReasoningInfo {
+  type: 'reasoning';
+  /** The LLM's explanation for its tool selection decision */
+  thinking: string;
+  /** Blockchain networks identified in the request */
+  networks: string[];
+  /** Tool categories selected for this request */
+  categories: string[];
+  /** Human-readable description of the detected intent */
+  activeIntent?: string;
+  /** Confidence score for this reasoning (0-1) */
+  confidence: number;
+  /** ISO timestamp when this reasoning was generated */
+  timestamp?: string;
+}
+
+/**
+ * Intent context detection information from the API.
+ * Contains the persisted intent context and detection metadata.
+ */
+export interface IntentContextInfo {
+  type: 'intent_context';
+  /** The persisted intent context for this conversation */
+  intentContext: IntentContext;
+  /** Tool categories that qualified based on intent */
+  categories: string[];
+  /** Confidence score for this detection (0-1) */
+  confidence: number;
+  /** The reasoning behind this intent detection */
+  reasoning?: string;
+  /** Whether a sticky fallback category was applied */
+  stickyFallbackApplied?: boolean;
+  /** ISO timestamp when this was generated */
+  timestamp?: string;
+}
+
+/**
+ * Developer tools information showing which tools were loaded.
+ * Instead of loading all 200+ tools, only relevant ones are loaded based on user intent.
+ */
+export interface DevToolsInfo {
+  type: 'dev_tools_info';
+  /** Tool categories that qualified for this request */
+  qualifiedCategories: string[];
+  /** Names of tools that were actually loaded and available */
+  availableTools: string[];
+  /** Total count of loaded tools */
+  toolCount: number;
+  /** ISO timestamp when this was generated */
+  timestamp?: string;
+  /** The reasoning behind tool qualification */
+  reasoning?: string;
+}
+
+/**
+ * Path/token usage information from the streaming response.
+ * Provides detailed token consumption and cost tracking.
+ */
+export interface PathInfo {
+  type?: string;
+  /** Human-readable message about token usage */
+  message?: string;
+  /** Path identifier (e.g., "PATH_1") */
+  path?: string;
+  /** Number of input tokens used */
+  tokensIn?: number;
+  /** Number of output tokens used */
+  tokensOut?: number;
+  /** Number of cached tokens used */
+  cachedTokens?: number;
+  /** Total tokens for this request */
+  totalTokens?: number;
+  /** Token threshold for summarization */
+  threshold?: number;
+  /** Whether the token threshold was reached */
+  thresholdReached?: boolean;
+  /** Number of messages retained after summarization */
+  messageRetentionCount?: number;
+  /** Estimated cost in USD */
+  costUsd?: number;
+  /** Number of tools executed */
+  toolsExecuted?: number;
+  /** Maximum allowed steps */
+  maxSteps?: number;
+  /** Whether maximum tools limit was reached */
+  maxToolsReached?: boolean;
+  /** Whether the request timed out */
+  timedOut?: boolean;
+  /** ISO timestamp */
+  timestamp?: string;
+  /** Reasoning for path selection */
+  reasoning?: string;
+  /** Summary of older conversation turns (sent when thresholdReached is true) */
+  summary?: string;
+  /** Index in original message array where the summary ends */
+  summaryEndIndex?: number;
+}
+
+/**
  * Authentication provider interface compatible with EmblemAuthSDK.
  * Supports multiple authentication methods with priority:
  * 1. getAuthHeaders() - Custom auth headers (highest priority)
@@ -71,6 +203,8 @@ export interface HustleIncognitoClientOptions extends EmblemAuthProvider {
   hustleApiUrl?: string;
   /** The API key for authenticating requests. */
   apiKey?: string;
+  /** The vault ID for API key authentication. Can also be set via VAULT_ID env var. */
+  vaultId?: string;
   /** Optional user key for user-specific context or authentication. */
   userKey?: string;
   /** Optional user secret associated with the user key. */
@@ -86,6 +220,10 @@ export interface HustleIncognitoClientOptions extends EmblemAuthProvider {
 export interface ChatOptions {
   /** Vault ID for context. Required when using API key auth, optional with JWT/SDK auth (will be auto-fetched). */
   vaultId?: string;
+  /** Model ID to use (e.g., 'anthropic/claude-sonnet-4'). Only valid when isMCP is true. */
+  model?: string;
+  /** Override the server-provided system prompt. When true, only user-provided system prompts are used. */
+  overrideSystemPrompt?: boolean;
   userApiKey?: string;
   externalWalletAddress?: string;
   slippageSettings?: Record<string, number>;
@@ -99,6 +237,12 @@ export interface ChatOptions {
   selectedToolCategories?: string[];
   /** Optional attachments for the conversation */
   attachments?: Attachment[];
+  /** Index to trim messages at for context management */
+  trimIndex?: number;
+  /** Existing summary from previous response to pass back */
+  summary?: string;
+  /** Index where the previous summary ends */
+  summaryEndIndex?: number;
 }
 
 /**
@@ -109,6 +253,10 @@ export interface StreamOptions {
   vaultId?: string;
   /** Messages to send to the AI */
   messages: ChatMessage[];
+  /** Model ID to use (e.g., 'anthropic/claude-sonnet-4'). Only valid when isMCP is true. */
+  model?: string;
+  /** Override the server-provided system prompt. When true, only user-provided system prompts are used. */
+  overrideSystemPrompt?: boolean;
   /** Optional user-specific API key */
   userApiKey?: string;
   /** Optional wallet address for blockchain operations */
@@ -129,12 +277,22 @@ export interface StreamOptions {
   selectedToolCategories?: string[];
   /** Optional attachments for the conversation */
   attachments?: Attachment[];
+  /** Index to trim messages at for context management */
+  trimIndex?: number;
+  /** Existing summary from previous response to pass back */
+  summary?: string;
+  /** Index where the previous summary ends */
+  summaryEndIndex?: number;
 }
 
 export interface RawStreamOptions {
   /** Vault ID for context. Required when using API key auth, optional with JWT/SDK auth (will be auto-fetched). */
   vaultId?: string;
   messages: ChatMessage[];
+  /** Model ID to use (e.g., 'anthropic/claude-sonnet-4'). Only valid when isMCP is true. */
+  model?: string;
+  /** Override the server-provided system prompt. When true, only user-provided system prompts are used. */
+  overrideSystemPrompt?: boolean;
   userApiKey?: string;
   externalWalletAddress?: string;
   slippageSettings?: Record<string, number>;
@@ -148,6 +306,12 @@ export interface RawStreamOptions {
   selectedToolCategories?: string[];
   /** Optional attachments for the conversation */
   attachments?: Attachment[];
+  /** Index to trim messages at for context management */
+  trimIndex?: number;
+  /** Existing summary from previous response to pass back */
+  summary?: string;
+  /** Index where the previous summary ends */
+  summaryEndIndex?: number;
 }
 
 /**
@@ -162,6 +326,10 @@ export interface HustleRequest {
   messages: ChatMessage[];
   /** Vault ID for context */
   vaultId: string;
+  /** Model ID to use (e.g., 'anthropic/claude-sonnet-4'). Only used when isMCP is true. */
+  model?: string;
+  /** Override the server-provided system prompt. When true, only user-provided system prompts are used. */
+  overrideSystemPrompt?: boolean;
   /** Optional wallet address for blockchain operations */
   externalWalletAddress?: string;
   /** Slippage settings for operations */
@@ -178,6 +346,12 @@ export interface HustleRequest {
    * @see {ToolCategory}
    */
   selectedToolCategories?: string[];
+  /** Index to trim messages at for context management */
+  trimIndex?: number;
+  /** Existing summary from previous response to pass back */
+  summary?: string;
+  /** Index where the previous summary ends */
+  summaryEndIndex?: number;
 }
 
 /**
@@ -196,18 +370,24 @@ export interface RawChunk {
  * A processed response object assembled from stream chunks.
  */
 export interface ProcessedResponse {
-  /** The content of the response */
+  /** The text content of the response */
   content: string;
-  /** The message ID if provided */
+  /** The unique message ID if provided */
   messageId: string | null;
-  /** Token usage information */
-  usage: any | null;
-  /** Path information */
-  pathInfo: any | null;
+  /** Token usage statistics */
+  usage: TokenUsage | null;
+  /** Path/token usage information with cost tracking */
+  pathInfo: PathInfo | null;
   /** Tool calls made during the conversation */
-  toolCalls: any[];
-  /** Results from tool calls */
-  toolResults: any[];
+  toolCalls: ToolCall[];
+  /** Results from tool executions */
+  toolResults: ToolResult[];
+  /** LLM reasoning about tool/category selection */
+  reasoning: ReasoningInfo | null;
+  /** Persisted intent context for follow-up messages */
+  intentContext: IntentContextInfo | null;
+  /** Information about which tools were loaded for this request */
+  devToolsInfo: DevToolsInfo | null;
 }
 
 /**
@@ -280,12 +460,12 @@ export interface ChatResponse {
  * A tool call sent from the agent to the client.
  */
 export interface ToolCall {
-  /** The name of the tool to call. */
-  name: string;
-  /** The arguments to pass to the tool. */
-  arguments: Record<string, unknown>;
-  /** Optional ID for the tool call. */
-  id?: string;
+  /** Unique ID for this tool call */
+  toolCallId?: string;
+  /** The name of the tool being called */
+  toolName?: string;
+  /** Arguments passed to the tool */
+  args?: Record<string, unknown>;
 }
 
 /**
@@ -294,6 +474,8 @@ export interface ToolCall {
 export interface ToolResult {
   /** The ID of the tool call. */
   toolCallId: string;
+  /** The name of the tool that was called. */
+  toolName?: string;
   /** The result of the tool execution. */
   result: unknown;
 }
@@ -310,6 +492,9 @@ export interface StreamChunk {
     | 'tool_result'
     | 'message_id'
     | 'path_info'
+    | 'reasoning'
+    | 'intent_context'
+    | 'dev_tools_info'
     | 'error'
     | 'finish'
     | 'unknown';
@@ -328,6 +513,33 @@ export interface StreamChunk {
         };
       }
     | any; // For other types like path_info, message_id, etc.
+}
+
+/**
+ * A streaming response that provides both real-time chunks and aggregated ProcessedResponse.
+ * Implements AsyncIterable so existing for-await loops continue to work (non-breaking).
+ *
+ * @example
+ * // Existing usage still works
+ * for await (const chunk of client.chatStream(options)) {
+ *   console.log(chunk);
+ * }
+ *
+ * @example
+ * // New: Access aggregated response after streaming
+ * const stream = client.chatStream(options);
+ * for await (const chunk of stream) {
+ *   displayChunk(chunk);
+ * }
+ * const processed = await stream.response;
+ * console.log(processed.toolCalls, processed.pathInfo);
+ */
+export interface StreamWithResponse extends AsyncIterable<StreamChunk | RawChunk> {
+  /**
+   * Promise that resolves to the aggregated ProcessedResponse after streaming completes.
+   * Contains all accumulated data: content, toolCalls, toolResults, pathInfo, usage, messageId.
+   */
+  response: Promise<ProcessedResponse>;
 }
 
 /**
@@ -355,4 +567,118 @@ export interface ToolCategory {
   type: 'analyst' | 'trader';
   /** Whether this tool category requires a premium subscription */
   premium?: boolean;
+}
+
+/**
+ * Model pricing information from OpenRouter.
+ */
+export interface ModelPricing {
+  /** Price per prompt token (as string for precision) */
+  prompt: string;
+  /** Price per completion token (as string for precision) */
+  completion: string;
+  /** Optional price per image */
+  image?: string;
+  /** Optional price per request */
+  request?: string;
+}
+
+/**
+ * Model information from the /api/models endpoint.
+ * Based on OpenRouter's model format.
+ */
+export interface Model {
+  /** Unique model identifier (e.g., "anthropic/claude-sonnet-4") */
+  id: string;
+  /** Human-readable model name */
+  name: string;
+  /** Maximum context length in tokens */
+  context_length: number;
+  /** Pricing information */
+  pricing: ModelPricing;
+  /** Model architecture details */
+  architecture?: {
+    modality?: string;
+    tokenizer?: string;
+    instruct_type?: string;
+  };
+  /** Top provider information */
+  top_provider?: {
+    context_length?: number;
+    max_completion_tokens?: number;
+    is_moderated?: boolean;
+  };
+  /** Per-request token limits */
+  per_request_limits?: {
+    prompt_tokens?: string;
+    completion_tokens?: string;
+  } | null;
+}
+
+/**
+ * Event types emitted by the HustleIncognitoClient.
+ */
+export type HustleEventType = 'tool_start' | 'tool_end' | 'stream_start' | 'stream_end';
+
+/**
+ * Event data for tool_start event.
+ */
+export interface ToolStartEvent {
+  type: 'tool_start';
+  toolCallId: string;
+  toolName: string;
+  args?: Record<string, unknown>;
+}
+
+/**
+ * Event data for tool_end event.
+ */
+export interface ToolEndEvent {
+  type: 'tool_end';
+  toolCallId: string;
+  toolName?: string;
+  result: unknown;
+}
+
+/**
+ * Event data for stream_start event.
+ */
+export interface StreamStartEvent {
+  type: 'stream_start';
+}
+
+/**
+ * Event data for stream_end event.
+ */
+export interface StreamEndEvent {
+  type: 'stream_end';
+  response: ProcessedResponse;
+}
+
+/**
+ * Union type for all event data.
+ */
+export type HustleEvent = ToolStartEvent | ToolEndEvent | StreamStartEvent | StreamEndEvent;
+
+/**
+ * Event listener callback type.
+ */
+export type HustleEventListener<T extends HustleEvent = HustleEvent> = (event: T) => void;
+
+/**
+ * Internal state for conversation summarization.
+ * Tracks when the server indicates threshold is reached and stores summary data
+ * to automatically send back on subsequent requests.
+ */
+export interface SummarizationState {
+  /** Whether the token threshold was reached and summarization is needed */
+  thresholdReached: boolean;
+  /** Number of user messages to retain (from server) - used to calculate trimIndex */
+  messageRetentionCount?: number;
+  /** The calculated index at which to trim messages (calculated from messageRetentionCount) */
+  trimIndex?: number;
+  /** Summary text from the server to send back */
+  summary?: string;
+  /** Index where the summary ends in the message array */
+  summaryEndIndex?: number;
 }

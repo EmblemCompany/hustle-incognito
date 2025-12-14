@@ -67,6 +67,7 @@ describe('HustleIncognitoClient', () => {
       messages: [{ role: 'user', content: 'Hello' }],
       apiKey: 'test-key',
       vaultId: 'test-vault',
+      model: undefined,
       externalWalletAddress: 'test-wallet',
       slippageSettings: { lpSlippage: 5, swapSlippage: 5, pumpSlippage: 5 },
       safeMode: true,
@@ -905,6 +906,242 @@ describe('HustleIncognitoClient', () => {
       await client.chat([{ role: 'user', content: 'Test' }], { vaultId: 'explicit-vault-789' });
 
       expect(capturedVaultId).toBe('explicit-vault-789');
+    });
+  });
+
+  describe('StreamWithResponse', () => {
+    test('should return StreamWithResponse with response promise from chatStream', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      // Mock the rawStream method
+      const mockRawStream = async function* () {
+        yield { prefix: '0', data: 'Hello ', raw: '0:"Hello "' };
+        yield { prefix: '0', data: 'world!', raw: '0:"world!"' };
+        yield { prefix: 'f', data: { messageId: 'msg-123' }, raw: 'f:{"messageId":"msg-123"}' };
+        yield { prefix: 'e', data: { finishReason: 'stop', usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } }, raw: 'e:{}' };
+      };
+
+      // @ts-ignore - Mocking private method
+      client.rawStream = mockRawStream;
+
+      const stream = client.chatStream({
+        vaultId: 'test-vault',
+        messages: [{ role: 'user', content: 'Test' }],
+        processChunks: true
+      });
+
+      // Verify stream has response property
+      expect(stream).toHaveProperty('response');
+      expect(stream.response).toBeInstanceOf(Promise);
+
+      // Consume the stream
+      const chunks: StreamChunk[] = [];
+      for await (const chunk of stream) {
+        chunks.push(chunk as StreamChunk);
+      }
+
+      // Await the aggregated response
+      const response = await stream.response;
+
+      expect(response.content).toBe('Hello world!');
+      expect(response.messageId).toBe('msg-123');
+      expect(response.usage).toEqual({ prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 });
+    });
+
+    test('should aggregate tool calls and results in response', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      const mockRawStream = async function* () {
+        yield { prefix: '0', data: 'Checking...', raw: '0:"Checking..."' };
+        yield { prefix: '9', data: { toolCallId: 'call-1', toolName: 'get_price', args: { symbol: 'BTC' } }, raw: '9:{}' };
+        yield { prefix: 'a', data: { toolCallId: 'call-1', result: { price: 50000 } }, raw: 'a:{}' };
+        yield { prefix: '9', data: { toolCallId: 'call-2', toolName: 'get_balance', args: {} }, raw: '9:{}' };
+        yield { prefix: 'a', data: { toolCallId: 'call-2', result: { balance: 1.5 } }, raw: 'a:{}' };
+        yield { prefix: '0', data: ' Done!', raw: '0:" Done!"' };
+        yield { prefix: 'f', data: { messageId: 'msg-456' }, raw: 'f:{}' };
+      };
+
+      // @ts-ignore - Mocking private method
+      client.rawStream = mockRawStream;
+
+      const stream = client.chatStream({
+        vaultId: 'test-vault',
+        messages: [{ role: 'user', content: 'Test' }],
+        processChunks: true
+      });
+
+      // Consume the stream
+      for await (const _ of stream) {
+        // Just iterate
+      }
+
+      const response = await stream.response;
+
+      expect(response.content).toBe('Checking... Done!');
+      expect(response.toolCalls).toHaveLength(2);
+      expect(response.toolCalls[0]).toEqual({ toolCallId: 'call-1', toolName: 'get_price', args: { symbol: 'BTC' } });
+      expect(response.toolCalls[1]).toEqual({ toolCallId: 'call-2', toolName: 'get_balance', args: {} });
+      expect(response.toolResults).toHaveLength(2);
+      expect(response.toolResults[0]).toEqual({ toolCallId: 'call-1', result: { price: 50000 } });
+      expect(response.toolResults[1]).toEqual({ toolCallId: 'call-2', result: { balance: 1.5 } });
+    });
+
+    test('should aggregate path info in response', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      const pathInfoData = { type: 'path_info', path: 'PATH_1', reasoning: 'Default path' };
+
+      const mockRawStream = async function* () {
+        yield { prefix: '2', data: [pathInfoData], raw: '2:[...]' };
+        yield { prefix: '0', data: 'Response', raw: '0:"Response"' };
+        yield { prefix: 'f', data: { messageId: 'msg-789' }, raw: 'f:{}' };
+      };
+
+      // @ts-ignore - Mocking private method
+      client.rawStream = mockRawStream;
+
+      const stream = client.chatStream({
+        vaultId: 'test-vault',
+        messages: [{ role: 'user', content: 'Test' }],
+        processChunks: true
+      });
+
+      for await (const _ of stream) {}
+
+      const response = await stream.response;
+
+      expect(response.pathInfo).toEqual(pathInfoData);
+      expect(response.content).toBe('Response');
+    });
+
+    test('should still work with for-await (non-breaking)', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      const mockRawStream = async function* () {
+        yield { prefix: '0', data: 'Chunk 1', raw: '0:"Chunk 1"' };
+        yield { prefix: '0', data: 'Chunk 2', raw: '0:"Chunk 2"' };
+        yield { prefix: 'e', data: { finishReason: 'stop' }, raw: 'e:{}' };
+      };
+
+      // @ts-ignore - Mocking private method
+      client.rawStream = mockRawStream;
+
+      // Original usage pattern - should still work
+      const receivedChunks: StreamChunk[] = [];
+      for await (const chunk of client.chatStream({
+        vaultId: 'test-vault',
+        messages: [{ role: 'user', content: 'Test' }],
+        processChunks: true
+      })) {
+        receivedChunks.push(chunk as StreamChunk);
+      }
+
+      expect(receivedChunks).toHaveLength(3);
+      expect(receivedChunks[0]).toEqual({ type: 'text', value: 'Chunk 1' });
+      expect(receivedChunks[1]).toEqual({ type: 'text', value: 'Chunk 2' });
+      expect(receivedChunks[2].type).toBe('finish');
+    });
+
+    test('should handle errors and reject response promise', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      const mockRawStream = async function* () {
+        yield { prefix: '0', data: 'Starting...', raw: '0:"Starting..."' };
+        throw new Error('Stream error');
+      };
+
+      // @ts-ignore - Mocking private method
+      client.rawStream = mockRawStream;
+
+      const stream = client.chatStream({
+        vaultId: 'test-vault',
+        messages: [{ role: 'user', content: 'Test' }],
+        processChunks: true
+      });
+
+      // Consuming the stream should throw
+      await expect(async () => {
+        for await (const _ of stream) {}
+      }).rejects.toThrow('Stream error');
+
+      // Response promise should also reject
+      await expect(stream.response).rejects.toThrow('Stream error');
+    });
+
+    test('chat() method should use StreamWithResponse internally', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      const mockRawStream = async function* () {
+        yield { prefix: '0', data: 'Hello', raw: '0:"Hello"' };
+        yield { prefix: '9', data: { toolCallId: 'tool-1', toolName: 'test', args: {} }, raw: '9:{}' };
+        yield { prefix: 'a', data: { toolCallId: 'tool-1', result: 'success' }, raw: 'a:{}' };
+        yield { prefix: '2', data: [{ path: 'PATH_2' }], raw: '2:[...]' };
+        yield { prefix: 'f', data: { messageId: 'msg-abc' }, raw: 'f:{}' };
+        yield { prefix: 'e', data: { finishReason: 'stop', usage: { prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 } }, raw: 'e:{}' };
+      };
+
+      // @ts-ignore - Mocking private method
+      client.rawStream = mockRawStream;
+
+      // chat() should return the same aggregated response
+      const response = await client.chat(
+        [{ role: 'user', content: 'Test' }],
+        { vaultId: 'test-vault' }
+      ) as ProcessedResponse;
+
+      expect(response.content).toBe('Hello');
+      expect(response.messageId).toBe('msg-abc');
+      expect(response.toolCalls).toHaveLength(1);
+      expect(response.toolResults).toHaveLength(1);
+      expect(response.pathInfo).toEqual({ path: 'PATH_2' });
+      expect(response.usage).toEqual({ prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 });
+    });
+
+    test('should parse prefix 2 metadata types (reasoning, intent_context, dev_tools_info)', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      const reasoningData = { type: 'reasoning', thinking: 'User wants memory info', networks: [], categories: ['required'], confidence: 0.95 };
+      const intentContextData = { type: 'intent_context', intentContext: { activeIntent: 'Get memory categories' }, confidence: 0.95 };
+      const devToolsInfoData = { type: 'dev_tools_info', qualifiedCategories: ['required'], availableTools: ['wallet', 'createMemory'], toolCount: 2 };
+      const pathInfoData = { type: 'path_info', path: 'PATH_1', reasoning: 'Default path' };
+
+      const mockRawStream = async function* () {
+        yield { prefix: '2', data: [reasoningData], raw: '2:[...]' };
+        yield { prefix: '2', data: [intentContextData], raw: '2:[...]' };
+        yield { prefix: '2', data: [devToolsInfoData], raw: '2:[...]' };
+        yield { prefix: '2', data: [pathInfoData], raw: '2:[...]' };
+        yield { prefix: '0', data: 'Response text', raw: '0:"Response text"' };
+        yield { prefix: 'f', data: { messageId: 'msg-meta' }, raw: 'f:{}' };
+      };
+
+      // @ts-ignore - Mocking private method
+      client.rawStream = mockRawStream;
+
+      const stream = client.chatStream({
+        vaultId: 'test-vault',
+        messages: [{ role: 'user', content: 'Test' }],
+        processChunks: true
+      });
+
+      // Collect chunks to verify they're yielded with correct types
+      const chunks: StreamChunk[] = [];
+      for await (const chunk of stream) {
+        chunks.push(chunk as StreamChunk);
+      }
+
+      // Verify chunk types are correct
+      expect(chunks[0]).toEqual({ type: 'reasoning', value: reasoningData });
+      expect(chunks[1]).toEqual({ type: 'intent_context', value: intentContextData });
+      expect(chunks[2]).toEqual({ type: 'dev_tools_info', value: devToolsInfoData });
+      expect(chunks[3]).toEqual({ type: 'path_info', value: pathInfoData });
+
+      // Verify ProcessedResponse has all the data
+      const response = await stream.response;
+      expect(response.reasoning).toEqual(reasoningData);
+      expect(response.intentContext).toEqual(intentContextData);
+      expect(response.devToolsInfo).toEqual(devToolsInfoData);
+      expect(response.pathInfo).toEqual(pathInfoData);
+      expect(response.content).toBe('Response text');
     });
   });
 });

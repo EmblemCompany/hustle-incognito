@@ -38,24 +38,43 @@ To use these examples in your own projects with the published npm package:
 
 The examples include both import statements with instructions in the code.
 
+## Quick Start
+
+The browser demos require a local HTTP server (opening HTML files directly via `file://` won't work due to CORS and ES module restrictions).
+
+```bash
+# Option 1: Python (built-in)
+cd examples && python -m http.server 8080
+
+# Option 2: Node.js
+npx serve examples
+
+# Option 3: VS Code - use the Live Server extension
+```
+
+Then open `http://localhost:8080` to see all available demos.
+
 ## Examples
 
-### 1. Auth Chat Demo (`auth-chat-demo.html`)
+### 1. Auth Chat Demo (`auth-chat-demo.html`) - Recommended
 
-A browser-based demo showing EmblemAuthSDK integration with JWT authentication.
+A full-featured browser demo showing EmblemAuthSDK integration with JWT authentication.
 
 **Features:**
 - Full EmblemAuthSDK integration with social login
 - JWT-based authentication (no API key required)
 - Streaming responses with real-time UI updates
 - Automatic vault ID resolution from session
-- Tool call visualization
+- Tool call visualization with collapsible details
+- Conversation summarization display
+- Token usage and cost tracking
 
 **Usage:**
 
-1. Open `auth-chat-demo.html` in a browser
-2. Click "Sign In" to authenticate via EmblemAuthSDK
-3. Once authenticated, you can chat with the AI agent
+1. Start a local server (see Quick Start above)
+2. Navigate to `auth-chat-demo.html`
+3. Click "Sign In" to authenticate via EmblemAuthSDK
+4. Once authenticated, you can chat with the AI agent
 
 **Key Concepts:**
 
@@ -232,6 +251,25 @@ data: {"reason":"stop","usage":{},"fullText":"Solana is..."}
 - `path_info` - Path information (if available)
 - `finish` - Stream completion with metadata
 - `error` - Error information
+
+### 4. Demo UI (`demo-ui.html`) - Legacy
+
+A simpler browser test interface using API key authentication. Use this if you need to test with an API key rather than EmblemAuth.
+
+**Features:**
+- API key authentication (enter key in UI)
+- Streaming and non-streaming modes
+- Basic tool call display
+- Configurable settings
+
+**Usage:**
+
+1. Start a local server (see Quick Start above)
+2. Navigate to `demo-ui.html`
+3. Enter your API key and vault ID in the settings panel
+4. Start chatting
+
+> **Note:** For new projects, prefer the Auth Chat Demo which uses secure JWT authentication.
 
 ## Environment Variables
 

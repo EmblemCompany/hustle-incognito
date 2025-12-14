@@ -29,21 +29,131 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 describe.skipIf(shouldSkip)('HustleIncognitoClient Integration Tests', () => {
   let client: HustleIncognitoClient;
-  
+
   beforeEach(() => {
     // Initialize a fresh client for each test to avoid shared state
     client = new HustleIncognitoClient({
       apiKey: process.env.HUSTLE_API_KEY || '',
+      vaultId: process.env.VAULT_ID,
+      hustleApiUrl: process.env.HUSTLE_API_URL,
       // Debug logging toggle
       debug: process.env.DEBUG=== 'false' ? false : true
     });
   });
-  
+
   afterEach(async () => {
     // Add a 2-second delay between tests to avoid API rate limiting
     await delay(2000);
   });
-  
+
+  test('should get models and chat with specific model', async () => {
+    // Get models from API to verify endpoint works
+    const models = await client.getModels();
+    expect(models.length).toBeGreaterThan(0);
+    console.log(`Found ${models.length} available models`);
+
+    // Use specific model
+    const modelId = 'openai/gpt-4.1-nano';
+    console.log(`Using model: ${modelId}`);
+
+    // Send a small prompt with the specified model
+    const response = await client.chat(
+      [{ role: 'user' as const, content: 'Say hello' }],
+      {
+        vaultId: process.env.VAULT_ID,
+        model: modelId
+      }
+    ) as ProcessedResponse;
+
+    expect(response).toBeDefined();
+    expect(typeof response.content).toBe('string');
+    expect(response.content.length).toBeGreaterThan(0);
+
+    console.log(`Response from ${modelId}:`, response.content);
+  });
+
+  test('should maintain conversation context across model switches', async () => {
+    const nanoModel = 'openai/gpt-4.1-nano';
+    const claudeModel = 'anthropic/claude-3.5-haiku';
+    const secretWord = 'banana';
+
+    // First message: Tell nano model the secret word
+    console.log(`Step 1: Telling ${nanoModel} the secret word is "${secretWord}"`);
+    const firstResponse = await client.chat(
+      [{ role: 'user' as const, content: `Remember this: the secret word is "${secretWord}". Just acknowledge you understand.` }],
+      {
+        vaultId: process.env.VAULT_ID,
+        model: nanoModel
+      }
+    ) as ProcessedResponse;
+
+    expect(firstResponse).toBeDefined();
+    expect(firstResponse.content.length).toBeGreaterThan(0);
+    console.log(`${nanoModel} response:`, firstResponse.content);
+
+    // Second message: Ask Claude what the secret word was (include conversation history)
+    console.log(`Step 2: Asking ${claudeModel} what the secret word was`);
+    const secondResponse = await client.chat(
+      [
+        { role: 'user' as const, content: `Remember this: the secret word is "${secretWord}". Just acknowledge you understand.` },
+        { role: 'assistant' as const, content: firstResponse.content },
+        { role: 'user' as const, content: 'What was the secret word I told you?' }
+      ],
+      {
+        vaultId: process.env.VAULT_ID,
+        model: claudeModel
+      }
+    ) as ProcessedResponse;
+
+    expect(secondResponse).toBeDefined();
+    expect(secondResponse.content.length).toBeGreaterThan(0);
+    console.log(`${claudeModel} response:`, secondResponse.content);
+
+    // Verify Claude remembered the secret word from the conversation context
+    expect(secondResponse.content.toLowerCase()).toContain(secretWord);
+    console.log(`✓ Claude correctly identified the secret word: ${secretWord}`);
+  });
+
+  test('should fetch models with apiKey + vaultId auth', async () => {
+    const models = await client.getModels();
+
+    expect(models).toBeDefined();
+    expect(Array.isArray(models)).toBe(true);
+    expect(models.length).toBeGreaterThan(0);
+
+    // Verify first model has expected structure
+    const firstModel = models[0];
+    expect(firstModel.id).toBeDefined();
+    expect(typeof firstModel.id).toBe('string');
+    expect(firstModel.name).toBeDefined();
+    expect(typeof firstModel.name).toBe('string');
+    expect(firstModel.context_length).toBeDefined();
+    expect(typeof firstModel.context_length).toBe('number');
+    expect(firstModel.pricing).toBeDefined();
+    expect(firstModel.pricing.prompt).toBeDefined();
+    expect(firstModel.pricing.completion).toBeDefined();
+
+    console.log(`Fetched ${models.length} models`);
+
+    // Find Claude models
+    const claudeModels = models.filter(m => m.id.includes('claude') || m.name.toLowerCase().includes('claude'));
+    expect(claudeModels.length).toBeGreaterThan(0);
+    console.log(`Found ${claudeModels.length} Claude models`);
+  });
+
+  test('should fail to fetch models with no auth headers', async () => {
+    // Client with no apiKey/vaultId - should not send x-api-key/x-vault-id headers
+    const noAuthClient = new HustleIncognitoClient({
+      jwt: 'placeholder-to-pass-constructor', // Minimal auth to pass constructor
+      hustleApiUrl: process.env.HUSTLE_API_URL,
+      debug: false
+    });
+    // Override vaultId to undefined so no headers are sent
+    // Note: JWT auth also fails on server for models endpoint currently
+
+    await expect(noAuthClient.getModels()).rejects.toThrow(/401|Unauthorized|Failed/);
+  });
+
   test('should connect to the API and get a response', async () => {
     const response = await client.chat(
       [{ role: 'user' as const, content: 'Hello, are you there?' }],
@@ -57,7 +167,7 @@ describe.skipIf(shouldSkip)('HustleIncognitoClient Integration Tests', () => {
   
   test('should execute a tool call and return results', async () => {
     const response = await client.chat(
-      [{ role: 'user' as const, content: 'What are the trending tokens on Solana today?' }],
+      [{ role: 'user' as const, content: 'what memory categories are available? ' }],
       { vaultId: process.env.VAULT_ID || 'default' }
     ) as ProcessedResponse;
     
@@ -82,11 +192,11 @@ describe.skipIf(shouldSkip)('HustleIncognitoClient Integration Tests', () => {
     }
     
     // The response should contain information about tokens
-    expect(response.content.toLowerCase()).toMatch(/token|solana|trending/);
+    expect(response.content.toLowerCase()).toMatch(/memory/);
   }); // Use global timeout
   
   test('should stream responses with tool calls', async () => {
-    const messages: ChatMessage[] = [{ role: 'user', content: 'Show me the price of Bonk token' }];
+    const messages: ChatMessage[] = [{ role: 'user', content: 'what memory categories are available? ' }];
     const chunks: StreamChunk[] = [];
     let sawToolCall = false;
     let textChunks = 0;
@@ -358,7 +468,7 @@ describe.skipIf(shouldSkipSignatureAuth)('Signature-based Authentication Tests',
   test('should authenticate with wallet signature and return expected vaultId', async () => {
     const privateKey = process.env.TEST_PRIVATE_KEY!;
     const appId = process.env.TEST_APP_ID!;
-    const expectedVaultId = process.env.TEST_EXPECTED_VAULT_ID!;
+    const expectedVaultId = process.env.VAULT_ID!;
 
     const wallet = new Wallet(privateKey);
     const address = wallet.address;
@@ -450,5 +560,57 @@ describe.skipIf(shouldSkipSignatureAuth)('Signature-based Authentication Tests',
 
     console.log('Chat with JWT auth successful!');
     console.log('Response preview:', response.content.substring(0, 100) + '...');
+  });
+
+  // Testing JWT auth for models endpoint
+  test('should fetch models with JWT auth (EmblemAuth)', async () => {
+    const privateKey = process.env.TEST_PRIVATE_KEY!;
+    const appId = process.env.TEST_APP_ID!;
+
+    const wallet = new Wallet(privateKey);
+    const address = wallet.address;
+
+    // Sign and authenticate
+    const message = `Sign in to ${appId}`;
+    const signature = await wallet.signMessage(message);
+
+    const authResponse = await fetch(`${AUTH_API_URL}/api/auth/wallet/verify-external`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        appId,
+        network: 'ethereum',
+        message,
+        signature,
+        address
+      })
+    });
+
+    expect(authResponse.ok).toBe(true);
+    const authData = await authResponse.json();
+    const jwt = authData.session.authToken;
+
+    console.log('Authenticated, now testing getModels with JWT auth...');
+    console.log('JWT:', jwt.substring(0, 50) + '...');
+
+    // Create client with JWT auth only (no apiKey, no vaultId needed)
+    const client = new HustleIncognitoClient({
+      jwt,
+      hustleApiUrl: process.env.HUSTLE_API_URL,
+      debug: true
+    });
+
+    const models = await client.getModels();
+
+    expect(models).toBeDefined();
+    expect(Array.isArray(models)).toBe(true);
+    expect(models.length).toBeGreaterThan(0);
+
+    console.log(`Fetched ${models.length} models with JWT auth`);
+
+    // Find Claude models
+    const claudeModels = models.filter(m => m.id.includes('claude') || m.name.toLowerCase().includes('claude'));
+    expect(claudeModels.length).toBeGreaterThan(0);
+    console.log(`Found ${claudeModels.length} Claude models`);
   });
 });

@@ -28,21 +28,22 @@ console.log(response.content);
 ## 🚀 Features
 
 - **Three Flexible Modes**: Simple request/response, processed streaming, or raw API output
-- **Intelligent AI Agent**: Access to 20+ built-in crypto & web3 tools
+- **Intelligent AI Agent**: Access to 25+ built-in crypto & web3 tools
+- **Automatic Summarization**: Built-in conversation management for unlimited context
 - **Both Browser & Node.js**: Works seamlessly in any JavaScript environment
+- **Multiple Auth Options**: API key, JWT, or EmblemAuthSDK integration
 - **Minimal Setup**: Production-ready with sensible defaults
-- **Highly Configurable**: Advanced options when you need them
 - **Built for Testing**: Override pattern allows easy mocking
 
 ## 📝 Examples
 
 Looking for complete, working examples? Check out the [`examples/`](./examples) directory:
 
-- **[Simple CLI](./examples/simple-cli.js)** - Interactive command-line chat with full feature support
-- **[HTTP Server with Web UI](./examples/simple-server.js)** - REST API server with beautiful test interface
-- **[Auth Chat Demo](./examples/auth-chat-demo.html)** - Browser demo showing EmblemAuthSDK integration with JWT authentication
+- **[Auth Chat Demo](./examples/auth-chat-demo.html)** *(Recommended)* - Full-featured browser demo with EmblemAuthSDK, streaming, tool visualization, and summarization display
+- **[Simple CLI](./examples/simple-cli.js)** - Interactive command-line chat with streaming, tool categories, and image upload
+- **[HTTP Server](./examples/simple-server.js)** - REST API server with SSE streaming endpoint
 
-See the [Examples README](./examples/README.md) for setup instructions and usage details.
+See the [Examples README](./examples/README.md) for setup instructions, usage details, and additional examples.
 
 ## 📦 Installation
 
@@ -599,6 +600,74 @@ for await (const chunk of client.chatStream(
 }
 ```
 
+## 📜 Automatic Conversation Summarization
+
+The SDK includes built-in support for automatic conversation summarization when token limits are approached. This allows for longer conversations without losing context.
+
+### How It Works
+
+Summarization is handled automatically by the SDK:
+
+1. When your conversation approaches the token limit, the server indicates `thresholdReached: true`
+2. The SDK automatically manages the summarization flow on subsequent requests
+3. Older messages are summarized while recent context is preserved
+
+### Accessing Summarization Data
+
+When a summary is generated, it's available in the response:
+
+```typescript
+const response = await client.chat(messages, { vaultId: 'my-vault' });
+
+// Check if summarization info is available
+if (response.pathInfo?.summary) {
+  console.log('Conversation summary:', response.pathInfo.summary);
+  console.log('Summary covers messages up to index:', response.pathInfo.summaryEndIndex);
+}
+
+// Token usage info also includes summarization status
+if (response.pathInfo?.thresholdReached) {
+  console.log('Token threshold reached - conversation will be summarized');
+}
+```
+
+### Streaming with Summarization
+
+For streaming responses, summarization data appears in the `path_info` chunk:
+
+```typescript
+for await (const chunk of client.chatStream({
+  messages,
+  vaultId: 'my-vault',
+  processChunks: true
+})) {
+  if (chunk.type === 'path_info') {
+    const { summary, summaryEndIndex, thresholdReached } = chunk.value;
+    if (summary) {
+      console.log('Summary available:', summary);
+    }
+  }
+}
+```
+
+### Token Usage Information
+
+The `pathInfo` object includes comprehensive token tracking:
+
+```typescript
+interface PathInfo {
+  inputTokens?: number;      // Tokens in your prompt
+  outputTokens?: number;     // Tokens in the response
+  totalTokens?: number;      // Total tokens used
+  threshold?: number;        // Token limit threshold
+  thresholdReached?: boolean; // Whether threshold was hit
+  messageRetentionCount?: number; // Messages kept after summarization
+  summary?: string;          // Conversation summary (when generated)
+  summaryEndIndex?: number;  // Index where summary ends
+  costUsd?: number;          // Estimated cost
+}
+```
+
 ## 🔐 Security
 
 - Never hardcode API keys in your client code
@@ -739,13 +808,72 @@ import { HustleIncognitoClient } from 'hustle-incognito';
 
 // NOTE: For security, you should proxy API requests through your backend
 // rather than including API keys in client-side code
-const client = new HustleIncognitoClient({ 
+const client = new HustleIncognitoClient({
   apiKey: 'YOUR_API_KEY', // Better to fetch this from your backend
   hustleApiUrl: '/api/hustle-proxy' // Proxy through your backend
 });
 
 // Use the client...
 ```
+
+### CDN Usage (Browser)
+
+For quick prototyping or simple browser applications, you can load the SDK directly from a CDN using ES modules:
+
+```html
+<script type="module">
+  import { HustleIncognitoClient } from 'https://unpkg.com/hustle-incognito@latest/dist/browser/hustle-incognito.esm.js';
+
+  const client = new HustleIncognitoClient({
+    apiKey: 'your-api-key',
+    debug: true
+  });
+
+  const response = await client.chat([
+    { role: 'user', content: 'Hello!' }
+  ], { vaultId: 'your-vault-id' });
+
+  console.log(response.content);
+</script>
+```
+
+Alternative CDNs:
+- **unpkg**: `https://unpkg.com/hustle-incognito@latest/dist/browser/hustle-incognito.esm.js`
+- **jsDelivr**: `https://cdn.jsdelivr.net/npm/hustle-incognito@latest/dist/browser/hustle-incognito.esm.js`
+- **Specific version**: `https://unpkg.com/hustle-incognito@0.2.6/dist/browser/hustle-incognito.esm.js`
+
+#### With EmblemAuthSDK (Recommended for Production)
+
+For production browser apps, combine with EmblemAuthSDK for secure JWT authentication:
+
+```html
+<!-- Load EmblemAuthSDK (UMD build) -->
+<script src="https://unpkg.com/emblem-auth-sdk@latest/dist/emblem-auth.min.js"></script>
+
+<script type="module">
+  import { HustleIncognitoClient } from 'https://unpkg.com/hustle-incognito@latest/dist/browser/hustle-incognito.esm.js';
+
+  // Initialize auth (EmblemAuth is available globally from UMD build)
+  const auth = new EmblemAuth.EmblemAuthSDK({ appId: 'your-app-id' });
+
+  // Wait for user authentication
+  auth.on('session', (session) => {
+    // Create Hustle client with SDK auth (JWT auto-refresh)
+    const client = new HustleIncognitoClient({
+      sdk: auth,
+      debug: true
+    });
+
+    // Now you can use the client
+    // vaultId is automatically fetched from the session
+  });
+
+  // Open auth modal
+  auth.openAuthModal();
+</script>
+```
+
+See the [Auth Chat Demo](./examples/auth-chat-demo.html) for a complete working example.
 
 ## 🛠️ Contributing & Development
 

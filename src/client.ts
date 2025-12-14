@@ -4,14 +4,24 @@ import type {
   ChatMessage,
   ChatOptions,
   EmblemAuthProvider,
+  HustleEvent,
+  HustleEventListener,
+  HustleEventType,
   HustleIncognitoClientOptions,
   HustleRequest,
+  Model,
   ProcessedResponse,
   RawChunk,
   RawStreamOptions,
   StreamChunk,
+  StreamEndEvent,
   StreamOptions,
+  StreamStartEvent,
+  StreamWithResponse,
+  SummarizationState,
   ToolCategory,
+  ToolEndEvent,
+  ToolStartEvent,
 } from './types';
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -53,11 +63,84 @@ async function resolveJwt(auth: EmblemAuthProvider): Promise<string | null> {
 }
 
 /**
+ * Accumulates stream chunks into a ProcessedResponse.
+ * Used internally to provide consistent response aggregation across streaming and non-streaming modes.
+ */
+class StreamProcessor {
+  private content = '';
+  private messageId: string | null = null;
+  private usage: any | null = null;
+  private pathInfo: any | null = null;
+  private toolCalls: any[] = [];
+  private toolResults: any[] = [];
+  private reasoning: any | null = null;
+  private intentContext: any | null = null;
+  private devToolsInfo: any | null = null;
+
+  /**
+   * Process a single StreamChunk and accumulate its data.
+   */
+  processChunk(chunk: StreamChunk | RawChunk): void {
+    if ('type' in chunk) {
+      switch (chunk.type) {
+        case 'text':
+          this.content += chunk.value as string;
+          break;
+        case 'message_id':
+          this.messageId = chunk.value as string;
+          break;
+        case 'finish':
+          if (chunk.value && typeof chunk.value === 'object' && 'usage' in chunk.value) {
+            this.usage = chunk.value.usage;
+          }
+          break;
+        case 'path_info':
+          this.pathInfo = chunk.value;
+          break;
+        case 'tool_call':
+          this.toolCalls.push(chunk.value);
+          break;
+        case 'tool_result':
+          this.toolResults.push(chunk.value);
+          break;
+        case 'reasoning':
+          this.reasoning = chunk.value;
+          break;
+        case 'intent_context':
+          this.intentContext = chunk.value;
+          break;
+        case 'dev_tools_info':
+          this.devToolsInfo = chunk.value;
+          break;
+      }
+    }
+  }
+
+  /**
+   * Get the aggregated ProcessedResponse.
+   */
+  getResponse(): ProcessedResponse {
+    return {
+      content: this.content,
+      messageId: this.messageId,
+      usage: this.usage,
+      pathInfo: this.pathInfo,
+      toolCalls: this.toolCalls,
+      toolResults: this.toolResults,
+      reasoning: this.reasoning,
+      intentContext: this.intentContext,
+      devToolsInfo: this.devToolsInfo,
+    };
+  }
+}
+
+/**
  * Client for interacting with the Emblem Vault Hustle Incognito Agent API.
  */
 export class HustleIncognitoClient {
   private readonly baseUrl: string;
   private readonly apiKey?: string;
+  private readonly vaultId?: string;
   private readonly userKey?: string;
   private readonly userSecret?: string;
   private readonly sdkVersion: string = SDK_VERSION;
@@ -65,6 +148,8 @@ export class HustleIncognitoClient {
   private readonly debug: boolean;
   private readonly cookie?: string;
   private readonly authProvider: EmblemAuthProvider;
+  private eventListeners: Map<HustleEventType, Set<HustleEventListener>> = new Map();
+  private summarizationState: SummarizationState = { thresholdReached: false };
 
   /**
    * Creates an instance of HustleIncognitoClient.
@@ -97,6 +182,7 @@ export class HustleIncognitoClient {
       }
       return undefined;
     };
+    this.vaultId = options.vaultId || getEnv('VAULT_ID');
     this.baseUrl =
       options.hustleApiUrl ||
       getEnv('HUSTLE_API_URL') ||
@@ -223,6 +309,7 @@ export class HustleIncognitoClient {
       for await (const chunk of this.rawStream({
         vaultId,
         messages,
+        model: options.model,
         userApiKey: options.userApiKey,
         externalWalletAddress: options.externalWalletAddress,
         slippageSettings: options.slippageSettings,
@@ -236,17 +323,11 @@ export class HustleIncognitoClient {
       return chunks;
     }
 
-    // Process and collect the response
-    let fullText = '';
-    let messageId = null;
-    let usage = null;
-    let pathInfo = null;
-    const toolCalls: any[] = [];
-    const toolResults: any[] = [];
-
-    for await (const chunk of this.chatStream({
+    // Use chatStream and get the aggregated response via StreamWithResponse.response
+    const stream = this.chatStream({
       vaultId,
       messages,
+      model: options.model,
       userApiKey: options.userApiKey,
       externalWalletAddress: options.externalWalletAddress,
       slippageSettings: options.slippageSettings,
@@ -254,51 +335,110 @@ export class HustleIncognitoClient {
       processChunks: true,
       selectedToolCategories: options.selectedToolCategories || [],
       attachments: options.attachments || [],
-    })) {
-      if ('type' in chunk) {
-        switch (chunk.type) {
-          case 'text':
-            fullText += chunk.value as string;
-            break;
-          case 'message_id':
-            messageId = chunk.value as string;
-            break;
-          case 'finish':
-            if (chunk.value && typeof chunk.value === 'object' && 'usage' in chunk.value) {
-              usage = chunk.value.usage;
-            }
-            break;
-          case 'path_info':
-            pathInfo = chunk.value;
-            break;
-          case 'tool_call':
-            toolCalls.push(chunk.value);
-            break;
-          case 'tool_result':
-            toolResults.push(chunk.value);
-            break;
-        }
-      }
+    });
+
+    // Consume the stream to trigger processing (response promise resolves when stream completes)
+    for await (const _ of stream) {
+      // Chunks are processed internally by StreamProcessor
     }
 
-    return {
-      content: fullText,
-      messageId,
-      usage,
-      pathInfo,
-      toolCalls,
-      toolResults,
-    };
+    return stream.response;
   }
 
   /**
    * Sends a chat message or conversation history and streams the response.
+   * Returns a StreamWithResponse that can be iterated for chunks and also provides
+   * access to the aggregated ProcessedResponse after streaming completes.
    *
    * @param options - Chat configuration including messages, vaultId, etc.
    * @param overrideFunc - Optional function to override the API call (useful for testing)
-   * @returns An async iterable yielding StreamChunk objects or throwing an ApiError.
+   * @returns A StreamWithResponse that yields StreamChunk objects and provides aggregated response.
+   *
+   * @example
+   * // Existing usage still works (non-breaking)
+   * for await (const chunk of client.chatStream(options)) {
+   *   console.log(chunk);
+   * }
+   *
+   * @example
+   * // New: Access aggregated response after streaming
+   * const stream = client.chatStream(options);
+   * for await (const chunk of stream) {
+   *   displayChunk(chunk);
+   * }
+   * const processed = await stream.response;
+   * console.log(processed.toolCalls, processed.pathInfo);
    */
-  public async *chatStream(
+  public chatStream(
+    options: StreamOptions,
+    overrideFunc: Function | null = null
+  ): StreamWithResponse {
+    const processor = new StreamProcessor();
+    let responseResolve: (value: ProcessedResponse) => void;
+    let responseReject: (reason: any) => void;
+    const responsePromise = new Promise<ProcessedResponse>((resolve, reject) => {
+      responseResolve = resolve;
+      responseReject = reject;
+    });
+
+    // Create the generator that yields chunks while accumulating them
+    const self = this;
+    const generator = (async function* () {
+      try {
+        self.emit({ type: 'stream_start' });
+        for await (const chunk of self._chatStreamGenerator(options, overrideFunc)) {
+          processor.processChunk(chunk);
+
+          // Emit events for tool activity
+          if ('type' in chunk) {
+            if (chunk.type === 'tool_call' && chunk.value) {
+              self.emit({
+                type: 'tool_start',
+                toolCallId: chunk.value.toolCallId || '',
+                toolName: chunk.value.toolName || '',
+                args: chunk.value.args,
+              });
+            } else if (chunk.type === 'tool_result' && chunk.value) {
+              self.emit({
+                type: 'tool_end',
+                toolCallId: chunk.value.toolCallId || '',
+                toolName: chunk.value.toolName,
+                result: chunk.value.result,
+              });
+            }
+          }
+
+          yield chunk;
+        }
+        const response = processor.getResponse();
+
+        // Update summarization state from pathInfo
+        if (response.pathInfo) {
+          self.updateSummarizationState(response.pathInfo);
+        }
+
+        self.emit({ type: 'stream_end', response });
+        responseResolve!(response);
+      } catch (error) {
+        responseReject!(error);
+        throw error;
+      }
+    })();
+
+    // Return object that implements StreamWithResponse
+    return {
+      [Symbol.asyncIterator]() {
+        return generator;
+      },
+      response: responsePromise,
+    };
+  }
+
+  /**
+   * Internal generator that yields processed stream chunks.
+   * @private
+   */
+  private async *_chatStreamGenerator(
     options: StreamOptions,
     overrideFunc: Function | null = null
   ): AsyncIterable<StreamChunk | RawChunk> {
@@ -371,16 +511,36 @@ export class HustleIncognitoClient {
           };
           break;
 
-        case '2': // Path info
+        case '2': // Metadata chunks (path_info, reasoning, intent_context, dev_tools_info, token_usage)
           try {
-            if (Array.isArray(chunk.data) && chunk.data.length > 0) {
-              yield { type: 'path_info', value: chunk.data[0] };
-            } else {
-              yield { type: 'path_info', value: chunk.data };
+            const data = Array.isArray(chunk.data) && chunk.data.length > 0 ? chunk.data[0] : chunk.data;
+            const innerType = data?.type;
+
+            switch (innerType) {
+              case 'path_info':
+                yield { type: 'path_info', value: data };
+                break;
+              case 'token_usage':
+                // token_usage contains summarization fields (thresholdReached, summary, etc.)
+                // Yield as path_info so StreamProcessor stores it for summarization handling
+                yield { type: 'path_info', value: data };
+                break;
+              case 'reasoning':
+                yield { type: 'reasoning', value: data };
+                break;
+              case 'intent_context':
+                yield { type: 'intent_context', value: data };
+                break;
+              case 'dev_tools_info':
+                yield { type: 'dev_tools_info', value: data };
+                break;
+              default:
+                // Fallback to path_info for backwards compatibility
+                yield { type: 'path_info', value: data };
             }
           } catch (error) {
             if (this.debug)
-              console.error(`[${new Date().toISOString()}] Error processing path info:`, error);
+              console.error(`[${new Date().toISOString()}] Error processing prefix 2 data:`, error);
           }
           break;
 
@@ -556,6 +716,36 @@ export class HustleIncognitoClient {
 
     if (!response.ok) {
       throw new Error(`Failed to fetch tools: ${response.status} ${response.statusText}`);
+    }
+
+    const parsedResponse = await response.json();
+    return parsedResponse.data;
+  }
+
+  /**
+   * Fetches available models from the API.
+   * Returns the list of models from OpenRouter with pricing and capability info.
+   *
+   * @returns A promise resolving to an array of Model objects
+   */
+  public async getModels(): Promise<Model[]> {
+    // GET /api/models
+    const headers = await this.getHeaders();
+
+    // For API key auth, we need x-api-key and x-vault-id headers
+    if (this.apiKey && this.vaultId) {
+      headers['x-api-key'] = this.apiKey;
+      headers['x-vault-id'] = this.vaultId;
+    }
+
+    const response = await this.fetchImpl(`${this.baseUrl}/api/models`, {
+      method: 'GET',
+      headers,
+      mode: 'cors',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch models: ${response.status} ${response.statusText}`);
     }
 
     const parsedResponse = await response.json();
@@ -768,6 +958,8 @@ export class HustleIncognitoClient {
   private prepareRequestBody(options: {
     vaultId: string;
     messages: ChatMessage[];
+    model?: string;
+    overrideSystemPrompt?: boolean;
     userApiKey?: string;
     externalWalletAddress?: string;
     slippageSettings?: Record<string, number>;
@@ -775,6 +967,9 @@ export class HustleIncognitoClient {
     currentPath?: string | null;
     selectedToolCategories?: string[];
     attachments?: Attachment[];
+    trimIndex?: number;
+    summary?: string;
+    summaryEndIndex?: number;
   }): HustleRequest {
     // apiKey is optional when using JWT authentication (via Authorization header)
     const apiKey = options.userApiKey || this.apiKey;
@@ -810,11 +1005,40 @@ export class HustleIncognitoClient {
       }
     }
 
+    // Determine summarization fields to send
+    // Priority: explicit options > stored state > calculate if needed
+    // This matches Hustle-v2 behavior: calculate trimIndex once per threshold event, then reuse
+    let trimIndex: number | undefined = options.trimIndex ?? this.summarizationState.trimIndex;
+    const summary = options.summary ?? this.summarizationState.summary;
+    const summaryEndIndex = options.summaryEndIndex ?? this.summarizationState.summaryEndIndex;
+
+    // If no trimIndex yet but threshold was reached, calculate and STORE it
+    // This ensures we send the same trimIndex until the next threshold event
+    if (trimIndex === undefined && this.summarizationState.thresholdReached) {
+      const retentionCount = this.summarizationState.messageRetentionCount ?? 1;
+      trimIndex = this.calculateTrimIndex(transformedMessages, retentionCount);
+      // Store it so subsequent requests use the same value
+      this.summarizationState.trimIndex = trimIndex;
+      if (this.debug) {
+        console.log(
+          `[${new Date().toISOString()}] Calculated and stored trimIndex: ${trimIndex}`
+        );
+      }
+    }
+
+    if (this.debug && (trimIndex || summary || summaryEndIndex)) {
+      console.log(
+        `[${new Date().toISOString()}] Sending summarization fields: trimIndex=${trimIndex}, summaryEndIndex=${summaryEndIndex}, hasSummary=${!!summary}`
+      );
+    }
+
     return {
       id: `chat-${options.vaultId}`,
       messages: transformedMessages,
       apiKey,
       vaultId: options.vaultId,
+      model: options.model,
+      overrideSystemPrompt: options.overrideSystemPrompt,
       externalWalletAddress: options.externalWalletAddress || '',
       slippageSettings: options.slippageSettings || {
         lpSlippage: 5,
@@ -825,6 +1049,9 @@ export class HustleIncognitoClient {
       currentPath: options.currentPath || null,
       attachments: options.attachments || [],
       selectedToolCategories: options.selectedToolCategories || [],
+      trimIndex,
+      summary,
+      summaryEndIndex,
     };
   }
 
@@ -910,5 +1137,185 @@ export class HustleIncognitoClient {
     }
 
     return headers;
+  }
+
+  /**
+   * Subscribe to SDK events.
+   * @param event - The event type to listen for
+   * @param listener - The callback function to invoke when the event occurs
+   * @returns A function to unsubscribe the listener
+   */
+  on<T extends HustleEventType>(
+    event: T,
+    listener: HustleEventListener<
+      T extends 'tool_start'
+        ? ToolStartEvent
+        : T extends 'tool_end'
+          ? ToolEndEvent
+          : T extends 'stream_start'
+            ? StreamStartEvent
+            : StreamEndEvent
+    >
+  ): () => void {
+    if (!this.eventListeners.has(event)) {
+      this.eventListeners.set(event, new Set());
+    }
+    this.eventListeners.get(event)!.add(listener as HustleEventListener);
+    return () => this.off(event, listener as HustleEventListener);
+  }
+
+  /**
+   * Unsubscribe from SDK events.
+   * @param event - The event type to stop listening for
+   * @param listener - The callback function to remove
+   */
+  off(event: HustleEventType, listener: HustleEventListener): void {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      listeners.delete(listener);
+    }
+  }
+
+  /**
+   * Emit an event to all registered listeners.
+   * @private
+   */
+  private emit(event: HustleEvent): void {
+    const listeners = this.eventListeners.get(event.type);
+    if (listeners) {
+      listeners.forEach((listener) => {
+        try {
+          listener(event);
+        } catch (err) {
+          if (this.debug) {
+            console.error(`[${new Date().toISOString()}] Event listener error:`, err);
+          }
+        }
+      });
+    }
+  }
+
+  /**
+   * Get the current summarization state.
+   * Useful for debugging or custom handling of summarization.
+   */
+  getSummarizationState(): SummarizationState {
+    return { ...this.summarizationState };
+  }
+
+  /**
+   * Clear the summarization state.
+   * Call this when starting a new conversation to reset summarization tracking.
+   */
+  clearSummarizationState(): void {
+    this.summarizationState = { thresholdReached: false };
+    if (this.debug) {
+      console.log(`[${new Date().toISOString()}] Summarization state cleared`);
+    }
+  }
+
+  /**
+   * Update summarization state from response pathInfo.
+   * Called internally when processing stream responses.
+   *
+   * Flow:
+   * 1. Server sends thresholdReached=true with messageRetentionCount
+   * 2. Client sends trimIndex on next request
+   * 3. Server generates summary and sends it back with summaryEndIndex
+   * 4. Client stores and continues sending trimIndex, summary, summaryEndIndex
+   *
+   * @private
+   */
+  private updateSummarizationState(pathInfo: {
+    thresholdReached?: boolean;
+    messageRetentionCount?: number;
+    summary?: string;
+    summaryEndIndex?: number;
+  }): void {
+    // When threshold is reached, store messageRetentionCount and clear trimIndex
+    // so it gets recalculated on the next request with current messages
+    if (pathInfo.thresholdReached && pathInfo.messageRetentionCount !== undefined) {
+      this.summarizationState.thresholdReached = true;
+      this.summarizationState.messageRetentionCount = pathInfo.messageRetentionCount;
+      // Clear trimIndex so it gets recalculated with the new messages on next request
+      // This matches Hustle-v2 behavior: calculate once per threshold event
+      this.summarizationState.trimIndex = undefined;
+      if (this.debug) {
+        console.log(
+          `[${new Date().toISOString()}] Summarization threshold reached. Retention count: ${pathInfo.messageRetentionCount}. trimIndex cleared for recalculation.`
+        );
+      }
+    }
+
+    // Always update summary and summaryEndIndex when provided by server
+    // (These come back after we send trimIndex and server generates the summary)
+    if (pathInfo.summary !== undefined) {
+      this.summarizationState.summary = pathInfo.summary;
+      if (this.debug) {
+        console.log(
+          `[${new Date().toISOString()}] Received conversation summary from server`
+        );
+      }
+    }
+
+    if (pathInfo.summaryEndIndex !== undefined) {
+      this.summarizationState.summaryEndIndex = pathInfo.summaryEndIndex;
+      if (this.debug) {
+        console.log(
+          `[${new Date().toISOString()}] Summary end index updated to: ${pathInfo.summaryEndIndex}`
+        );
+      }
+    }
+  }
+
+  /**
+   * Calculates the trim index for a set of messages.
+   * Keeps the last N user messages and their responses.
+   *
+   * @param messages - The message array to calculate trim index for
+   * @param keepLastUserMessages - Number of user messages to keep (default 1)
+   * @returns The index at which to trim messages
+   * @private
+   */
+  private calculateTrimIndex(
+    messages: ChatMessage[],
+    keepLastUserMessages: number = 1
+  ): number {
+    // Filter out system messages for counting
+    const nonSystemMessages = messages.filter(msg => msg.role !== 'system');
+    const userIndices = nonSystemMessages
+      .map((msg, idx) => msg.role === 'user' ? idx : -1)
+      .filter(idx => idx !== -1);
+
+    // Keep last N user messages and all messages after them
+    const keepFromIndex = userIndices.length > keepLastUserMessages
+      ? userIndices[userIndices.length - keepLastUserMessages]
+      : 0;
+
+    // Find the actual index in the full messages array
+    let systemCount = 0;
+    let nonSystemCount = 0;
+    let calculatedTrimIndex = 0;
+
+    for (let i = 0; i < messages.length; i++) {
+      if (messages[i].role === 'system') {
+        systemCount++;
+      } else {
+        if (nonSystemCount === keepFromIndex) {
+          calculatedTrimIndex = i;
+          break;
+        }
+        nonSystemCount++;
+      }
+    }
+
+    if (this.debug) {
+      console.log(
+        `[${new Date().toISOString()}] Calculated trimIndex: ${calculatedTrimIndex} ` +
+        `(keeping last ${keepLastUserMessages} user messages from ${messages.length} total)`
+      );
+    }
+
+    return calculatedTrimIndex;
   }
 }
