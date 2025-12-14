@@ -1448,7 +1448,7 @@
       // Get wallet/identifier from JWT claims
       const jwtClaims = session.authToken ? decodeJwt(session.authToken) : null;
       const identifier = jwtClaims?.identifier || session.user?.identifier || '';
-      const walletAddress = identifier.replace('ethereum:', '');
+      const walletAddress = identifier.includes(':') ? identifier.split(':')[1] : identifier;
       const vaultId = session.user?.vaultId || '';
 
       // Update UI - show connected state
