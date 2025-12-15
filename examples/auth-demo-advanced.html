@@ -1258,8 +1258,68 @@
       margin-top: 6px;
     }
 
+    /* Fullscreen button - hidden on desktop, visible on mobile */
+    .fullscreen-btn {
+      display: none;
+      background: transparent;
+      border: 1px solid #333;
+      color: #8892a4;
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 18px;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .fullscreen-btn:hover {
+      background: #252b33;
+      border-color: #4c9aff;
+      color: #4c9aff;
+    }
+    /* Fullscreen mode */
+    body.fullscreen-mode {
+      padding: 0 !important;
+    }
+    body.fullscreen-mode .container,
+    body.fullscreen-mode .auth-section,
+    body.fullscreen-mode .demo-nav,
+    body.fullscreen-mode h1,
+    body.fullscreen-mode .subtitle,
+    body.fullscreen-mode .debug-toggle,
+    body.fullscreen-mode #debugCard {
+      display: none !important;
+    }
+    body.fullscreen-mode .chat-layout-wrapper {
+      padding: 0 !important;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+    }
+    body.fullscreen-mode .chat-layout {
+      max-width: none;
+      height: 100%;
+    }
+    body.fullscreen-mode .sidebar {
+      border-radius: 0;
+    }
+    body.fullscreen-mode .main-content .card {
+      border-radius: 0;
+    }
+    body.fullscreen-mode .fullscreen-icon.expand {
+      display: none;
+    }
+    body.fullscreen-mode .fullscreen-icon.collapse {
+      display: inline !important;
+    }
+
     /* Mobile Responsive Styles */
     @media (max-width: 768px) {
+      .fullscreen-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
       body {
         padding: 16px;
       }
@@ -1566,6 +1626,10 @@
           <h2>Chat</h2>
           <span id="chatNameDisplay" class="chat-name" style="display:none;"></span>
         </div>
+        <button id="fullscreenBtn" class="fullscreen-btn" title="Toggle fullscreen">
+          <span class="fullscreen-icon expand">⛶</span>
+          <span class="fullscreen-icon collapse" style="display:none;">⛶</span>
+        </button>
         <div class="chat-actions-wrapper">
           <span id="selectedModelLabel" class="selected-model-label"></span>
           <div class="chat-actions">
@@ -1752,6 +1816,7 @@
     const sidebar = document.getElementById('sidebar');
     const sidebarOpenBtn = document.getElementById('sidebarOpenBtn');
     const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
 
     // Tool activity tracking
     const activeTools = new Map(); // toolCallId -> element
@@ -3431,6 +3496,15 @@
     // Sidebar event listeners
     sidebarOpenBtn.addEventListener('click', openSidebar);
     sidebarCloseBtn.addEventListener('click', closeSidebar);
+
+    // Fullscreen toggle
+    function toggleFullscreen() {
+      document.body.classList.toggle('fullscreen-mode');
+      const isFullscreen = document.body.classList.contains('fullscreen-mode');
+      log('Fullscreen mode: ' + isFullscreen);
+    }
+
+    fullscreenBtn.addEventListener('click', toggleFullscreen);
 
     // Initialize on load
     log('Page loaded, initializing...');

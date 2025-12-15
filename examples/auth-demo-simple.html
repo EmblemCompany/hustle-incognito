@@ -915,8 +915,60 @@
       margin-top: 6px;
     }
 
+    /* Fullscreen button - hidden on desktop, visible on mobile */
+    .fullscreen-btn {
+      display: none;
+      background: transparent;
+      border: 1px solid #333;
+      color: #8892a4;
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 18px;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .fullscreen-btn:hover {
+      background: #252b33;
+      border-color: #4c9aff;
+      color: #4c9aff;
+    }
+    /* Fullscreen mode */
+    body.fullscreen-mode {
+      padding: 0 !important;
+    }
+    body.fullscreen-mode .container,
+    body.fullscreen-mode .debug-toggle,
+    body.fullscreen-mode #debugCard {
+      display: none !important;
+    }
+    body.fullscreen-mode .chat-wrapper {
+      padding: 0 !important;
+      margin: 0 !important;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+    }
+    body.fullscreen-mode .chat-wrapper .card {
+      max-width: none;
+      border-radius: 0;
+      height: 100%;
+    }
+    body.fullscreen-mode .fullscreen-icon.expand {
+      display: none;
+    }
+    body.fullscreen-mode .fullscreen-icon.collapse {
+      display: inline !important;
+    }
+
     /* Mobile Responsive Styles */
     @media (max-width: 768px) {
+      .fullscreen-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
       body {
         padding: 16px;
       }
@@ -1122,6 +1174,10 @@
     <div class="card">
       <div class="chat-header">
         <h2>Chat</h2>
+        <button id="fullscreenBtn" class="fullscreen-btn" title="Toggle fullscreen">
+          <span class="fullscreen-icon expand">⛶</span>
+          <span class="fullscreen-icon collapse" style="display:none;">⛶</span>
+        </button>
         <div class="settings-wrapper">
           <button id="settingsBtn" class="settings-btn" title="Settings" disabled>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1259,6 +1315,7 @@
     const uploadedFilesDiv = document.getElementById('uploadedFiles');
     // Settings elements
     const settingsBtn = document.getElementById('settingsBtn');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
     const settingsModal = document.getElementById('settingsModal');
     const closeSettingsBtn = document.getElementById('closeSettingsBtn');
     const modelSelect = document.getElementById('modelSelect');
@@ -2020,6 +2077,15 @@
     skipServerPromptToggle.addEventListener('change', saveSettings);
 
     systemPromptModal.addEventListener('input', saveSettings);
+
+    // Fullscreen toggle
+    function toggleFullscreen() {
+      document.body.classList.toggle('fullscreen-mode');
+      const isFullscreen = document.body.classList.contains('fullscreen-mode');
+      log('Fullscreen mode: ' + isFullscreen);
+    }
+
+    fullscreenBtn.addEventListener('click', toggleFullscreen);
 
     // Initialize on load
     log('Page loaded, initializing...');
