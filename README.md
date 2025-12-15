@@ -437,6 +437,175 @@ for await (const chunk of client.chatStream({
 }
 ```
 
+## 🔌 Plugin System (Client-Side Tools)
+
+The SDK includes a powerful plugin system that allows you to extend the AI agent with custom client-side tools. Unlike server-side tools, these execute directly in your application.
+
+### Registering Plugins
+
+Use the `use()` method to register plugins:
+
+```typescript
+import { HustleIncognitoClient, HustlePlugin } from 'hustle-incognito';
+
+const client = new HustleIncognitoClient({ apiKey: 'your-key' });
+
+// Define a plugin with tools and executors
+const myPlugin: HustlePlugin = {
+  name: 'my-plugin',
+  version: '1.0.0',
+  tools: [
+    {
+      name: 'get_current_time',
+      description: 'Get the current date and time',
+      parameters: {
+        type: 'object',
+        properties: {
+          timezone: { type: 'string', description: 'Timezone (e.g., UTC)' }
+        }
+      }
+    }
+  ],
+  executors: {
+    get_current_time: async (args) => {
+      const tz = args.timezone || 'UTC';
+      return { time: new Date().toISOString(), timezone: tz };
+    }
+  }
+};
+
+// Register the plugin
+await client.use(myPlugin);
+```
+
+### Plugin Structure
+
+```typescript
+interface HustlePlugin {
+  name: string;           // Unique plugin identifier
+  version: string;        // Semantic version
+  tools?: ClientToolDefinition[];  // Tool schemas sent to server
+  executors?: Record<string, ToolExecutor>;  // Local execution functions
+  hooks?: {
+    onRegister?: () => void | Promise<void>;
+    beforeRequest?: (req: HustleRequest) => HustleRequest | Promise<HustleRequest>;
+    afterResponse?: (res: ProcessedResponse) => void | Promise<void>;
+    onError?: (error: Error, context: ErrorContext) => void | Promise<void>;
+  };
+}
+```
+
+### Client-Side Tool Execution
+
+When the AI model calls a client-side tool, the SDK automatically executes it locally:
+
+```typescript
+// Register plugin with tools
+await client.use({
+  name: 'browser-tools',
+  version: '1.0.0',
+  tools: [
+    {
+      name: 'get_page_title',
+      description: 'Get the current page title',
+      parameters: { type: 'object', properties: {} }
+    }
+  ],
+  executors: {
+    get_page_title: async () => ({ title: document.title })
+  }
+});
+
+// When you chat, the model can now use this tool
+const response = await client.chat([
+  { role: 'user', content: 'What is the title of this page?' }
+], { vaultId: 'my-vault' });
+// The model will call get_page_title and receive the result
+```
+
+### Custom Tool Call Handler
+
+For more control, use the `onToolCall` callback:
+
+```typescript
+for await (const chunk of client.chatStream({
+  messages: [{ role: 'user', content: 'Take a screenshot' }],
+  vaultId: 'my-vault',
+  onToolCall: async (toolCall) => {
+    // Custom handling for specific tools
+    if (toolCall.toolName === 'take_screenshot') {
+      const screenshot = await captureScreen();
+      return { url: screenshot.url };
+    }
+    // Return undefined to use default executor
+    return undefined;
+  }
+})) {
+  // Process chunks
+}
+```
+
+### Tool Execution Loop
+
+The SDK supports multi-round tool execution where the model can call multiple tools in sequence:
+
+```typescript
+for await (const chunk of client.chatStream({
+  messages: [{ role: 'user', content: 'Check the time and send an alert' }],
+  vaultId: 'my-vault',
+  maxToolRounds: 5,  // Maximum tool execution rounds (default: 5, 0 = unlimited)
+})) {
+  switch (chunk.type) {
+    case 'tool_call':
+      console.log('Tool called:', chunk.value.toolName);
+      break;
+    case 'tool_result':
+      console.log('Tool result:', chunk.value.result);
+      break;
+  }
+}
+```
+
+### Lifecycle Hooks
+
+Plugins can hook into the request/response lifecycle:
+
+```typescript
+await client.use({
+  name: 'logging-plugin',
+  version: '1.0.0',
+  hooks: {
+    onRegister: () => console.log('Plugin registered'),
+    beforeRequest: (req) => {
+      console.log('Sending request:', req.messages.length, 'messages');
+      return req; // Can modify the request
+    },
+    afterResponse: (res) => {
+      console.log('Received response:', res.content?.slice(0, 50));
+    },
+    onError: (error) => {
+      console.error('Error occurred:', error.message);
+    }
+  }
+});
+```
+
+### Multiple Plugins
+
+Register multiple plugins - they execute in registration order:
+
+```typescript
+await client.use(analyticsPlugin);
+await client.use(browserToolsPlugin);
+await client.use(customToolsPlugin);
+
+// Or chain them
+await client
+  .use(plugin1)
+  .then(c => c.use(plugin2))
+  .then(c => c.use(plugin3));
+```
+
 ## 📎 Image Attachments
 
 The SDK supports attaching images to your prompts, allowing the AI agent to analyze visual content like charts, token logos, screenshots, or any other images relevant to your crypto queries.
