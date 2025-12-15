@@ -283,6 +283,20 @@ export interface StreamOptions {
   summary?: string;
   /** Index where the previous summary ends */
   summaryEndIndex?: number;
+  /**
+   * Maximum number of automatic tool execution rounds.
+   * When the server returns finishReason: "tool-calls" for client-side tools,
+   * the SDK will execute them and send results back as a new turn.
+   * Set to 0 to disable auto-execution (manual handling required).
+   * @default 5
+   */
+  maxToolRounds?: number;
+  /**
+   * Optional callback for custom tool execution.
+   * If provided, this is called instead of the plugin manager's executor.
+   * Useful for custom handling or logging.
+   */
+  onToolCall?: (toolCall: ToolCall) => Promise<unknown>;
 }
 
 export interface RawStreamOptions {
@@ -346,6 +360,12 @@ export interface HustleRequest {
    * @see {ToolCategory}
    */
   selectedToolCategories?: string[];
+  /**
+   * Client-side tool definitions to register with the server.
+   * Server will register these without execute functions.
+   * @see {ClientToolDefinition}
+   */
+  clientTools?: ClientToolDefinition[];
   /** Index to trim messages at for context management */
   trimIndex?: number;
   /** Existing summary from previous response to pass back */
@@ -691,4 +711,125 @@ export interface SummarizationState {
   summary?: string;
   /** Index where the summary ends in the message array */
   summaryEndIndex?: number;
+}
+
+// =============================================================================
+// Plugin System Types
+// =============================================================================
+
+/**
+ * JSON Schema property definition for client tool parameters.
+ */
+export interface JSONSchemaProperty {
+  type: 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array' | 'null';
+  description?: string;
+  enum?: (string | number | boolean)[];
+  items?: JSONSchemaProperty;
+  properties?: Record<string, JSONSchemaProperty>;
+  required?: string[];
+  default?: unknown;
+}
+
+/**
+ * Client-side tool definition sent to the server.
+ * Server registers these with schema only (no execute function).
+ */
+export interface ClientToolDefinition {
+  /** Unique tool name (alphanumeric + underscore) */
+  name: string;
+  /** Description shown to the AI model */
+  description: string;
+  /** JSON Schema for tool parameters */
+  parameters: {
+    type: 'object';
+    properties: Record<string, JSONSchemaProperty>;
+    required?: string[];
+  };
+}
+
+/**
+ * Function that executes a client-side tool.
+ */
+export type ToolExecutor<T = Record<string, unknown>, R = unknown> = (
+  args: T
+) => R | Promise<R>;
+
+/**
+ * Plugin interface for extending HustleIncognitoClient with client-side tools.
+ *
+ * @example
+ * ```typescript
+ * const myPlugin: HustlePlugin = {
+ *   name: 'my-plugin',
+ *   version: '1.0.0',
+ *   tools: [{
+ *     name: 'get_time',
+ *     description: 'Get current time',
+ *     parameters: { type: 'object', properties: {} }
+ *   }],
+ *   executors: {
+ *     get_time: async () => new Date().toISOString()
+ *   }
+ * };
+ *
+ * client.use(myPlugin);
+ * ```
+ */
+export interface HustlePlugin {
+  /** Unique plugin identifier */
+  name: string;
+
+  /** Plugin version (semver recommended) */
+  version: string;
+
+  /** Tool definitions this plugin provides */
+  tools?: ClientToolDefinition[];
+
+  /** Tool executors keyed by tool name */
+  executors?: Record<string, ToolExecutor>;
+
+  /** Lifecycle hooks */
+  hooks?: {
+    /**
+     * Called when plugin is registered via client.use().
+     * Use for initialization, validation, or setup.
+     */
+    onRegister?: () => void | Promise<void>;
+
+    /**
+     * Called before each chat request.
+     * Can modify the request (e.g., add context, filter messages).
+     */
+    beforeRequest?: (request: HustleRequest) => HustleRequest | Promise<HustleRequest>;
+
+    /**
+     * Called after receiving a complete response.
+     * Use for logging, analytics, or side effects.
+     */
+    afterResponse?: (response: ProcessedResponse) => void | Promise<void>;
+
+    /**
+     * Called when plugin is unregistered.
+     * Use for cleanup.
+     */
+    onUnregister?: () => void | Promise<void>;
+  };
+}
+
+/**
+ * Options for client-side tool handling during chat.
+ */
+export interface ClientToolOptions {
+  /**
+   * Maximum automatic tool execution rounds.
+   * Prevents infinite loops when tools keep calling each other.
+   * @default 5
+   */
+  maxToolRounds?: number;
+
+  /**
+   * Custom callback for executing client-side tools.
+   * If provided, takes precedence over plugin executors.
+   */
+  onToolCall?: (toolCall: ToolCall) => Promise<unknown>;
 }

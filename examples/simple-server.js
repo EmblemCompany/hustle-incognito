@@ -579,6 +579,52 @@ async function main() {
     }
 
     /**
+     * Serve static files from examples directory (CSS, etc.)
+     */
+    async function handleExamplesStaticFiles(req, res, filepath) {
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+        const { fileURLToPath } = await import('url');
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+
+        const filePath = path.join(__dirname, filepath);
+
+        // Determine content type
+        const ext = path.extname(filepath).toLowerCase();
+        const contentTypes = {
+          '.css': 'text/css',
+          '.js': 'application/javascript',
+          '.png': 'image/png',
+          '.jpg': 'image/jpeg',
+          '.jpeg': 'image/jpeg',
+          '.gif': 'image/gif',
+          '.svg': 'image/svg+xml',
+          '.ico': 'image/x-icon',
+          '.json': 'application/json'
+        };
+        const contentType = contentTypes[ext] || 'application/octet-stream';
+
+        fs.readFile(filePath, (err, data) => {
+          if (err) {
+            console.error(`Error reading ${filepath}:`, err);
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('Not found');
+            return;
+          }
+
+          res.writeHead(200, { 'Content-Type': contentType });
+          res.end(data);
+        });
+      } catch (error) {
+        console.error(`Error serving ${filepath}:`, error);
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Internal Server Error');
+      }
+    }
+
+    /**
      * Serve static files from dist directory (for browser SDK)
      */
     async function handleDistFiles(req, res, filepath) {
@@ -661,6 +707,14 @@ async function main() {
       // Serve SDK browser build files
       if (pathname.startsWith('/dist/') && method === 'GET') {
         return handleDistFiles(req, res, pathname);
+      }
+
+      // Serve static files from examples directory (CSS, images, etc.)
+      const staticExtensions = ['.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico'];
+      const ext = pathname.substring(pathname.lastIndexOf('.'));
+      if (staticExtensions.includes(ext) && method === 'GET') {
+        // Remove leading slash to get filename
+        return handleExamplesStaticFiles(req, res, pathname.substring(1));
       }
 
       if (pathname === '/health' && method === 'GET') {

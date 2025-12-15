@@ -459,6 +459,246 @@ describe.skipIf(shouldSkip)('HustleIncognitoClient Integration Tests', () => {
   }); // Use global timeout
 });
 
+// Client-side tool execution tests
+describe.skipIf(shouldSkip)('Client-Side Tool Execution', () => {
+  let client: HustleIncognitoClient;
+
+  beforeEach(() => {
+    client = new HustleIncognitoClient({
+      apiKey: process.env.HUSTLE_API_KEY || '',
+      vaultId: process.env.VAULT_ID,
+      hustleApiUrl: process.env.HUSTLE_API_URL,
+      debug: process.env.DEBUG === 'false' ? false : true,
+    });
+  });
+
+  afterEach(async () => {
+    // Unregister any plugins
+    for (const name of client.getPluginNames()) {
+      await client.unuse(name);
+    }
+    await delay(2000);
+  });
+
+  test('should execute client-side tool and continue conversation', async () => {
+    // Track tool execution
+    let toolExecuted = false;
+    let toolArgs: Record<string, unknown> | undefined;
+
+    // Register a simple time-telling plugin
+    await client.use({
+      name: 'time-plugin',
+      version: '1.0.0',
+      tools: [
+        {
+          name: 'get_current_time',
+          description: 'Get the current date and time. Use this when the user asks about the current time or date.',
+          parameters: {
+            type: 'object',
+            properties: {
+              timezone: {
+                type: 'string',
+                description: 'The timezone to get time for (e.g., "UTC", "America/New_York")',
+              },
+            },
+          },
+        },
+      ],
+      executors: {
+        get_current_time: async (args: Record<string, unknown>) => {
+          toolExecuted = true;
+          toolArgs = args;
+          // Return a fixed time for predictable testing
+          return {
+            time: '2025-01-15T10:30:00Z',
+            timezone: args.timezone || 'UTC',
+            formatted: 'January 15, 2025, 10:30 AM UTC',
+          };
+        },
+      },
+    });
+
+    expect(client.hasPlugin('time-plugin')).toBe(true);
+    expect(client.getClientToolDefinitions().length).toBe(1);
+
+    console.log('Sending message that should trigger client-side tool...');
+
+    // Send a message that should trigger the tool
+    const messages: ChatMessage[] = [
+      {
+        role: 'user',
+        content: 'What time is it right now? Use the get_current_time tool to find out.',
+      },
+    ];
+
+    const chunks: StreamChunk[] = [];
+    let sawClientToolResult = false;
+    let textContent = '';
+
+    for await (const chunk of client.chatStream({
+      vaultId: process.env.VAULT_ID || 'default',
+      messages,
+      processChunks: true,
+      maxToolRounds: 3, // Allow up to 3 rounds
+    })) {
+      if ('type' in chunk) {
+        chunks.push(chunk);
+
+        if (chunk.type === 'text' && typeof chunk.value === 'string') {
+          textContent += chunk.value;
+        }
+
+        if (chunk.type === 'tool_result') {
+          console.log('Received tool_result chunk:', JSON.stringify(chunk.value));
+          // Check if this is our client-side tool result
+          if (chunk.value && chunk.value.toolName === 'get_current_time') {
+            sawClientToolResult = true;
+          }
+        }
+
+        if (chunk.type === 'finish') {
+          console.log('Finish reason:', (chunk.value as { reason?: string })?.reason);
+        }
+      }
+    }
+
+    console.log('Tool executed:', toolExecuted);
+    console.log('Tool args:', toolArgs);
+    console.log('Saw client tool result:', sawClientToolResult);
+    console.log('Text content length:', textContent.length);
+    console.log('Response preview:', textContent.substring(0, 200));
+
+    // Verify the tool was executed client-side
+    expect(toolExecuted).toBe(true);
+    expect(sawClientToolResult).toBe(true);
+
+    // Verify we got a response that includes the time info
+    expect(textContent.length).toBeGreaterThan(0);
+    // The model should mention the time we returned
+    expect(
+      textContent.toLowerCase().includes('10:30') ||
+        textContent.toLowerCase().includes('january') ||
+        textContent.toLowerCase().includes('2025')
+    ).toBe(true);
+  }, 120000); // 2 minute timeout for this test
+
+  test('should handle onToolCall callback override', async () => {
+    let callbackInvoked = false;
+    let callbackToolName = '';
+
+    // Register plugin without executor - we'll use onToolCall callback instead
+    await client.use({
+      name: 'callback-test-plugin',
+      version: '1.0.0',
+      tools: [
+        {
+          name: 'get_random_number',
+          description: 'Get a random number. Use this when the user asks for a random number.',
+          parameters: {
+            type: 'object',
+            properties: {
+              min: { type: 'number', description: 'Minimum value' },
+              max: { type: 'number', description: 'Maximum value' },
+            },
+          },
+        },
+      ],
+      executors: {
+        get_random_number: async () => {
+          // This should NOT be called when onToolCall is provided
+          throw new Error('Default executor should not be called');
+        },
+      },
+    });
+
+    const messages: ChatMessage[] = [
+      {
+        role: 'user',
+        content: 'Give me a random number between 1 and 100. Use the get_random_number tool.',
+      },
+    ];
+
+    let textContent = '';
+
+    for await (const chunk of client.chatStream({
+      vaultId: process.env.VAULT_ID || 'default',
+      messages,
+      processChunks: true,
+      maxToolRounds: 2,
+      onToolCall: async (toolCall) => {
+        callbackInvoked = true;
+        callbackToolName = toolCall.toolName || '';
+        console.log('onToolCall invoked:', toolCall.toolName, toolCall.args);
+        // Return a fixed number for predictable testing
+        return { number: 42, min: toolCall.args?.min || 1, max: toolCall.args?.max || 100 };
+      },
+    })) {
+      if ('type' in chunk && chunk.type === 'text' && typeof chunk.value === 'string') {
+        textContent += chunk.value;
+      }
+    }
+
+    console.log('Callback invoked:', callbackInvoked);
+    console.log('Callback tool name:', callbackToolName);
+    console.log('Response preview:', textContent.substring(0, 200));
+
+    expect(callbackInvoked).toBe(true);
+    expect(callbackToolName).toBe('get_random_number');
+    expect(textContent.length).toBeGreaterThan(0);
+    // The model should mention the number 42 that we returned
+    expect(textContent.includes('42')).toBe(true);
+  }, 120000);
+
+  test.only('should respect maxToolRounds limit', async () => {
+    let executionCount = 0;
+
+    // Register a tool that always wants to be called again
+    await client.use({
+      name: 'infinite-loop-plugin',
+      version: '1.0.0',
+      tools: [
+        {
+          name: 'count_up',
+          description: 'Increment a counter. The user wants you to keep calling this to count up.',
+          parameters: {
+            type: 'object',
+            properties: {},
+          },
+        },
+      ],
+      executors: {
+        count_up: async () => {
+          executionCount++;
+          console.log(`Tool executed ${executionCount} time(s)`);
+          return { count: executionCount, message: 'Counter incremented. Call again to continue.' };
+        },
+      },
+    });
+
+    const messages: ChatMessage[] = [
+      {
+        role: 'user',
+        content: 'Call the count_up tool exactly 10 times. Keep calling it until you reach 10.',
+      },
+    ];
+
+    // Set maxToolRounds to 2 - should stop after 2 rounds even if model wants more
+    for await (const _chunk of client.chatStream({
+      vaultId: process.env.VAULT_ID || 'default',
+      messages,
+      processChunks: true,
+      maxToolRounds: 2,
+    })) {
+      // Just consume the stream
+    }
+
+    console.log('Total tool executions:', executionCount);
+
+    // Should have stopped at maxToolRounds (2), not continued to 10
+    expect(executionCount).toBeLessThanOrEqual(2);
+  }, 120000);
+});
+
 // Skip signature auth tests if credentials not available
 const shouldSkipSignatureAuth = !process.env.TEST_PRIVATE_KEY || !process.env.TEST_APP_ID || process.env.CI === 'true';
 

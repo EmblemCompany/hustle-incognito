@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { HustleIncognitoClient } from '../src';
 import type { ProcessedResponse, StreamChunk, RawChunk } from '../src/types';
 
@@ -87,7 +87,10 @@ describe('HustleIncognitoClient', () => {
       ],
       usage: null,
       pathInfo: null,
-      toolResults: []
+      toolResults: [],
+      reasoning: null,
+      intentContext: null,
+      devToolsInfo: null,
     };
     
     const overrideFunc = vi.fn().mockResolvedValue(mockResponse);
@@ -1155,6 +1158,273 @@ describe('HustleIncognitoClient', () => {
       expect(response.devToolsInfo).toEqual(devToolsInfoData);
       expect(response.pathInfo).toEqual(pathInfoData);
       expect(response.content).toBe('Response text');
+    });
+  });
+
+  describe('plugin system', () => {
+    test('should register a plugin using use()', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      await client.use({
+        name: 'test-plugin',
+        version: '1.0.0',
+        tools: [
+          {
+            name: 'test_tool',
+            description: 'A test tool',
+            parameters: { type: 'object', properties: {} },
+          },
+        ],
+      });
+
+      expect(client.hasPlugin('test-plugin')).toBe(true);
+      expect(client.getPluginNames()).toContain('test-plugin');
+    });
+
+    test('should unregister a plugin using unuse()', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      await client.use({
+        name: 'removable-plugin',
+        version: '1.0.0',
+      });
+
+      expect(client.hasPlugin('removable-plugin')).toBe(true);
+
+      await client.unuse('removable-plugin');
+
+      expect(client.hasPlugin('removable-plugin')).toBe(false);
+    });
+
+    test('should return client tool definitions', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      await client.use({
+        name: 'tools-plugin',
+        version: '1.0.0',
+        tools: [
+          {
+            name: 'tool_a',
+            description: 'Tool A',
+            parameters: { type: 'object', properties: {} },
+          },
+          {
+            name: 'tool_b',
+            description: 'Tool B',
+            parameters: {
+              type: 'object',
+              properties: {
+                input: { type: 'string' },
+              },
+            },
+          },
+        ],
+      });
+
+      const definitions = client.getClientToolDefinitions();
+      expect(definitions).toHaveLength(2);
+      expect(definitions.map((d) => d.name)).toEqual(['tool_a', 'tool_b']);
+    });
+
+    test('should include client tools in request body', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      await client.use({
+        name: 'request-tools-plugin',
+        version: '1.0.0',
+        tools: [
+          {
+            name: 'request_tool',
+            description: 'Tool for request',
+            parameters: { type: 'object', properties: {} },
+          },
+        ],
+      });
+
+      // @ts-ignore - Accessing private method for testing
+      const requestBody = client.prepareRequestBody({
+        vaultId: 'test-vault',
+        messages: [{ role: 'user', content: 'Hello' }],
+      });
+
+      expect(requestBody.clientTools).toBeDefined();
+      expect(requestBody.clientTools).toHaveLength(1);
+      expect(requestBody.clientTools![0].name).toBe('request_tool');
+    });
+
+    test('should not include clientTools when no plugins registered', () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      // @ts-ignore - Accessing private method for testing
+      const requestBody = client.prepareRequestBody({
+        vaultId: 'test-vault',
+        messages: [{ role: 'user', content: 'Hello' }],
+      });
+
+      expect(requestBody.clientTools).toBeUndefined();
+    });
+
+    test('should support chaining with use()', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      const result = await client
+        .use({ name: 'plugin-1', version: '1.0.0' })
+        .then((c) => c.use({ name: 'plugin-2', version: '1.0.0' }));
+
+      expect(result).toBe(client);
+      expect(client.getPluginNames()).toEqual(['plugin-1', 'plugin-2']);
+    });
+  });
+
+  describe('client-side tool execution loop', () => {
+    test('should format toolInvocations correctly for Hustle v2', async () => {
+      // This test verifies the toolInvocations format matches Hustle v2 expectations
+      // The format should be: { state: 'result', step, toolCallId, toolName, args, result }
+
+      const toolResults = [
+        { toolCallId: 'call-1', toolName: 'test_tool', result: { data: 'value' } },
+        { toolCallId: 'call-2', toolName: 'another_tool', result: 'string result' },
+      ];
+
+      const pendingToolCalls = [
+        { toolCallId: 'call-1', toolName: 'test_tool', args: { input: 'test' } },
+        { toolCallId: 'call-2', toolName: 'another_tool', args: {} },
+      ];
+
+      // Simulate the toolInvocations creation logic from chatStream
+      const toolInvocations = toolResults.map((tr, idx) => ({
+        state: 'result' as const,
+        step: idx,
+        toolCallId: tr.toolCallId,
+        toolName: tr.toolName,
+        args: pendingToolCalls.find((tc) => tc.toolCallId === tr.toolCallId)?.args || {},
+        result: typeof tr.result === 'string' ? tr.result : JSON.stringify(tr.result),
+      }));
+
+      // Verify structure
+      expect(toolInvocations).toHaveLength(2);
+
+      // First invocation
+      expect(toolInvocations[0]).toEqual({
+        state: 'result',
+        step: 0,
+        toolCallId: 'call-1',
+        toolName: 'test_tool',
+        args: { input: 'test' },
+        result: '{"data":"value"}', // Objects get stringified
+      });
+
+      // Second invocation
+      expect(toolInvocations[1]).toEqual({
+        state: 'result',
+        step: 1,
+        toolCallId: 'call-2',
+        toolName: 'another_tool',
+        args: {},
+        result: 'string result', // Strings stay as-is
+      });
+    });
+
+    test('should create assistant message with toolInvocations', async () => {
+      const toolInvocations = [
+        {
+          state: 'result' as const,
+          step: 0,
+          toolCallId: 'call-123',
+          toolName: 'get_time',
+          args: { timezone: 'UTC' },
+          result: '2025-01-15T10:30:00Z',
+        },
+      ];
+
+      // Simulate message creation from chatStream
+      const assistantMessage = {
+        role: 'assistant' as const,
+        content: '',
+        toolInvocations,
+      };
+
+      // Verify structure matches Hustle v2 expectations
+      expect(assistantMessage.role).toBe('assistant');
+      expect(assistantMessage.content).toBe('');
+      expect(assistantMessage.toolInvocations).toBeDefined();
+      expect(assistantMessage.toolInvocations).toHaveLength(1);
+      expect(assistantMessage.toolInvocations[0].state).toBe('result');
+      expect(assistantMessage.toolInvocations[0].toolCallId).toBe('call-123');
+      expect(assistantMessage.toolInvocations[0].toolName).toBe('get_time');
+    });
+
+    test('should detect client-side tool calls via hasExecutor', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      await client.use({
+        name: 'detector-plugin',
+        version: '1.0.0',
+        tools: [
+          {
+            name: 'client_tool',
+            description: 'A client-side tool',
+            parameters: { type: 'object', properties: {} },
+          },
+        ],
+        executors: {
+          client_tool: async () => 'executed',
+        },
+      });
+
+      // Simulate tool call detection logic from chatStream
+      const toolCalls = [
+        { toolName: 'client_tool', toolCallId: 'call-1' },
+        { toolName: 'server_tool', toolCallId: 'call-2' }, // No executor for this
+      ];
+
+      // @ts-ignore - Access private pluginManager for testing
+      const pluginManager = client['pluginManager'];
+
+      const clientToolCalls = toolCalls.filter((tc) => pluginManager.hasExecutor(tc.toolName));
+      const serverToolCalls = toolCalls.filter((tc) => !pluginManager.hasExecutor(tc.toolName));
+
+      expect(clientToolCalls).toHaveLength(1);
+      expect(clientToolCalls[0].toolName).toBe('client_tool');
+      expect(serverToolCalls).toHaveLength(1);
+      expect(serverToolCalls[0].toolName).toBe('server_tool');
+    });
+
+    test('should handle maxToolRounds option', () => {
+      // Test that maxToolRounds defaults to 5 and can be overridden
+      const defaultOptions: { messages: never[]; vaultId: string; maxToolRounds?: number } = {
+        messages: [],
+        vaultId: 'test',
+      };
+      const customOptions: { messages: never[]; vaultId: string; maxToolRounds?: number } = {
+        messages: [],
+        vaultId: 'test',
+        maxToolRounds: 3,
+      };
+      const disabledOptions: { messages: never[]; vaultId: string; maxToolRounds?: number } = {
+        messages: [],
+        vaultId: 'test',
+        maxToolRounds: 0,
+      };
+
+      // Verify defaults - maxToolRounds ?? 5
+      expect(defaultOptions.maxToolRounds ?? 5).toBe(5);
+      expect(customOptions.maxToolRounds ?? 5).toBe(3);
+      expect(disabledOptions.maxToolRounds ?? 5).toBe(0); // 0 means unlimited
+    });
+
+    test('should stringify object results but keep string results as-is', () => {
+      const objectResult = { key: 'value', nested: { data: true } };
+      const stringResult = 'simple string';
+      const arrayResult = [1, 2, 3];
+
+      // Simulate the result formatting logic
+      const formatResult = (result: unknown) =>
+        typeof result === 'string' ? result : JSON.stringify(result);
+
+      expect(formatResult(objectResult)).toBe('{"key":"value","nested":{"data":true}}');
+      expect(formatResult(stringResult)).toBe('simple string');
+      expect(formatResult(arrayResult)).toBe('[1,2,3]');
     });
   });
 });

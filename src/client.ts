@@ -3,11 +3,13 @@ import type {
   Attachment,
   ChatMessage,
   ChatOptions,
+  ClientToolDefinition,
   EmblemAuthProvider,
   HustleEvent,
   HustleEventListener,
   HustleEventType,
   HustleIncognitoClientOptions,
+  HustlePlugin,
   HustleRequest,
   Model,
   ProcessedResponse,
@@ -23,6 +25,7 @@ import type {
   ToolEndEvent,
   ToolStartEvent,
 } from './types';
+import { PluginManager } from './plugins';
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -161,6 +164,7 @@ export class HustleIncognitoClient {
   private readonly authProvider: EmblemAuthProvider;
   private eventListeners: Map<HustleEventType, Set<HustleEventListener>> = new Map();
   private summarizationState: SummarizationState = { thresholdReached: false };
+  private readonly pluginManager: PluginManager;
 
   /**
    * Creates an instance of HustleIncognitoClient.
@@ -222,6 +226,9 @@ export class HustleIncognitoClient {
         console.log(`[${new Date().toISOString()}] Using cookie from environment`);
       }
     }
+
+    // Initialize plugin manager
+    this.pluginManager = new PluginManager({ debug: this.debug });
   }
 
   /**
@@ -361,6 +368,12 @@ export class HustleIncognitoClient {
    * Returns a StreamWithResponse that can be iterated for chunks and also provides
    * access to the aggregated ProcessedResponse after streaming completes.
    *
+   * When plugins with client-side tools are registered and the server returns
+   * finishReason: "tool-calls", the SDK will automatically:
+   * 1. Execute client-side tools via plugin executors
+   * 2. Send tool results back as a new chat turn
+   * 3. Continue until completion or maxToolRounds is reached
+   *
    * @param options - Chat configuration including messages, vaultId, etc.
    * @param overrideFunc - Optional function to override the API call (useful for testing)
    * @returns A StreamWithResponse that yields StreamChunk objects and provides aggregated response.
@@ -392,38 +405,217 @@ export class HustleIncognitoClient {
       responseReject = reject;
     });
 
-    // Create the generator that yields chunks while accumulating them
     // Bind methods to preserve 'this' context inside the generator
     const emit = this.emit.bind(this);
     const chatStreamGenerator = this._chatStreamGenerator.bind(this);
     const updateSummarizationState = this.updateSummarizationState.bind(this);
+    const pluginManager = this.pluginManager;
+    const debug = this.debug;
+
+    // Configuration for tool execution loop
+    const maxToolRounds = options.maxToolRounds ?? 5;
+    const onToolCall = options.onToolCall;
+
     const generator = (async function* () {
       try {
         emit({ type: 'stream_start' });
-        for await (const chunk of chatStreamGenerator(options, overrideFunc)) {
-          processor.processChunk(chunk);
 
-          // Emit events for tool activity
-          if ('type' in chunk) {
-            if (chunk.type === 'tool_call' && chunk.value) {
-              emit({
-                type: 'tool_start',
-                toolCallId: chunk.value.toolCallId || '',
-                toolName: chunk.value.toolName || '',
-                args: chunk.value.args,
+        // Track messages across rounds for tool execution loop
+        let currentMessages = [...options.messages];
+        let round = 0;
+
+        while (round < maxToolRounds || maxToolRounds === 0) {
+          round++;
+          if (debug && round > 1) {
+            console.log(`[${new Date().toISOString()}] Client tool execution round ${round}`);
+          }
+
+          // Track pending client-side tool calls for this round
+          const pendingClientToolCalls: Array<{
+            toolCallId: string;
+            toolName: string;
+            args: Record<string, unknown>;
+          }> = [];
+          let finishReason: string | null = null;
+
+          // Stream the response for this round
+          const roundOptions = { ...options, messages: currentMessages };
+          for await (const chunk of chatStreamGenerator(roundOptions, overrideFunc)) {
+            processor.processChunk(chunk);
+
+            // Emit events for tool activity
+            if ('type' in chunk) {
+              if (chunk.type === 'tool_call' && chunk.value) {
+                const toolCall = chunk.value as {
+                  toolCallId?: string;
+                  toolName?: string;
+                  args?: Record<string, unknown>;
+                };
+
+                emit({
+                  type: 'tool_start',
+                  toolCallId: toolCall.toolCallId || '',
+                  toolName: toolCall.toolName || '',
+                  args: toolCall.args,
+                });
+
+                // Check if this is a client-side tool (we have an executor)
+                if (toolCall.toolName && pluginManager.hasExecutor(toolCall.toolName)) {
+                  pendingClientToolCalls.push({
+                    toolCallId: toolCall.toolCallId || '',
+                    toolName: toolCall.toolName,
+                    args: toolCall.args || {},
+                  });
+                }
+              } else if (chunk.type === 'tool_result' && chunk.value) {
+                emit({
+                  type: 'tool_end',
+                  toolCallId: chunk.value.toolCallId || '',
+                  toolName: chunk.value.toolName,
+                  result: chunk.value.result,
+                });
+              } else if (chunk.type === 'finish' && chunk.value) {
+                finishReason = (chunk.value as { reason?: string }).reason || 'stop';
+              }
+            }
+
+            yield chunk;
+          }
+
+          // Check if we should execute client-side tools
+          const shouldExecuteClientTools =
+            pendingClientToolCalls.length > 0 &&
+            (finishReason === 'tool-calls' || finishReason === 'tool_calls');
+
+          if (!shouldExecuteClientTools) {
+            // No more client tools to execute, we're done
+            break;
+          }
+
+          if (debug) {
+            console.log(
+              `[${new Date().toISOString()}] Executing ${pendingClientToolCalls.length} client-side tools`
+            );
+          }
+
+          // Execute client-side tools and collect results
+          const toolResults: Array<{
+            toolCallId: string;
+            toolName: string;
+            result: unknown;
+          }> = [];
+
+          for (const toolCall of pendingClientToolCalls) {
+            try {
+              // Execute via callback or plugin manager
+              const result = onToolCall
+                ? await onToolCall({
+                    toolCallId: toolCall.toolCallId,
+                    toolName: toolCall.toolName,
+                    args: toolCall.args,
+                  })
+                : await pluginManager.executeClientTool({
+                    toolCallId: toolCall.toolCallId,
+                    toolName: toolCall.toolName,
+                    args: toolCall.args,
+                  });
+
+              toolResults.push({
+                toolCallId: toolCall.toolCallId,
+                toolName: toolCall.toolName,
+                result,
               });
-            } else if (chunk.type === 'tool_result' && chunk.value) {
+
+              // Yield tool_result chunk for visibility
+              const toolResultChunk = {
+                type: 'tool_result' as const,
+                value: {
+                  toolCallId: toolCall.toolCallId,
+                  toolName: toolCall.toolName,
+                  result,
+                  // Add backward-compatible aliases
+                  id: toolCall.toolCallId,
+                  name: toolCall.toolName,
+                },
+              };
+              processor.processChunk(toolResultChunk);
+              yield toolResultChunk;
+
+              // Emit tool_end event
               emit({
                 type: 'tool_end',
-                toolCallId: chunk.value.toolCallId || '',
-                toolName: chunk.value.toolName,
-                result: chunk.value.result,
+                toolCallId: toolCall.toolCallId,
+                toolName: toolCall.toolName,
+                result,
               });
+
+              if (debug) {
+                console.log(
+                  `[${new Date().toISOString()}] Client tool ${toolCall.toolName} executed successfully`
+                );
+              }
+            } catch (error) {
+              if (debug) {
+                console.error(
+                  `[${new Date().toISOString()}] Client tool ${toolCall.toolName} failed:`,
+                  error
+                );
+              }
+              // Still add the error result so the model knows what happened
+              const errorResult = {
+                error: error instanceof Error ? error.message : String(error),
+              };
+              toolResults.push({
+                toolCallId: toolCall.toolCallId,
+                toolName: toolCall.toolName,
+                result: errorResult,
+              });
+
+              const errorChunk = {
+                type: 'tool_result' as const,
+                value: {
+                  toolCallId: toolCall.toolCallId,
+                  toolName: toolCall.toolName,
+                  result: errorResult,
+                  id: toolCall.toolCallId,
+                  name: toolCall.toolName,
+                },
+              };
+              processor.processChunk(errorChunk);
+              yield errorChunk;
             }
           }
 
-          yield chunk;
+          // Append tool results to messages for next round
+          // Format follows Hustle v2 / AI SDK UI pattern with toolInvocations
+          const toolInvocations = toolResults.map((tr, idx) => ({
+            state: 'result' as const,
+            step: idx,
+            toolCallId: tr.toolCallId,
+            toolName: tr.toolName,
+            args: pendingClientToolCalls.find((tc) => tc.toolCallId === tr.toolCallId)?.args || {},
+            result: typeof tr.result === 'string' ? tr.result : JSON.stringify(tr.result),
+          }));
+
+          currentMessages = [
+            ...currentMessages,
+            // Assistant message with toolInvocations (Hustle v2 format)
+            {
+              role: 'assistant' as const,
+              content: '',
+              toolInvocations,
+            },
+          ];
+
+          if (debug) {
+            console.log(
+              `[${new Date().toISOString()}] Sending tool results in new turn (${toolResults.length} results)`
+            );
+          }
+
+          // Continue to next round (loop will make new request with updated messages)
         }
+
         const response = processor.getResponse();
 
         // Update summarization state from pathInfo
@@ -1046,6 +1238,9 @@ export class HustleIncognitoClient {
       );
     }
 
+    // Get client tools from registered plugins
+    const clientTools = this.pluginManager.getClientToolDefinitions();
+
     return {
       id: `chat-${options.vaultId}`,
       messages: transformedMessages,
@@ -1063,6 +1258,8 @@ export class HustleIncognitoClient {
       currentPath: options.currentPath || null,
       attachments: options.attachments || [],
       selectedToolCategories: options.selectedToolCategories || [],
+      // Include client-side tool definitions from plugins
+      clientTools: clientTools.length > 0 ? clientTools : undefined,
       trimIndex,
       summary,
       summaryEndIndex,
@@ -1188,6 +1385,82 @@ export class HustleIncognitoClient {
     if (listeners) {
       listeners.delete(listener);
     }
+  }
+
+  // ==========================================================================
+  // Plugin System
+  // ==========================================================================
+
+  /**
+   * Register a plugin to extend the client with client-side tools.
+   *
+   * Plugins can provide:
+   * - Tool definitions (sent to server on each request)
+   * - Tool executors (run client-side when server calls the tool)
+   * - Lifecycle hooks (beforeRequest, afterResponse)
+   *
+   * @param plugin - The plugin to register
+   * @returns The client instance for chaining
+   *
+   * @example
+   * ```typescript
+   * client.use({
+   *   name: 'time-plugin',
+   *   version: '1.0.0',
+   *   tools: [{
+   *     name: 'get_time',
+   *     description: 'Get the current time',
+   *     parameters: { type: 'object', properties: {} }
+   *   }],
+   *   executors: {
+   *     get_time: async () => new Date().toISOString()
+   *   }
+   * });
+   * ```
+   */
+  async use(plugin: HustlePlugin): Promise<this> {
+    await this.pluginManager.register(plugin);
+    return this;
+  }
+
+  /**
+   * Unregister a plugin by name.
+   *
+   * @param pluginName - The name of the plugin to unregister
+   * @returns The client instance for chaining
+   */
+  async unuse(pluginName: string): Promise<this> {
+    await this.pluginManager.unregister(pluginName);
+    return this;
+  }
+
+  /**
+   * Check if a plugin is registered.
+   *
+   * @param pluginName - The name of the plugin to check
+   * @returns True if the plugin is registered
+   */
+  hasPlugin(pluginName: string): boolean {
+    return this.pluginManager.hasPlugin(pluginName);
+  }
+
+  /**
+   * Get all registered plugin names.
+   *
+   * @returns Array of registered plugin names
+   */
+  getPluginNames(): string[] {
+    return this.pluginManager.getPluginNames();
+  }
+
+  /**
+   * Get all client tool definitions from registered plugins.
+   * These are automatically included in chat requests.
+   *
+   * @returns Array of client tool definitions
+   */
+  getClientToolDefinitions(): ClientToolDefinition[] {
+    return this.pluginManager.getClientToolDefinitions();
   }
 
   /**

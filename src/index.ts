@@ -3,6 +3,9 @@
 // Export the client class
 export { HustleIncognitoClient } from './client.js';
 
+// Export plugin manager
+export { PluginManager } from './plugins.js';
+
 // Export types
 export {
   EmblemAuthProvider,
@@ -35,4 +38,10 @@ export {
   StreamEndEvent,
   // Summarization
   SummarizationState,
+  // Plugin types
+  HustlePlugin,
+  ClientToolDefinition,
+  ClientToolOptions,
+  ToolExecutor,
+  JSONSchemaProperty,
 } from './types.js';
