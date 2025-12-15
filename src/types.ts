@@ -161,7 +161,10 @@ export type EmblemAuthProvider = {
    * The session should have an authToken property.
    */
   sdk?: {
-    getSession: () => { authToken?: string | null | undefined; user?: { vaultId?: string } } | null | undefined;
+    getSession: () =>
+      | { authToken?: string | null | undefined; user?: { vaultId?: string } }
+      | null
+      | undefined;
     getVaultApiKey?: () => Promise<string>;
     getVaultInfo?: () => Promise<VaultInfo>;
   };
@@ -750,9 +753,7 @@ export interface ClientToolDefinition {
 /**
  * Function that executes a client-side tool.
  */
-export type ToolExecutor<T = Record<string, unknown>, R = unknown> = (
-  args: T
-) => R | Promise<R>;
+export type ToolExecutor<T = Record<string, unknown>, R = unknown> = (args: T) => R | Promise<R>;
 
 /**
  * Plugin interface for extending HustleIncognitoClient with client-side tools.

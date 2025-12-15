@@ -198,10 +198,7 @@ export class HustleIncognitoClient {
       return undefined;
     };
     this.vaultId = options.vaultId || getEnv('VAULT_ID');
-    this.baseUrl =
-      options.hustleApiUrl ||
-      getEnv('HUSTLE_API_URL') ||
-      API_ENDPOINTS.PRODUCTION;
+    this.baseUrl = options.hustleApiUrl || getEnv('HUSTLE_API_URL') || API_ENDPOINTS.PRODUCTION;
     this.userKey = options.userKey;
     this.userSecret = options.userSecret;
     const defaultFetch: FetchLike = options.fetch
@@ -219,9 +216,7 @@ export class HustleIncognitoClient {
         `[${new Date().toISOString()}] Emblem Vault Hustle Incognito SDK v${this.sdkVersion}`
       );
       console.log(`[${new Date().toISOString()}] Using API endpoint: ${this.baseUrl}`);
-      console.log(
-        `[${new Date().toISOString()}] Auth mode: ${hasApiKey ? 'API Key' : 'JWT/SDK'}`
-      );
+      console.log(`[${new Date().toISOString()}] Auth mode: ${hasApiKey ? 'API Key' : 'JWT/SDK'}`);
       if (this.cookie) {
         console.log(`[${new Date().toISOString()}] Using cookie from environment`);
       }
@@ -284,7 +279,9 @@ export class HustleIncognitoClient {
       return providedVaultId;
     }
 
-    throw new Error('vaultId is required. Provide it explicitly or use SDK auth with a valid session.');
+    throw new Error(
+      'vaultId is required. Provide it explicitly or use SDK auth with a valid session.'
+    );
   }
 
   /**
@@ -593,7 +590,7 @@ export class HustleIncognitoClient {
             step: idx,
             toolCallId: tr.toolCallId,
             toolName: tr.toolName,
-            args: pendingClientToolCalls.find((tc) => tc.toolCallId === tr.toolCallId)?.args || {},
+            args: pendingClientToolCalls.find(tc => tc.toolCallId === tr.toolCallId)?.args || {},
             result: typeof tr.result === 'string' ? tr.result : JSON.stringify(tr.result),
           }));
 
@@ -719,7 +716,8 @@ export class HustleIncognitoClient {
 
         case '2': // Metadata chunks (path_info, reasoning, intent_context, dev_tools_info, token_usage)
           try {
-            const data = Array.isArray(chunk.data) && chunk.data.length > 0 ? chunk.data[0] : chunk.data;
+            const data =
+              Array.isArray(chunk.data) && chunk.data.length > 0 ? chunk.data[0] : chunk.data;
             const innerType = data?.type;
 
             switch (innerType) {
@@ -1226,9 +1224,7 @@ export class HustleIncognitoClient {
       // Store it so subsequent requests use the same value
       this.summarizationState.trimIndex = trimIndex;
       if (this.debug) {
-        console.log(
-          `[${new Date().toISOString()}] Calculated and stored trimIndex: ${trimIndex}`
-        );
+        console.log(`[${new Date().toISOString()}] Calculated and stored trimIndex: ${trimIndex}`);
       }
     }
 
@@ -1470,7 +1466,7 @@ export class HustleIncognitoClient {
   private emit(event: HustleEvent): void {
     const listeners = this.eventListeners.get(event.type);
     if (listeners) {
-      listeners.forEach((listener) => {
+      listeners.forEach(listener => {
         try {
           listener(event);
         } catch (err) {
@@ -1539,9 +1535,7 @@ export class HustleIncognitoClient {
     if (pathInfo.summary !== undefined) {
       this.summarizationState.summary = pathInfo.summary;
       if (this.debug) {
-        console.log(
-          `[${new Date().toISOString()}] Received conversation summary from server`
-        );
+        console.log(`[${new Date().toISOString()}] Received conversation summary from server`);
       }
     }
 
@@ -1564,20 +1558,18 @@ export class HustleIncognitoClient {
    * @returns The index at which to trim messages
    * @private
    */
-  private calculateTrimIndex(
-    messages: ChatMessage[],
-    keepLastUserMessages: number = 1
-  ): number {
+  private calculateTrimIndex(messages: ChatMessage[], keepLastUserMessages: number = 1): number {
     // Filter out system messages for counting
     const nonSystemMessages = messages.filter(msg => msg.role !== 'system');
     const userIndices = nonSystemMessages
-      .map((msg, idx) => msg.role === 'user' ? idx : -1)
+      .map((msg, idx) => (msg.role === 'user' ? idx : -1))
       .filter(idx => idx !== -1);
 
     // Keep last N user messages and all messages after them
-    const keepFromIndex = userIndices.length > keepLastUserMessages
-      ? userIndices[userIndices.length - keepLastUserMessages]
-      : 0;
+    const keepFromIndex =
+      userIndices.length > keepLastUserMessages
+        ? userIndices[userIndices.length - keepLastUserMessages]
+        : 0;
 
     // Find the actual index in the full messages array
     let nonSystemCount = 0;
@@ -1597,7 +1589,7 @@ export class HustleIncognitoClient {
     if (this.debug) {
       console.log(
         `[${new Date().toISOString()}] Calculated trimIndex: ${calculatedTrimIndex} ` +
-        `(keeping last ${keepLastUserMessages} user messages from ${messages.length} total)`
+          `(keeping last ${keepLastUserMessages} user messages from ${messages.length} total)`
       );
     }
 

@@ -52,7 +52,7 @@ function validatePlugin(plugin: HustlePlugin): void {
 
   // Validate executors reference valid tools
   if (plugin.executors && plugin.tools) {
-    const toolNames = new Set(plugin.tools.map((t) => t.name));
+    const toolNames = new Set(plugin.tools.map(t => t.name));
     for (const executorName of Object.keys(plugin.executors)) {
       if (!toolNames.has(executorName)) {
         throw new Error(
@@ -134,7 +134,7 @@ export class PluginManager {
     if (this.debug) {
       console.log(`[PluginManager] Registered plugin: ${plugin.name}@${plugin.version}`);
       if (plugin.tools?.length) {
-        console.log(`  Tools: ${plugin.tools.map((t) => t.name).join(', ')}`);
+        console.log(`  Tools: ${plugin.tools.map(t => t.name).join(', ')}`);
       }
     }
   }
