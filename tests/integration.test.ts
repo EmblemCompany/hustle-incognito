@@ -649,7 +649,7 @@ describe.skipIf(shouldSkip)('Client-Side Tool Execution', () => {
     expect(textContent.includes('42')).toBe(true);
   }, 120000);
 
-  test.only('should respect maxToolRounds limit', async () => {
+  test('should respect maxToolRounds limit', async () => {
     let executionCount = 0;
 
     // Register a tool that always wants to be called again
