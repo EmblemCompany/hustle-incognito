@@ -71,6 +71,9 @@ async function main() {
     // Store pending attachments for the next message
     let pendingAttachments = [];
     
+    // Store intent context from last response for auto-tools mode persistence
+    let lastIntentContext = null;
+    
     // Initialize the client
     let client = new HustleIncognitoClient({
       apiKey: settings.apiKey,
@@ -139,6 +142,9 @@ async function main() {
         // Add selected tools if any
         if (settings.selectedTools.length > 0) {
           streamOptions.selectedToolCategories = settings.selectedTools;
+        } else if (lastIntentContext) {
+          // Auto-tools mode: pass previous intent context for continuity
+          streamOptions.intentContext = lastIntentContext;
         }
 
         // Add pending attachments if any
@@ -151,7 +157,9 @@ async function main() {
           pendingAttachments = [];
         }
 
-        for await (const chunk of client.chatStream(streamOptions)) {
+        const stream = client.chatStream(streamOptions);
+        
+        for await (const chunk of stream) {
           if ('type' in chunk) {
             switch (chunk.type) {
               case 'text':
@@ -163,10 +171,21 @@ async function main() {
                 fullText += chunk.value;
                 break;
 
+              case 'intent_context':
+                if (chunk.value?.intentContext) {
+                  lastIntentContext = chunk.value.intentContext;
+                  if (settings.debug) {
+                    console.log('[DEBUG] Captured intent context:', 
+                      `activeIntent="${lastIntentContext.activeIntent || 'general'}", ` +
+                      `categories=[${lastIntentContext.categories?.join(', ') || 'none'}]`);
+                  }
+                }
+                break;
+
               case 'tool_call':
                 if (!firstChunkReceived) {
                   stopSpinner();
-                  firstChunkReceived = true;
+                  firstChunkReceived = true; 
                 }
                 toolCalls.push(chunk.value);
                 break;
@@ -215,7 +234,7 @@ async function main() {
       console.log('  /tools      - Manage tool categories');
       console.log('  /tools add <id> - Add a tool category');
       console.log('  /tools remove <id> - Remove a tool category');
-      console.log('  /tools clear - Use all tools (no filter)');
+      console.log('  /tools clear - Enable auto-tools mode (API selects)');
       console.log('  /image <path> - Upload an image file for the next message');
       console.log('  /attachments  - Show pending attachments');
       console.log('  /clear-attachments - Clear all pending attachments');
@@ -236,8 +255,11 @@ async function main() {
       console.log(`  Selected Tools: ${
         settings.selectedTools.length > 0
           ? settings.selectedTools.join(', ')
-          : 'All tools (no filter)'
+          : 'Auto-tools mode (API selects based on intent)'
       }`);
+      if (settings.selectedTools.length === 0 && lastIntentContext) {
+        console.log(`  Intent Context: Active (${lastIntentContext.activeIntent || 'general'})`);
+      }
       console.log(`  Pending Attachments: ${pendingAttachments.length > 0
         ? pendingAttachments.length + ' file(s)'
         : 'None'
@@ -289,7 +311,7 @@ async function main() {
         console.log('\nCurrently selected:', 
           settings.selectedTools.length > 0 
             ? settings.selectedTools.join(', ') 
-            : 'All tools (no filter)');
+            : 'Auto-tools mode (API selects based on intent)');
         
         console.log('\nCommands:');
         console.log('  /tools add <id>     - Add a tool category');
@@ -354,7 +376,8 @@ async function main() {
 
       if (command === '/clear') {
         messages.length = 0;
-        console.log('Conversation history cleared.');
+        lastIntentContext = null;
+        console.log('Conversation history and intent context cleared.');
         return true;
       }
 
@@ -421,13 +444,14 @@ async function main() {
         
         if (subCommand === 'clear') {
           settings.selectedTools = [];
-          console.log('Tool filter cleared. All tools are now available.');
+          console.log('Tool filter cleared. Auto-tools mode enabled (API selects based on intent).');
           return true;
         }
         
         if (subCommand === 'add' && toolId) {
           if (!settings.selectedTools.includes(toolId)) {
             settings.selectedTools.push(toolId);
+            lastIntentContext = null; // Clear auto-tools context when switching to manual
             console.log(`Added tool category: ${toolId}`);
             console.log('Current selection:', settings.selectedTools.join(', '));
           } else {
@@ -444,7 +468,7 @@ async function main() {
             console.log('Current selection:', 
               settings.selectedTools.length > 0 
                 ? settings.selectedTools.join(', ')
-                : 'All tools (no filter)');
+                : 'Auto-tools mode (API selects based on intent)');
           } else {
             console.log(`Tool category ${toolId} is not in selection.`);
           }
@@ -464,7 +488,7 @@ async function main() {
           console.log('Current selection:', 
             settings.selectedTools.length > 0 
               ? settings.selectedTools.join(', ')
-              : 'All tools (no filter)');
+              : 'Auto-tools mode (API selects based on intent)');
           return true;
         }
         
@@ -706,6 +730,9 @@ async function main() {
             // Add selected tools if any
             if (settings.selectedTools.length > 0) {
               chatOptions.selectedToolCategories = settings.selectedTools;
+            } else if (lastIntentContext) {
+              // Auto-tools mode: pass previous intent context for continuity
+              chatOptions.intentContext = lastIntentContext;
             }
 
             // Add attachments if any
@@ -718,6 +745,17 @@ async function main() {
               currentMessages,
               chatOptions
             );
+
+            // Capture intent context from response (for auto-tools mode)
+            if (response.intentContext?.intentContext) {
+              lastIntentContext = response.intentContext.intentContext;
+              console.log("🚀 ~ chat ~ lastIntentContext:", lastIntentContext)
+              if (settings.debug) {
+                console.log('[DEBUG] Captured intent context:', 
+                  `activeIntent="${lastIntentContext.activeIntent || 'general'}", ` +
+                  `categories=[${lastIntentContext.categories?.join(', ') || 'none'}]`);
+              }
+            }
             
             console.log(`\nAgent: ${response.content}`);
             

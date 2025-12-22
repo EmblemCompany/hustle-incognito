@@ -153,8 +153,30 @@ async function main() {
       return messages;
     }
 
+    // Track intent context per session (for auto-tools mode)
+    // In production, use proper session management (e.g., Redis, database)
+    const sessionIntentContexts = new Map();
+
     /**
      * Non-streaming chat endpoint handler
+     * 
+     * Supports auto-tools mode: when no selectedToolCategories are provided,
+     * the server automatically selects relevant tool categories based on the
+     * user's intent.
+     * 
+     * Intent Context Handling:
+     * - Response returns `intentContext` which is the INNER IntentContext object
+     *   (already extracted from IntentContextInfo wrapper)
+     * - Pass this same object back in subsequent requests to maintain context
+     * - Structure: { networks: string[], categories: string[], activeIntent: string, ... }
+     * 
+     * @example
+     * // First request
+     * POST /api/chat { message: "Show me SOL price" }
+     * // Response includes: { ..., intentContext: { networks: ["solana"], ... } }
+     * 
+     * // Follow-up request with context
+     * POST /api/chat { message: "What about ETH?", intentContext: <from previous response> }
      */
     async function handleChat(req, res) {
       try {
@@ -194,6 +216,9 @@ async function main() {
 
         if (body.selectedToolCategories) {
           chatOptions.selectedToolCategories = body.selectedToolCategories;
+        } else if (body.intentContext) {
+          // Auto-tools mode: pass intent context from previous turn
+          chatOptions.intentContext = body.intentContext;
         }
 
         if (body.attachments) {
@@ -205,6 +230,10 @@ async function main() {
         // Get response from the AI
         const response = await clientToUse.chat(messages, chatOptions);
 
+        // Extract intent context for auto-tools mode persistence
+        // The intentContext can be passed back in subsequent requests
+        const intentContext = response.intentContext?.intentContext || null;
+
         // Send response
         sendJSON(res, 200, {
           content: response.content,
@@ -212,7 +241,8 @@ async function main() {
           toolCalls: response.toolCalls || [],
           toolResults: response.toolResults || [],
           usage: response.usage,
-          pathInfo: response.pathInfo
+          pathInfo: response.pathInfo,
+          intentContext: intentContext  // Include for client to pass back
         });
 
         console.log(`[${new Date().toISOString()}] Chat request completed`);
@@ -224,6 +254,19 @@ async function main() {
 
     /**
      * Streaming chat endpoint handler (Server-Sent Events)
+     * 
+     * Intent Context Handling:
+     * - During stream, an `intent_context` event is emitted with the INNER IntentContext object
+     * - Store this and pass it back in the `intentContext` field of subsequent requests
+     * - The final `done` event also includes the intentContext for convenience
+     * 
+     * SSE Events:
+     * - text: { text: string } - Text chunk
+     * - intent_context: { intentContext: IntentContext } - Tool selection context
+     * - tool_call: { toolCallId, toolName, args } - Tool invocation
+     * - tool_result: { toolCallId, toolName, result } - Tool response
+     * - done: { full response including intentContext } - Stream complete
+     * - error: { error: string } - Error occurred
      */
     async function handleChatStream(req, res) {
       try {
@@ -265,6 +308,9 @@ async function main() {
 
         if (body.selectedToolCategories) {
           streamOptions.selectedToolCategories = body.selectedToolCategories;
+        } else if (body.intentContext) {
+          // Auto-tools mode: pass intent context from previous turn
+          streamOptions.intentContext = body.intentContext;
         }
 
         if (body.attachments) {
@@ -288,6 +334,7 @@ async function main() {
         let messageId = null;
         let usage = null;
         let pathInfo = null;
+        let intentContext = null;  // Track intent context for auto-tools mode
 
         // Stream the response
         for await (const chunk of clientToUse.chatStream(streamOptions)) {
@@ -297,6 +344,14 @@ async function main() {
                 fullText += chunk.value;
                 res.write(`event: text\n`);
                 res.write(`data: ${JSON.stringify({ text: chunk.value })}\n\n`);
+                break;
+
+              case 'intent_context':
+                // Capture intent context for auto-tools mode
+                // chunk.value = { type, intentContext: {...}, categories, confidence, ... }
+                intentContext = chunk.value?.intentContext || null;
+                res.write(`event: intent_context\n`);
+                res.write(`data: ${JSON.stringify({ intentContext })}\n\n`);
                 break;
 
               case 'tool_call':
@@ -333,7 +388,8 @@ async function main() {
                   messageId,
                   toolCalls,
                   toolResults,
-                  pathInfo
+                  pathInfo,
+                  intentContext  // Include for client to pass back in next request
                 })}\n\n`);
                 break;
             }

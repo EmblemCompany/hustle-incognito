@@ -11,6 +11,7 @@ import type {
   HustleIncognitoClientOptions,
   HustlePlugin,
   HustleRequest,
+  IntentContext,
   Model,
   ProcessedResponse,
   RawChunk,
@@ -1174,6 +1175,7 @@ export class HustleIncognitoClient {
     trimIndex?: number;
     summary?: string;
     summaryEndIndex?: number;
+    intentContext?: IntentContext;
   }): HustleRequest {
     // apiKey is optional when using JWT authentication (via Authorization header)
     const apiKey = options.userApiKey || this.apiKey;
@@ -1259,6 +1261,8 @@ export class HustleIncognitoClient {
       trimIndex,
       summary,
       summaryEndIndex,
+      // Pass intent context for auto-tools mode context persistence
+      intentContext: options.intentContext,
     };
   }
 
