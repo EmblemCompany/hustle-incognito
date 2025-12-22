@@ -904,6 +904,12 @@
           processChunks: true
         };
 
+        // Auto-tools mode: pass previous intent context for sticky tool selection
+        if (lastIntentContext) {
+          chatOptions.intentContext = lastIntentContext;
+          log('Passing intent context from previous turn');
+        }
+
         // Add model if selected
         if (settings.model) {
           chatOptions.model = settings.model;
@@ -945,9 +951,15 @@
           }
         }
 
-        // NEW: Access the aggregated ProcessedResponse after streaming
+        // Access the aggregated ProcessedResponse after streaming
         const processedResponse = await stream.response;
         log('ProcessedResponse: ' + JSON.stringify(processedResponse, null, 2));
+
+        // Capture intent context for auto-tools mode (sticky tool selection)
+        if (processedResponse.intentContext?.intentContext) {
+          lastIntentContext = processedResponse.intentContext.intentContext;
+          log('Captured intent context: ' + lastIntentContext.activeIntent);
+        }
 
         if (!fullContent) {
           messages[messages.length - 1].content = '(No response)';

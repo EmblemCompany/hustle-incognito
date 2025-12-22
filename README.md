@@ -361,6 +361,52 @@ const response = await client.chat([
 });
 ```
 
+#### Auto-Tools Mode (Default Behavior)
+
+When you **don't specify** `selectedToolCategories`, the API operates in **auto-tools mode**. In this mode, the API uses AI-driven intent classification to automatically select the most relevant tool categories based on the user's message.
+
+**Benefits of Auto-Tools Mode:**
+- **Simplified Integration**: No need to manually track or select tool categories
+- **Intelligent Selection**: API automatically chooses optimal tools based on user intent
+- **Reduced Latency**: Server-side optimizations for common query patterns
+
+```typescript
+// Auto-tools mode: API automatically selects appropriate tools
+const response = await client.chat([
+  { role: 'user', content: 'What are the trending meme coins?' }
+], { vaultId: 'my-vault' });
+// API will automatically use trading and analytics tools
+```
+
+##### Intent Context Persistence
+
+For multi-turn conversations in auto-tools mode, you should pass the `intentContext` from the previous response to maintain context continuity.
+
+**Important**: The response contains `intentContext` which is an `IntentContextInfo` wrapper object. You need to extract the inner `intentContext` property to pass to subsequent requests:
+
+```typescript
+// First message in conversation
+const response1 = await client.chat([
+  { role: 'user', content: 'Show me the top Solana meme coins' }
+], { vaultId: 'my-vault' });
+
+// Extract the INNER intentContext object (not the wrapper)
+const savedIntentContext = response1.intentContext?.intentContext;
+
+// Follow-up message with preserved context
+const response2 = await client.chat([
+  { role: 'user', content: 'Show me the top Solana meme coins' },
+  { role: 'assistant', content: response1.content },
+  { role: 'user', content: 'What about the second one? Is it safe to trade?' }
+], { 
+  vaultId: 'my-vault',
+  intentContext: savedIntentContext // Pass the inner IntentContext object
+});
+```
+
+**Note**: When using `selectedToolCategories` explicitly, intent context is not needed as you're manually controlling tool selection.
+```
+
 ### Multiple Tool Execution
 
 The API can execute multiple tools in a single conversation. For example, you can ask for trending tokens and a rugcheck in the same request:
