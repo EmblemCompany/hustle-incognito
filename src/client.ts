@@ -331,6 +331,7 @@ export class HustleIncognitoClient {
         slippageSettings: options.slippageSettings,
         safeMode: options.safeMode,
         selectedToolCategories: options.selectedToolCategories || [],
+        intentContext: options.intentContext,
       })) {
         if (this.debug)
           console.log(`[${new Date().toISOString()}] Raw chunk:`, JSON.stringify(chunk));
@@ -351,6 +352,7 @@ export class HustleIncognitoClient {
       processChunks: true,
       selectedToolCategories: options.selectedToolCategories || [],
       attachments: options.attachments || [],
+      intentContext: options.intentContext,
     });
 
     // Consume the stream to trigger processing (response promise resolves when stream completes)

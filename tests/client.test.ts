@@ -1,6 +1,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { HustleIncognitoClient } from '../src';
-import type { ProcessedResponse, StreamChunk, RawChunk } from '../src/types';
+import type { ProcessedResponse, StreamChunk, RawChunk, IntentContext } from '../src/types';
 
 // Mock Node.js modules at the top level
 vi.mock('node:fs', () => ({
@@ -1273,6 +1273,151 @@ describe('HustleIncognitoClient', () => {
 
       expect(result).toBe(client);
       expect(client.getPluginNames()).toEqual(['plugin-1', 'plugin-2']);
+    });
+  });
+
+  describe('intentContext support (auto-tools mode)', () => {
+    test('should include intentContext in prepareRequestBody when provided', () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      const mockIntentContext: IntentContext = {
+        networks: ['solana', 'ethereum'],
+        categories: ['defi', 'trading'],
+        activeIntent: 'swap tokens',
+        turnsSinceUpdate: 0,
+        lastConfidence: 0.95,
+      };
+
+      // @ts-ignore - Accessing private method for testing
+      const requestBody = client.prepareRequestBody({
+        vaultId: 'test-vault',
+        messages: [{ role: 'user', content: 'Swap 1 SOL for USDC' }],
+        intentContext: mockIntentContext,
+      });
+
+      expect(requestBody.intentContext).toBeDefined();
+      expect(requestBody.intentContext).toEqual(mockIntentContext);
+      expect(requestBody.intentContext?.networks).toContain('solana');
+      expect(requestBody.intentContext?.activeIntent).toBe('swap tokens');
+    });
+
+    test('should not include intentContext when not provided', () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      // @ts-ignore - Accessing private method for testing
+      const requestBody = client.prepareRequestBody({
+        vaultId: 'test-vault',
+        messages: [{ role: 'user', content: 'Hello' }],
+      });
+
+      expect(requestBody.intentContext).toBeUndefined();
+    });
+
+    test('should pass intentContext through chat() options', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      const mockIntentContext: IntentContext = {
+        networks: ['ethereum'],
+        categories: ['nft'],
+        activeIntent: 'browse NFTs',
+        turnsSinceUpdate: 1,
+        lastConfidence: 0.85,
+      };
+
+      let capturedIntentContext: IntentContext | undefined;
+
+      // Mock rawStream to capture the intentContext
+      // @ts-ignore - Mocking private method
+      client.rawStream = async function* (options: { intentContext?: IntentContext }) {
+        capturedIntentContext = options.intentContext;
+        yield { prefix: '0', data: 'Hello', raw: '0:Hello' };
+        yield { prefix: 'f', data: { messageId: 'msg123' }, raw: 'f:{"messageId":"msg123"}' };
+      };
+
+      await client.chat(
+        [{ role: 'user', content: 'Show me NFTs' }],
+        { vaultId: 'test-vault', intentContext: mockIntentContext }
+      );
+
+      expect(capturedIntentContext).toBeDefined();
+      expect(capturedIntentContext).toEqual(mockIntentContext);
+    });
+
+    test('should pass intentContext through chatStream() options', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      const mockIntentContext: IntentContext = {
+        networks: ['bsc'],
+        categories: ['memecoin'],
+        activeIntent: 'find memecoins',
+        turnsSinceUpdate: 2,
+        lastConfidence: 0.75,
+      };
+
+      let capturedIntentContext: IntentContext | undefined;
+
+      // Mock rawStream to capture the intentContext
+      // @ts-ignore - Mocking private method
+      client.rawStream = async function* (options: { intentContext?: IntentContext }) {
+        capturedIntentContext = options.intentContext;
+        yield { prefix: '0', data: 'Found memecoins', raw: '0:Found memecoins' };
+        yield { prefix: 'f', data: { messageId: 'msg456' }, raw: 'f:{"messageId":"msg456"}' };
+      };
+
+      // Consume the stream
+      for await (const _chunk of client.chatStream({
+        vaultId: 'test-vault',
+        messages: [{ role: 'user', content: 'Find memecoins on BSC' }],
+        processChunks: true,
+        intentContext: mockIntentContext,
+      })) {
+        // Just iterate
+      }
+
+      expect(capturedIntentContext).toBeDefined();
+      expect(capturedIntentContext).toEqual(mockIntentContext);
+    });
+
+    test('should extract intentContext from response for subsequent requests', async () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      const responseIntentContext = {
+        networks: ['polygon'],
+        categories: ['polymarket'],
+        activeIntent: 'betting',
+        turnsSinceUpdate: 0,
+        lastConfidence: 0.9,
+      };
+
+      const intentContextInfo = {
+        type: 'intent_context',
+        intentContext: responseIntentContext,
+        categories: ['polymarket'],
+        confidence: 0.9,
+        reasoning: 'User wants to bet on Polymarket',
+      };
+
+      // Mock rawStream to return intent_context in response
+      // @ts-ignore - Mocking private method
+      client.rawStream = async function* () {
+        yield { prefix: '2', data: [intentContextInfo], raw: '2:[...]' };
+        yield { prefix: '0', data: 'Here are the markets', raw: '0:Here are the markets' };
+        yield { prefix: 'f', data: { messageId: 'msg789' }, raw: 'f:{"messageId":"msg789"}' };
+      };
+
+      const response = await client.chat(
+        [{ role: 'user', content: 'Show me Polymarket events' }],
+        { vaultId: 'test-vault' }
+      ) as ProcessedResponse;
+
+      // Verify intentContext is in the response
+      expect(response.intentContext).toBeDefined();
+      expect(response.intentContext?.intentContext).toEqual(responseIntentContext);
+
+      // The intentContext.intentContext should be what we pass to subsequent requests
+      const contextForNextRequest = response.intentContext?.intentContext;
+      expect(contextForNextRequest?.networks).toContain('polygon');
+      expect(contextForNextRequest?.activeIntent).toBe('betting');
     });
   });
 
