@@ -282,6 +282,7 @@
     let messages = [];
     let uploadedAttachments = [];
     let availableModels = [];
+    let lastIntentContext = null; // For auto-tools mode context persistence
     let settings = {
       model: '',
       skipServerPrompt: false,
