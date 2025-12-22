@@ -26,9 +26,9 @@ export interface TokenUsage {
 /**
  * Intent context that persists across conversation turns in auto-tools mode.
  * Enables follow-up messages to maintain context (e.g., "buy that" knows which network you were on).
- * 
+ *
  * **This is the object you pass to subsequent requests** in the `intentContext` option.
- * 
+ *
  * @example
  * ```typescript
  * // Extract from response and pass to next request:
@@ -72,10 +72,10 @@ export interface ReasoningInfo {
 /**
  * Intent context detection information from the API.
  * Contains the persisted intent context and detection metadata.
- * 
+ *
  * **This is the wrapper object returned in responses** as `response.intentContext`.
  * To get the context to pass to subsequent requests, extract the inner `intentContext`:
- * 
+ *
  * @example
  * ```typescript
  * // response.intentContext is IntentContextInfo (this type)
