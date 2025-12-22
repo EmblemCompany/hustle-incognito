@@ -24,8 +24,17 @@ export interface TokenUsage {
 }
 
 /**
- * Intent context that persists across conversation turns.
+ * Intent context that persists across conversation turns in auto-tools mode.
  * Enables follow-up messages to maintain context (e.g., "buy that" knows which network you were on).
+ * 
+ * **This is the object you pass to subsequent requests** in the `intentContext` option.
+ * 
+ * @example
+ * ```typescript
+ * // Extract from response and pass to next request:
+ * const savedContext = response.intentContext?.intentContext;
+ * const nextResponse = await client.chat(messages, { intentContext: savedContext });
+ * ```
  */
 export interface IntentContext {
   /** Blockchain networks relevant to the current intent (e.g., ["solana", "ethereum"]) */
@@ -63,10 +72,20 @@ export interface ReasoningInfo {
 /**
  * Intent context detection information from the API.
  * Contains the persisted intent context and detection metadata.
+ * 
+ * **This is the wrapper object returned in responses** as `response.intentContext`.
+ * To get the context to pass to subsequent requests, extract the inner `intentContext`:
+ * 
+ * @example
+ * ```typescript
+ * // response.intentContext is IntentContextInfo (this type)
+ * // response.intentContext.intentContext is IntentContext (what you pass back)
+ * const contextToSave = response.intentContext?.intentContext;
+ * ```
  */
 export interface IntentContextInfo {
   type: 'intent_context';
-  /** The persisted intent context for this conversation */
+  /** The persisted intent context for this conversation - pass this to subsequent requests */
   intentContext: IntentContext;
   /** Tool categories that qualified based on intent */
   categories: string[];
@@ -246,6 +265,13 @@ export interface ChatOptions {
   summary?: string;
   /** Index where the previous summary ends */
   summaryEndIndex?: number;
+  /**
+   * Intent context from a previous response to maintain context in auto-tools mode.
+   * When selectedToolCategories is empty (auto-tools mode), pass the intentContext from
+   * the previous response to help the API maintain conversation context.
+   * @see {IntentContextInfo}
+   */
+  intentContext?: IntentContext;
 }
 
 /**
@@ -300,6 +326,13 @@ export interface StreamOptions {
    * Useful for custom handling or logging.
    */
   onToolCall?: (toolCall: ToolCall) => Promise<unknown>;
+  /**
+   * Intent context from a previous response to maintain context in auto-tools mode.
+   * When selectedToolCategories is empty (auto-tools mode), pass the intentContext from
+   * the previous response to help the API maintain conversation context.
+   * @see {IntentContextInfo}
+   */
+  intentContext?: IntentContext;
 }
 
 export interface RawStreamOptions {
@@ -329,6 +362,13 @@ export interface RawStreamOptions {
   summary?: string;
   /** Index where the previous summary ends */
   summaryEndIndex?: number;
+  /**
+   * Intent context from a previous response to maintain context in auto-tools mode.
+   * When selectedToolCategories is empty (auto-tools mode), pass the intentContext from
+   * the previous response to help the API maintain conversation context.
+   * @see {IntentContextInfo}
+   */
+  intentContext?: IntentContext;
 }
 
 /**
@@ -375,6 +415,13 @@ export interface HustleRequest {
   summary?: string;
   /** Index where the previous summary ends */
   summaryEndIndex?: number;
+  /**
+   * Intent context from a previous response to maintain context in auto-tools mode.
+   * When selectedToolCategories is empty (auto-tools mode), pass the intentContext from
+   * the previous response to help the API maintain conversation context.
+   * @see {IntentContextInfo}
+   */
+  intentContext?: IntentContext;
 }
 
 /**
