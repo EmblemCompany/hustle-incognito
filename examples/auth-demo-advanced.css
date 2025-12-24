@@ -1595,3 +1595,139 @@
         padding: 12px;
       }
     }
+
+    /* User Question Modal */
+    .user-question-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .user-question-content {
+      background: #1a1d24;
+      border: 1px solid #2d3139;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 480px;
+      width: 90%;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .user-question-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #4c9aff;
+      margin-bottom: 12px;
+    }
+
+    .user-question-text {
+      font-size: 16px;
+      color: #e6eef8;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .user-question-choices {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .user-question-choice {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #22262f;
+      border: 1px solid #2d3139;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .user-question-choice:hover {
+      background: #2a2f3a;
+      border-color: #4c9aff;
+    }
+
+    .user-question-choice input {
+      width: 18px;
+      height: 18px;
+      accent-color: #4c9aff;
+      cursor: pointer;
+    }
+
+    .user-question-choice input:checked + span {
+      color: #4c9aff;
+    }
+
+    .user-question-choice span {
+      font-size: 15px;
+      color: #e6eef8;
+    }
+
+    .user-question-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .user-question-actions .btn-primary,
+    .user-question-actions .btn-secondary {
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .user-question-actions .btn-primary {
+      background: #4c9aff;
+      color: #fff;
+    }
+
+    .user-question-actions .btn-primary:hover:not(:disabled) {
+      background: #3d8ae6;
+    }
+
+    .user-question-actions .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .user-question-actions .btn-secondary {
+      background: #2d3139;
+      color: #8892a4;
+    }
+
+    .user-question-actions .btn-secondary:hover {
+      background: #3a3f4a;
+      color: #e6eef8;
+    }

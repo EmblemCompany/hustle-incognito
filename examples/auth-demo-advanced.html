@@ -426,6 +426,24 @@
               : undefined
           }))
         };
+
+        // Serialize hooks if present
+        if (plugin.hooks) {
+          serialized.hooksCode = {};
+          if (plugin.hooks.onRegister) {
+            serialized.hooksCode.onRegister = plugin.hooks.onRegister.toString();
+          }
+          if (plugin.hooks.beforeRequest) {
+            serialized.hooksCode.beforeRequest = plugin.hooks.beforeRequest.toString();
+          }
+          if (plugin.hooks.afterResponse) {
+            serialized.hooksCode.afterResponse = plugin.hooks.afterResponse.toString();
+          }
+          if (plugin.hooks.onUnregister) {
+            serialized.hooksCode.onUnregister = plugin.hooks.onUnregister.toString();
+          }
+        }
+
         return serialized;
       },
 
@@ -445,6 +463,40 @@
             }
           }
         }
+
+        // Hydrate hooks if present
+        const hooks = {};
+        if (stored.hooksCode) {
+          if (stored.hooksCode.onRegister) {
+            try {
+              hooks.onRegister = eval('(' + stored.hooksCode.onRegister + ')');
+            } catch (e) {
+              console.error('[Plugin] Failed to hydrate onRegister hook', e);
+            }
+          }
+          if (stored.hooksCode.beforeRequest) {
+            try {
+              hooks.beforeRequest = eval('(' + stored.hooksCode.beforeRequest + ')');
+            } catch (e) {
+              console.error('[Plugin] Failed to hydrate beforeRequest hook', e);
+            }
+          }
+          if (stored.hooksCode.afterResponse) {
+            try {
+              hooks.afterResponse = eval('(' + stored.hooksCode.afterResponse + ')');
+            } catch (e) {
+              console.error('[Plugin] Failed to hydrate afterResponse hook', e);
+            }
+          }
+          if (stored.hooksCode.onUnregister) {
+            try {
+              hooks.onUnregister = eval('(' + stored.hooksCode.onUnregister + ')');
+            } catch (e) {
+              console.error('[Plugin] Failed to hydrate onUnregister hook', e);
+            }
+          }
+        }
+
         return {
           name: stored.name,
           version: stored.version,
@@ -454,7 +506,8 @@
             description: t.description,
             parameters: t.parameters
           })),
-          executors: Object.keys(executors).length > 0 ? executors : undefined
+          executors: Object.keys(executors).length > 0 ? executors : undefined,
+          hooks: Object.keys(hooks).length > 0 ? hooks : undefined
         };
       }
     };
@@ -605,6 +658,218 @@
               default:
                 return { error: 'Unknown random type' };
             }
+          }
+        }
+      },
+      {
+        name: 'pii-protection-plugin',
+        version: '1.0.0',
+        description: 'Tokenizes PII before sending to AI, restores in response',
+        tools: [], // No tools - hooks only
+        executors: {},
+        hooks: {
+          beforeRequest: (request) => {
+            const tokenMap = new Map();
+            let tokenCounter = 0;
+
+            const tokenize = (text) => {
+              if (typeof text !== 'string') return text;
+              return text
+                // SSNs: 123-45-6789
+                .replace(/\b\d{3}-\d{2}-\d{4}\b/g, (match) => {
+                  const token = `{{SSN_${++tokenCounter}}}`;
+                  tokenMap.set(token, match);
+                  return token;
+                })
+                // Email addresses
+                .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/gi, (match) => {
+                  const token = `{{EMAIL_${++tokenCounter}}}`;
+                  tokenMap.set(token, match);
+                  return token;
+                })
+                // Phone numbers
+                .replace(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g, (match) => {
+                  const token = `{{PHONE_${++tokenCounter}}}`;
+                  tokenMap.set(token, match);
+                  return token;
+                })
+                // Credit card numbers
+                .replace(/\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g, (match) => {
+                  const token = `{{CARD_${++tokenCounter}}}`;
+                  tokenMap.set(token, match);
+                  return token;
+                });
+            };
+
+            const anonymizedMessages = request.messages.map((msg) => ({
+              ...msg,
+              content: tokenize(msg.content),
+            }));
+
+            // Store for response phase
+            const maps = window.__piiTokenMaps || new Map();
+            maps.set(request.id, tokenMap);
+            window.__piiTokenMaps = maps;
+
+            if (tokenMap.size > 0) {
+              console.log(`[PII] Tokenized ${tokenMap.size} sensitive values`);
+            }
+
+            return { ...request, messages: anonymizedMessages };
+          },
+          afterResponse: (response) => {
+            const maps = window.__piiTokenMaps;
+            if (!maps) return;
+
+            let restored = response.content;
+            let restoredCount = 0;
+
+            for (const [requestId, tokenMap] of maps) {
+              for (const [token, original] of tokenMap) {
+                if (restored.includes(token)) {
+                  restored = restored.replaceAll(token, original);
+                  restoredCount++;
+                }
+              }
+              maps.delete(requestId);
+            }
+
+            if (restoredCount > 0) {
+              response.content = restored;
+              console.log(`[PII] Restored ${restoredCount} sensitive values`);
+            }
+          }
+        }
+      },
+      {
+        name: 'user-question-plugin',
+        version: '1.0.0',
+        description: 'Ask the user multiple choice questions via modal',
+        tools: [
+          {
+            name: 'ask_user',
+            description: 'Ask the user a multiple choice question and wait for their response. Use this when you need user input to proceed.',
+            parameters: {
+              type: 'object',
+              properties: {
+                question: {
+                  type: 'string',
+                  description: 'The question to ask the user'
+                },
+                choices: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Array of choices for the user to pick from (2-6 options)'
+                },
+                allowMultiple: {
+                  type: 'boolean',
+                  description: 'If true, user can select multiple choices. Default: false'
+                }
+              },
+              required: ['question', 'choices']
+            }
+          }
+        ],
+        executors: {
+          ask_user: async (args) => {
+            const { question, choices, allowMultiple = false } = args;
+
+            // Self-contained HTML escape helper
+            const esc = (text) => {
+              const div = document.createElement('div');
+              div.textContent = text;
+              return div.innerHTML;
+            };
+
+            if (!choices || choices.length < 2) {
+              return { error: 'At least 2 choices are required' };
+            }
+            if (choices.length > 6) {
+              return { error: 'Maximum 6 choices allowed' };
+            }
+
+            // Create and show modal
+            return new Promise((resolve) => {
+              const modal = document.createElement('div');
+              modal.className = 'user-question-modal';
+              modal.innerHTML = `
+                <div class="user-question-content">
+                  <h3 class="user-question-title">Question from AI</h3>
+                  <p class="user-question-text">${esc(question)}</p>
+                  <div class="user-question-choices">
+                    ${choices.map((choice, i) => `
+                      <label class="user-question-choice">
+                        <input type="${allowMultiple ? 'checkbox' : 'radio'}"
+                               name="user-choice"
+                               value="${i}">
+                        <span>${esc(choice)}</span>
+                      </label>
+                    `).join('')}
+                  </div>
+                  <div class="user-question-actions">
+                    <button class="btn-secondary user-question-cancel">Cancel</button>
+                    <button class="btn-primary user-question-submit" disabled>Submit</button>
+                  </div>
+                </div>
+              `;
+
+              document.body.appendChild(modal);
+
+              const inputs = modal.querySelectorAll('input[name="user-choice"]');
+              const submitBtn = modal.querySelector('.user-question-submit');
+              const cancelBtn = modal.querySelector('.user-question-cancel');
+
+              // Enable submit when selection made
+              inputs.forEach(input => {
+                input.addEventListener('change', () => {
+                  const hasSelection = Array.from(inputs).some(i => i.checked);
+                  submitBtn.disabled = !hasSelection;
+                });
+              });
+
+              // Handle submit
+              submitBtn.addEventListener('click', () => {
+                const selected = Array.from(inputs)
+                  .filter(i => i.checked)
+                  .map(i => choices[parseInt(i.value)]);
+
+                modal.remove();
+
+                resolve({
+                  question,
+                  selectedChoices: selected,
+                  selectedIndices: Array.from(inputs)
+                    .map((i, idx) => i.checked ? idx : -1)
+                    .filter(idx => idx !== -1),
+                  allowMultiple,
+                  answered: true
+                });
+              });
+
+              // Handle cancel
+              cancelBtn.addEventListener('click', () => {
+                modal.remove();
+                resolve({
+                  question,
+                  selectedChoices: [],
+                  answered: false,
+                  cancelled: true
+                });
+              });
+
+              // Close on backdrop click
+              modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                  modal.remove();
+                  resolve({
+                    question,
+                    selectedChoices: [],
+                    answered: false,
+                    cancelled: true
+                  });
+                }
+              });
+            });
           }
         }
       }
@@ -1066,6 +1331,11 @@
           const parsed = JSON.parse(saved);
           settings = { ...settings, ...parsed };
           log('Loaded settings from storage');
+
+          // Sync UI with loaded settings
+          if (settings.model) modelSelect.value = settings.model;
+          skipServerPromptToggle.checked = settings.skipServerPrompt;
+          if (settings.systemPrompt) systemPromptModal.value = settings.systemPrompt;
           updateModelLabel();
         } catch (e) {
           log('Failed to load settings: ' + e.message);
@@ -1100,11 +1370,11 @@
           if (data.messages && data.messages.length > 0) {
             messages = data.messages;
 
-            // Restore settings if available
+            // Restore settings if available (preserve global settings if chat has none)
             if (data.settings) {
-              settings.model = data.settings.model || '';
-              settings.skipServerPrompt = data.settings.skipServerPrompt || false;
-              settings.systemPrompt = data.settings.systemPrompt || '';
+              if (data.settings.model) settings.model = data.settings.model;
+              if (data.settings.skipServerPrompt !== undefined) settings.skipServerPrompt = data.settings.skipServerPrompt;
+              if (data.settings.systemPrompt) settings.systemPrompt = data.settings.systemPrompt;
 
               // Update UI to reflect loaded settings
               modelSelect.value = settings.model;
@@ -1167,11 +1437,11 @@
         // Persist the selection
         localStorage.setItem(STORAGE_KEY_CURRENT, name);
 
-        // Restore settings if available
+        // Restore settings if available (preserve global settings if chat has none)
         if (chats[name].settings) {
-          settings.model = chats[name].settings.model || '';
-          settings.skipServerPrompt = chats[name].settings.skipServerPrompt || false;
-          settings.systemPrompt = chats[name].settings.systemPrompt || '';
+          if (chats[name].settings.model) settings.model = chats[name].settings.model;
+          if (chats[name].settings.skipServerPrompt !== undefined) settings.skipServerPrompt = chats[name].settings.skipServerPrompt;
+          if (chats[name].settings.systemPrompt) settings.systemPrompt = chats[name].settings.systemPrompt;
 
           // Update UI to reflect loaded settings
           modelSelect.value = settings.model;
@@ -1418,11 +1688,11 @@
       messages = [...shareData.messages];
       localStorage.setItem(STORAGE_KEY_CURRENT, chatName);
 
-      // Apply settings if present
+      // Apply settings if present (preserve global settings if shared chat has none)
       if (shareData.settings) {
-        settings.model = shareData.settings.model || '';
-        settings.skipServerPrompt = shareData.settings.skipServerPrompt || false;
-        settings.systemPrompt = shareData.settings.systemPrompt || '';
+        if (shareData.settings.model) settings.model = shareData.settings.model;
+        if (shareData.settings.skipServerPrompt !== undefined) settings.skipServerPrompt = shareData.settings.skipServerPrompt;
+        if (shareData.settings.systemPrompt) settings.systemPrompt = shareData.settings.systemPrompt;
       }
 
       log('Shared chat loaded and saved as: ' + chatName);
@@ -1893,6 +2163,16 @@
       });
       hustleClient.on('stream_end', (event) => {
         showToolSummary(event.response);
+
+        // Update messages array with hook-processed content and re-render
+        // (e.g., PII plugin restores tokens in afterResponse hook)
+        if (event.response?.content && messages.length > 0) {
+          const lastMsg = messages[messages.length - 1];
+          if (lastMsg.role === 'assistant' && lastMsg.content !== event.response.content) {
+            lastMsg.content = event.response.content;
+            renderMessages();
+          }
+        }
       });
 
       // Sync plugins from localStorage with the client
