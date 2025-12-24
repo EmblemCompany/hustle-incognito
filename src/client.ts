@@ -618,6 +618,9 @@ export class HustleIncognitoClient {
 
         const response = processor.getResponse();
 
+        // Run afterResponse hooks from all plugins
+        await pluginManager.runAfterResponse(response);
+
         // Update summarization state from pathInfo
         if (response.pathInfo) {
           updateSummarizationState(response.pathInfo);
@@ -783,7 +786,11 @@ export class HustleIncognitoClient {
       return;
     }
 
-    const requestBody = this.prepareRequestBody(resolvedOptions);
+    let requestBody = this.prepareRequestBody(resolvedOptions);
+
+    // Run beforeRequest hooks from all plugins (can modify the request)
+    requestBody = await this.pluginManager.runBeforeRequest(requestBody);
+
     if (this.debug) {
       console.log(
         `[${new Date().toISOString()}] Prepared request body:`,

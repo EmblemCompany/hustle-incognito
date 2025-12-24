@@ -487,6 +487,8 @@ for await (const chunk of client.chatStream({
 
 The SDK includes a powerful plugin system that allows you to extend the AI agent with custom client-side tools. Unlike server-side tools, these execute directly in your application.
 
+> **📖 Full Guide**: See [PLUGIN_GUIDE.md](./PLUGIN_GUIDE.md) for comprehensive documentation on building plugins, including lifecycle hooks, best practices, and complete examples.
+
 ### Registering Plugins
 
 Use the `use()` method to register plugins:
@@ -614,7 +616,12 @@ for await (const chunk of client.chatStream({
 
 ### Lifecycle Hooks
 
-Plugins can hook into the request/response lifecycle:
+Plugins can hook into the request/response lifecycle. All hooks are fully functional:
+
+- **`onRegister`** - Called when plugin is registered via `client.use()`
+- **`beforeRequest`** - Called before each request; can modify the request
+- **`afterResponse`** - Called after receiving complete response
+- **`onUnregister`** - Called when plugin is removed via `client.unuse()`
 
 ```typescript
 await client.use({
@@ -624,17 +631,22 @@ await client.use({
     onRegister: () => console.log('Plugin registered'),
     beforeRequest: (req) => {
       console.log('Sending request:', req.messages.length, 'messages');
-      return req; // Can modify the request
+      // Can modify and return the request
+      return {
+        ...req,
+        messages: [{ role: 'system', content: 'Extra context' }, ...req.messages],
+      };
     },
     afterResponse: (res) => {
       console.log('Received response:', res.content?.slice(0, 50));
+      console.log('Tools used:', res.toolCalls.map(t => t.toolName));
     },
-    onError: (error) => {
-      console.error('Error occurred:', error.message);
-    }
+    onUnregister: () => console.log('Plugin removed'),
   }
 });
 ```
+
+> **See [PLUGIN_GUIDE.md](./PLUGIN_GUIDE.md)** for detailed hook documentation, including what data is available in `HustleRequest` and `ProcessedResponse`.
 
 ### Multiple Plugins
 

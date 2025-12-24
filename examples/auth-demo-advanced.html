@@ -99,6 +99,26 @@
             <p class="setting-description">Provide instructions for how the AI should behave</p>
             <textarea id="systemPromptModal" class="setting-textarea" placeholder="You are a helpful assistant..."></textarea>
           </div>
+
+          <!-- Divider -->
+          <div class="setting-divider"></div>
+
+          <!-- Plugins Section -->
+          <div class="setting-group">
+            <label class="setting-label">Plugins</label>
+            <p class="setting-description">Extend the AI with custom tools</p>
+
+            <!-- Installed plugins -->
+            <div id="pluginList" class="plugin-list">
+              <div class="plugin-empty">No plugins installed</div>
+            </div>
+
+            <!-- Available plugins -->
+            <div id="availablePluginsSection" style="display:none;">
+              <div class="available-plugins-header">Available</div>
+              <div id="availablePluginList" class="plugin-list"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -289,6 +309,307 @@
       systemPrompt: ''
     };
 
+    // =========================================================================
+    // Plugin Registry - localStorage persistence for plugins
+    // =========================================================================
+    const PLUGINS_STORAGE_KEY = 'hustle_demo_plugins';
+    const PLUGINS_ENABLED_KEY = 'hustle_demo_plugins_enabled';
+
+    const pluginRegistry = {
+      // Load installed plugins from storage
+      loadPlugins() {
+        try {
+          const stored = localStorage.getItem(PLUGINS_STORAGE_KEY);
+          return stored ? JSON.parse(stored) : [];
+        } catch (e) {
+          return [];
+        }
+      },
+
+      // Load enabled state for plugins
+      loadEnabledState() {
+        try {
+          const stored = localStorage.getItem(PLUGINS_ENABLED_KEY);
+          return stored ? JSON.parse(stored) : {};
+        } catch (e) {
+          return {};
+        }
+      },
+
+      // Save plugins to storage
+      savePlugins(plugins) {
+        localStorage.setItem(PLUGINS_STORAGE_KEY, JSON.stringify(plugins));
+      },
+
+      // Save enabled state
+      saveEnabledState(state) {
+        localStorage.setItem(PLUGINS_ENABLED_KEY, JSON.stringify(state));
+      },
+
+      // Register a new plugin
+      register(plugin) {
+        const plugins = this.loadPlugins();
+        const existingIndex = plugins.findIndex(p => p.name === plugin.name);
+
+        // Serialize plugin for storage (convert functions to strings)
+        const serialized = this.serializePlugin(plugin);
+
+        if (existingIndex >= 0) {
+          plugins[existingIndex] = serialized;
+        } else {
+          plugins.push(serialized);
+        }
+
+        this.savePlugins(plugins);
+
+        // Enable by default
+        const enabledState = this.loadEnabledState();
+        enabledState[plugin.name] = true;
+        this.saveEnabledState(enabledState);
+
+        log('Plugin registered: ' + plugin.name);
+      },
+
+      // Unregister a plugin
+      unregister(pluginName) {
+        const plugins = this.loadPlugins().filter(p => p.name !== pluginName);
+        this.savePlugins(plugins);
+
+        const enabledState = this.loadEnabledState();
+        delete enabledState[pluginName];
+        this.saveEnabledState(enabledState);
+
+        log('Plugin unregistered: ' + pluginName);
+      },
+
+      // Set enabled state
+      setEnabled(pluginName, enabled) {
+        const enabledState = this.loadEnabledState();
+        enabledState[pluginName] = enabled;
+        this.saveEnabledState(enabledState);
+        log('Plugin ' + pluginName + ' ' + (enabled ? 'enabled' : 'disabled'));
+      },
+
+      // Check if plugin is enabled
+      isEnabled(pluginName) {
+        const enabledState = this.loadEnabledState();
+        return enabledState[pluginName] !== false; // Default to true
+      },
+
+      // Get all plugins with enabled state
+      getPluginsWithState() {
+        const plugins = this.loadPlugins();
+        const enabledState = this.loadEnabledState();
+        return plugins.map(p => ({
+          ...p,
+          enabled: enabledState[p.name] !== false
+        }));
+      },
+
+      // Get enabled plugins hydrated with executable functions
+      getEnabledPlugins() {
+        return this.getPluginsWithState()
+          .filter(p => p.enabled)
+          .map(p => this.hydratePlugin(p));
+      },
+
+      // Serialize plugin for storage (convert functions to strings)
+      serializePlugin(plugin) {
+        const serialized = {
+          name: plugin.name,
+          version: plugin.version,
+          description: plugin.description,
+          tools: plugin.tools?.map(tool => ({
+            ...tool,
+            executorCode: plugin.executors?.[tool.name]
+              ? plugin.executors[tool.name].toString()
+              : undefined
+          }))
+        };
+        return serialized;
+      },
+
+      // Hydrate plugin from storage (convert strings back to functions)
+      hydratePlugin(stored) {
+        const executors = {};
+        if (stored.tools) {
+          for (const tool of stored.tools) {
+            if (tool.executorCode) {
+              try {
+                // eslint-disable-next-line no-eval
+                executors[tool.name] = eval('(' + tool.executorCode + ')');
+              } catch (e) {
+                console.error('[Plugin] Failed to hydrate executor for ' + tool.name, e);
+                executors[tool.name] = async () => ({ error: 'Failed to load executor' });
+              }
+            }
+          }
+        }
+        return {
+          name: stored.name,
+          version: stored.version,
+          description: stored.description,
+          tools: stored.tools?.map(t => ({
+            name: t.name,
+            description: t.description,
+            parameters: t.parameters
+          })),
+          executors: Object.keys(executors).length > 0 ? executors : undefined
+        };
+      }
+    };
+
+    // =========================================================================
+    // Available Demo Plugins
+    // =========================================================================
+    const availablePlugins = [
+      {
+        name: 'calculator-plugin',
+        version: '1.0.0',
+        description: 'Perform basic math calculations',
+        tools: [
+          {
+            name: 'calculate',
+            description: 'Perform a mathematical calculation. Supports basic operations: add, subtract, multiply, divide, power, sqrt.',
+            parameters: {
+              type: 'object',
+              properties: {
+                operation: {
+                  type: 'string',
+                  description: 'The operation to perform: add, subtract, multiply, divide, power, sqrt',
+                  enum: ['add', 'subtract', 'multiply', 'divide', 'power', 'sqrt']
+                },
+                a: { type: 'number', description: 'First number' },
+                b: { type: 'number', description: 'Second number (not needed for sqrt)' }
+              },
+              required: ['operation', 'a']
+            }
+          }
+        ],
+        executors: {
+          calculate: async (args) => {
+            const { operation, a, b } = args;
+            let result;
+            switch (operation) {
+              case 'add': result = a + b; break;
+              case 'subtract': result = a - b; break;
+              case 'multiply': result = a * b; break;
+              case 'divide': result = b !== 0 ? a / b : 'Error: Division by zero'; break;
+              case 'power': result = Math.pow(a, b); break;
+              case 'sqrt': result = Math.sqrt(a); break;
+              default: result = 'Unknown operation';
+            }
+            return { operation, a, b, result };
+          }
+        }
+      },
+      {
+        name: 'datetime-plugin',
+        version: '1.0.0',
+        description: 'Get current date, time, and timezone info',
+        tools: [
+          {
+            name: 'get_datetime',
+            description: 'Get the current date and time information for the user.',
+            parameters: {
+              type: 'object',
+              properties: {
+                format: {
+                  type: 'string',
+                  description: 'Output format: full, date, time, iso',
+                  enum: ['full', 'date', 'time', 'iso']
+                },
+                timezone: {
+                  type: 'string',
+                  description: 'Timezone to use (e.g., America/New_York, Europe/London). Defaults to user local timezone.'
+                }
+              }
+            }
+          }
+        ],
+        executors: {
+          get_datetime: async (args) => {
+            const { format = 'full', timezone } = args;
+            const now = new Date();
+            const options = timezone ? { timeZone: timezone } : {};
+
+            let result = {};
+            switch (format) {
+              case 'date':
+                result = { date: now.toLocaleDateString(undefined, options) };
+                break;
+              case 'time':
+                result = { time: now.toLocaleTimeString(undefined, options) };
+                break;
+              case 'iso':
+                result = { iso: now.toISOString() };
+                break;
+              default:
+                result = {
+                  date: now.toLocaleDateString(undefined, options),
+                  time: now.toLocaleTimeString(undefined, options),
+                  iso: now.toISOString(),
+                  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                  dayOfWeek: now.toLocaleDateString(undefined, { ...options, weekday: 'long' }),
+                  timestamp: now.getTime()
+                };
+            }
+            return result;
+          }
+        }
+      },
+      {
+        name: 'random-plugin',
+        version: '1.0.0',
+        description: 'Generate random numbers, UUIDs, and make random choices',
+        tools: [
+          {
+            name: 'random',
+            description: 'Generate random values: numbers, UUIDs, or pick randomly from a list.',
+            parameters: {
+              type: 'object',
+              properties: {
+                type: {
+                  type: 'string',
+                  description: 'Type of random value: number, uuid, choice, dice',
+                  enum: ['number', 'uuid', 'choice', 'dice']
+                },
+                min: { type: 'number', description: 'Minimum value for random number (default: 0)' },
+                max: { type: 'number', description: 'Maximum value for random number (default: 100)' },
+                choices: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'Array of choices to pick from (for choice type)'
+                },
+                sides: { type: 'number', description: 'Number of sides on the dice (default: 6)' },
+                count: { type: 'number', description: 'Number of dice to roll (default: 1)' }
+              },
+              required: ['type']
+            }
+          }
+        ],
+        executors: {
+          random: async (args) => {
+            const { type, min = 0, max = 100, choices, sides = 6, count = 1 } = args;
+            switch (type) {
+              case 'number':
+                return { type: 'number', value: Math.floor(Math.random() * (max - min + 1)) + min, min, max };
+              case 'uuid':
+                return { type: 'uuid', value: crypto.randomUUID() };
+              case 'choice':
+                if (!choices || choices.length === 0) return { error: 'No choices provided' };
+                return { type: 'choice', value: choices[Math.floor(Math.random() * choices.length)], from: choices };
+              case 'dice':
+                const rolls = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);
+                return { type: 'dice', rolls, sides, total: rolls.reduce((a, b) => a + b, 0) };
+              default:
+                return { error: 'Unknown random type' };
+            }
+          }
+        }
+      }
+    ];
+
     // Chat persistence state
     let currentChatName = null; // null = unsaved/active chat
     const STORAGE_KEY_ACTIVE = 'hustle_active_chat';
@@ -331,6 +652,10 @@
     const systemPromptModal = document.getElementById('systemPromptModal');
     const selectedModelLabel = document.getElementById('selectedModelLabel');
     const toolActivity = document.getElementById('toolActivity');
+    // Plugin elements
+    const pluginListDiv = document.getElementById('pluginList');
+    const availablePluginsSection = document.getElementById('availablePluginsSection');
+    const availablePluginListDiv = document.getElementById('availablePluginList');
     // Chat persistence elements
     const newChatBtn = document.getElementById('newChatBtn');
     const saveChatBtn = document.getElementById('saveChatBtn');
@@ -507,6 +832,123 @@
       if (chip) chip.classList.add('complete');
     }
 
+    // =========================================================================
+    // Plugin UI Functions
+    // =========================================================================
+
+    // Render the installed plugins list
+    function renderPluginList() {
+      const plugins = pluginRegistry.getPluginsWithState();
+
+      if (plugins.length === 0) {
+        pluginListDiv.innerHTML = '<div class="plugin-empty">No plugins installed</div>';
+      } else {
+        pluginListDiv.innerHTML = plugins.map(plugin => {
+          const toolCount = plugin.tools?.length || 0;
+          return `
+            <div class="plugin-row" data-plugin-name="${escapeAttr(plugin.name)}">
+              <div class="plugin-info">
+                <div class="plugin-icon">${plugin.enabled ? '🔌' : '⚪'}</div>
+                <div class="plugin-details">
+                  <span class="plugin-name">${escapeHtml(plugin.name)}</span>
+                  <span class="plugin-meta">v${plugin.version} • ${toolCount} tool${toolCount !== 1 ? 's' : ''}</span>
+                </div>
+              </div>
+              <div class="plugin-actions">
+                <div class="plugin-toggle ${plugin.enabled ? 'enabled' : ''}" data-toggle-plugin="${escapeAttr(plugin.name)}">
+                  <div class="plugin-toggle-knob"></div>
+                </div>
+                <button class="plugin-remove-btn" data-remove-plugin="${escapeAttr(plugin.name)}">Remove</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // Add event listeners for toggles and remove buttons
+        pluginListDiv.querySelectorAll('.plugin-toggle').forEach(toggle => {
+          toggle.addEventListener('click', () => {
+            const pluginName = toggle.dataset.togglePlugin;
+            const isEnabled = toggle.classList.contains('enabled');
+            pluginRegistry.setEnabled(pluginName, !isEnabled);
+            renderPluginList();
+            syncPluginsWithClient();
+          });
+        });
+
+        pluginListDiv.querySelectorAll('.plugin-remove-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const pluginName = btn.dataset.removePlugin;
+            pluginRegistry.unregister(pluginName);
+            renderPluginList();
+            renderAvailablePlugins();
+            syncPluginsWithClient();
+          });
+        });
+      }
+    }
+
+    // Render available plugins that aren't installed
+    function renderAvailablePlugins() {
+      const installedNames = pluginRegistry.loadPlugins().map(p => p.name);
+      const available = availablePlugins.filter(p => !installedNames.includes(p.name));
+
+      if (available.length === 0) {
+        availablePluginsSection.style.display = 'none';
+      } else {
+        availablePluginsSection.style.display = 'block';
+        availablePluginListDiv.innerHTML = available.map(plugin => `
+          <div class="plugin-row" data-plugin-name="${escapeAttr(plugin.name)}">
+            <div class="plugin-info">
+              <div class="plugin-icon">📦</div>
+              <div class="plugin-details">
+                <span class="plugin-name">${escapeHtml(plugin.name)}</span>
+                <span class="plugin-meta">${escapeHtml(plugin.description)}</span>
+              </div>
+            </div>
+            <button class="plugin-install-btn" data-install-plugin="${escapeAttr(plugin.name)}">+ Install</button>
+          </div>
+        `).join('');
+
+        // Add event listeners for install buttons
+        availablePluginListDiv.querySelectorAll('.plugin-install-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const pluginName = btn.dataset.installPlugin;
+            const plugin = availablePlugins.find(p => p.name === pluginName);
+            if (plugin) {
+              pluginRegistry.register(plugin);
+              renderPluginList();
+              renderAvailablePlugins();
+              syncPluginsWithClient();
+            }
+          });
+        });
+      }
+    }
+
+    // Sync enabled plugins with the hustle client
+    function syncPluginsWithClient() {
+      if (!hustleClient) return;
+
+      // Clear existing plugins
+      const existingPlugins = hustleClient.pluginManager?.getPluginNames() || [];
+      for (const name of existingPlugins) {
+        hustleClient.pluginManager.unregister(name);
+      }
+
+      // Register enabled plugins
+      const enabledPlugins = pluginRegistry.getEnabledPlugins();
+      for (const plugin of enabledPlugins) {
+        try {
+          hustleClient.use(plugin);
+          log('Synced plugin: ' + plugin.name);
+        } catch (e) {
+          console.error('[Plugin] Failed to sync plugin:', plugin.name, e);
+        }
+      }
+
+      log('Synced ' + enabledPlugins.length + ' plugin(s) with client');
+    }
+
     // Debug logging
     function log(msg) {
       const time = new Date().toLocaleTimeString();
@@ -522,6 +964,9 @@
       skipServerPromptToggle.checked = settings.skipServerPrompt;
       systemPromptModal.value = settings.systemPrompt;
       updateModelInfo();
+      // Render plugin lists
+      renderPluginList();
+      renderAvailablePlugins();
     }
 
     function closeSettings() {
@@ -1450,6 +1895,9 @@
         showToolSummary(event.response);
       });
 
+      // Sync plugins from localStorage with the client
+      syncPluginsWithClient();
+
       // Expose test function for summarization debugging
       window.testSummarization = () => {
         console.log('=== TESTING SUMMARIZATION FLOW ===');
@@ -1504,6 +1952,11 @@
       };
 
       console.log('Test functions available: testSummarization(), getSummarizationState(), clearSummarizationState()');
+
+      // Expose plugin registry for debugging
+      window.pluginRegistry = pluginRegistry;
+      window.availablePlugins = availablePlugins;
+      console.log('Plugin functions available: pluginRegistry, availablePlugins');
 
       // Enable chat and settings
       messageInput.disabled = false;

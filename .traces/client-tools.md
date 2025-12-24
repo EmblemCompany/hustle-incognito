@@ -1188,11 +1188,11 @@ experimental_onToolCall: async ({ toolCall }) => {
 
 #### Tasks
 
-- [ ] Create `src/lib/plugins/plugin-store.ts` for localStorage management with eval
-- [ ] Integrate `clientTools` into chat request body
-- [ ] Add plugin tool execution to `experimental_onToolCall`
-- [ ] Test with console installation snippet
-- [ ] (Future) Build UI for plugin management
+- [x] Create localStorage plugin registry with eval hydration (implemented in `auth-demo-advanced.html`)
+- [x] Integrate `clientTools` into chat request body
+- [x] Add plugin tool execution via `syncPluginsWithClient()`
+- [x] Test with demo plugins (calculator, datetime, random)
+- [x] Build UI for plugin management (Settings modal)
 - [ ] (Future) Implement signature verification
 
 ---

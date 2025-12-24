@@ -56,9 +56,9 @@ Then open `http://localhost:8080` to see all available demos.
 
 ## Examples
 
-### 1. Auth Chat Demo (`auth-demo-simple.html`) - Recommended
+### 1. Auth Chat Demo - Simple (`auth-demo-simple.html`)
 
-A full-featured browser demo showing EmblemAuthSDK integration with JWT authentication.
+A streamlined browser demo showing EmblemAuthSDK integration with JWT authentication.
 
 **Features:**
 - Full EmblemAuthSDK integration with social login
@@ -94,7 +94,64 @@ const response = await client.chat([
 ]);
 ```
 
-### 2. Simple CLI (`simple-cli.js`)
+### 2. Auth Chat Demo - Advanced (`auth-demo-advanced.html`) - Recommended
+
+A feature-rich browser demo with plugin system, chat persistence, and model selection.
+
+**Features:**
+- Everything in the Simple demo, plus:
+- **Plugin System**: Install, enable/disable, and manage client-side tool plugins
+- **Chat Persistence**: Save, load, and manage multiple chat conversations
+- **Model Selection**: Choose from available AI models
+- **Custom System Prompts**: Configure AI behavior
+- **Fullscreen Mode**: Distraction-free chat experience
+
+**Plugin System:**
+
+The advanced demo includes a full plugin management UI in the Settings modal:
+
+- **Installed Plugins**: View, enable/disable, or remove installed plugins
+- **Available Plugins**: Install demo plugins with one click
+- **localStorage Persistence**: Plugins persist across page reloads
+
+**Demo Plugins Included:**
+
+| Plugin | Description |
+|--------|-------------|
+| `calculator-plugin` | Perform math calculations (add, subtract, multiply, divide, power, sqrt) |
+| `datetime-plugin` | Get current date, time, and timezone information |
+| `random-plugin` | Generate random numbers, UUIDs, dice rolls, or pick from choices |
+
+**Usage:**
+
+1. Start a local server (see Quick Start above)
+2. Navigate to `auth-demo-advanced.html`
+3. Click "Connect" to authenticate
+4. Click the Settings (gear) icon to manage plugins
+5. Install a plugin and ask the AI to use it (e.g., "What time is it?" or "Roll 2d6")
+
+**Key Concepts:**
+
+```javascript
+// Plugins are stored in localStorage and synced with the client
+const pluginRegistry = {
+  loadPlugins(),        // Load from localStorage
+  register(plugin),     // Add plugin (serializes functions)
+  unregister(name),     // Remove plugin
+  setEnabled(name, bool), // Toggle enabled state
+  getEnabledPlugins(),  // Get hydrated plugins for client
+};
+
+// Sync enabled plugins with the hustle client
+function syncPluginsWithClient() {
+  const enabledPlugins = pluginRegistry.getEnabledPlugins();
+  for (const plugin of enabledPlugins) {
+    hustleClient.use(plugin);
+  }
+}
+```
+
+### 3. Simple CLI (`simple-cli.js`)
 
 An interactive command-line interface for chatting with the Hustle Incognito agent.
 
@@ -135,7 +192,7 @@ node examples/simple-cli.js --debug
 - `/image <path>` - Upload an image
 - `/exit` or `/quit` - Exit the application
 
-### 3. Simple Server (`simple-server.js`)
+### 4. Simple Server (`simple-server.js`)
 
 A basic HTTP server demonstrating both streaming and non-streaming API endpoints.
 
@@ -252,7 +309,7 @@ data: {"reason":"stop","usage":{},"fullText":"Solana is..."}
 - `finish` - Stream completion with metadata
 - `error` - Error information
 
-### 4. Server Chat (`server-chat.html`) - Legacy
+### 5. Server Chat (`server-chat.html`) - Legacy
 
 A simpler browser test interface using API key authentication. Use this if you need to test with an API key rather than EmblemAuth.
 
