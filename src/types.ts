@@ -220,6 +220,54 @@ export interface Attachment {
  * At least one authentication method must be provided.
  * When using SDK auth, the JWT is fetched fresh on each request to handle session refresh.
  */
+/**
+ * Security configuration for plugin verification.
+ * Controls how plugins are verified before registration.
+ */
+export interface PluginSecurityConfig {
+  /**
+   * Skip all verification checks. Use only in development.
+   * @default false
+   */
+  skipVerification?: boolean;
+
+  /**
+   * Allow trusted builtin plugins to bypass verification.
+   * @default true
+   */
+  allowTrustedBuiltins?: boolean;
+
+  /**
+   * Custom list of trusted builtin plugin names.
+   * If not provided, uses the default set (predictionMarket, migrateFun, etc.).
+   */
+  trustedBuiltins?: string[];
+
+  /**
+   * Custom verifier function for advanced use cases.
+   * If provided, this is called instead of the default signature verification.
+   */
+  customVerifier?: (
+    pluginName: string,
+    code: string,
+    signature: string
+  ) => Promise<boolean>;
+
+  /**
+   * Signing algorithm to use for verification.
+   * - 'hmac': HMAC-SHA256 (symmetric, simpler but less secure for production)
+   * - 'ed25519': Ed25519 (asymmetric, production-grade)
+   * @default 'hmac'
+   */
+  algorithm?: 'hmac' | 'ed25519';
+
+  /**
+   * Public key for Ed25519 verification (hex-encoded).
+   * Required when algorithm is 'ed25519'.
+   */
+  publicKey?: string;
+}
+
 export interface HustleIncognitoClientOptions extends EmblemAuthProvider {
   /** The base URL of the Agent Hustle API. Defaults to production API URL. */
   hustleApiUrl?: string;
@@ -237,6 +285,11 @@ export interface HustleIncognitoClientOptions extends EmblemAuthProvider {
   debug?: boolean;
   /** Optional cookie for authentication with Vercel. */
   cookie?: string;
+  /**
+   * Plugin security configuration.
+   * Controls how plugins are verified before registration.
+   */
+  security?: PluginSecurityConfig;
 }
 
 export interface ChatOptions {
@@ -835,6 +888,24 @@ export interface HustlePlugin {
 
   /** Tool executors keyed by tool name */
   executors?: Record<string, ToolExecutor>;
+
+  /**
+   * Cryptographic signature of the plugin code.
+   * Used for security verification before registration.
+   * Generate using signPluginCode() from the security module.
+   */
+  signature?: string;
+
+  /**
+   * Identity of the signer (e.g., publisher name or public key fingerprint).
+   * For attribution and audit purposes.
+   */
+  signedBy?: string;
+
+  /**
+   * ISO timestamp when the plugin was signed.
+   */
+  signedAt?: string;
 
   /** Lifecycle hooks */
   hooks?: {

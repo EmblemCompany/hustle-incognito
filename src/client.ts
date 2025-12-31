@@ -223,8 +223,11 @@ export class HustleIncognitoClient {
       }
     }
 
-    // Initialize plugin manager
-    this.pluginManager = new PluginManager({ debug: this.debug });
+    // Initialize plugin manager with security configuration
+    this.pluginManager = new PluginManager({
+      debug: this.debug,
+      security: options.security,
+    });
   }
 
   /**

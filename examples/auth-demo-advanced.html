@@ -2149,7 +2149,12 @@
       hustleClient = new HustleIncognitoClient({
         sdk: authSDK,
         hustleApiUrl: CONFIG.hustleApiUrl,
-        debug: CONFIG.debug
+        debug: CONFIG.debug,
+        // Plugin security configuration
+        security: {
+          skipVerification: false,      // Enable signature verification
+          allowTrustedBuiltins: false,   // Allow predictionMarket, alert, jsExecutor, etc. without signatures
+        }
       });
 
       // Subscribe to tool events

@@ -4,7 +4,38 @@
 export { HustleIncognitoClient } from './client.js';
 
 // Export plugin manager
-export { PluginManager } from './plugins.js';
+export {
+  PluginManager,
+  type PluginSecurityEvent,
+  type PluginSecurityEventType,
+  type PluginSecurityEventListener,
+} from './plugins.js';
+
+// Export security module
+export {
+  // Configuration
+  configurePluginSecurity,
+  getSecurityConfig,
+  resetSecurityConfig,
+  // Verification
+  verifyPluginCode,
+  serializePluginCode,
+  isTrustedBuiltin,
+  TRUSTED_BUILTINS,
+  // HMAC signing (development)
+  signCodeHmac,
+  verifySignatureHmac,
+  // Ed25519 signing (production)
+  generateEd25519Keypair,
+  signCodeEd25519,
+  verifySignatureEd25519,
+  // Convenience
+  signPluginCode,
+  // Types
+  type SecurityConfig,
+  type VerificationResult,
+  type SecurePlugin,
+} from './security/pluginSecurity.js';
 
 // Export types
 export {
@@ -44,4 +75,6 @@ export {
   ClientToolOptions,
   ToolExecutor,
   JSONSchemaProperty,
+  // Security types
+  PluginSecurityConfig,
 } from './types.js';

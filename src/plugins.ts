@@ -6,7 +6,14 @@ import type {
   ProcessedResponse,
   ToolCall,
   ToolExecutor,
+  PluginSecurityConfig,
 } from './types';
+import {
+  verifyPluginCode,
+  serializePluginCode,
+  type SecurityConfig,
+  type VerificationResult,
+} from './security/pluginSecurity';
 
 /**
  * Validates a tool name follows allowed pattern.
@@ -64,6 +71,23 @@ function validatePlugin(plugin: HustlePlugin): void {
 }
 
 /**
+ * Event types emitted by PluginManager for security operations
+ */
+export type PluginSecurityEventType =
+  | 'plugin_verification_success'
+  | 'plugin_verification_failed'
+  | 'plugin_verification_skipped';
+
+export interface PluginSecurityEvent {
+  type: PluginSecurityEventType;
+  pluginName: string;
+  result: VerificationResult;
+  timestamp: number;
+}
+
+export type PluginSecurityEventListener = (event: PluginSecurityEvent) => void;
+
+/**
  * Manages plugins and their lifecycle for HustleIncognitoClient.
  *
  * Responsibilities:
@@ -71,6 +95,7 @@ function validatePlugin(plugin: HustlePlugin): void {
  * - Collect tool definitions from all plugins
  * - Execute client-side tools via plugin executors
  * - Run lifecycle hooks (beforeRequest, afterResponse)
+ * - Verify plugin signatures before registration (security)
  */
 export class PluginManager {
   private plugins: Map<string, HustlePlugin> = new Map();
@@ -78,14 +103,88 @@ export class PluginManager {
   private toolExecutors: Map<string, ToolExecutor> = new Map();
   private toolToPlugin: Map<string, string> = new Map(); // toolName -> pluginName
   private debug: boolean;
+  private securityConfig: SecurityConfig;
+  private securityListeners: Set<PluginSecurityEventListener> = new Set();
 
-  constructor(options: { debug?: boolean } = {}) {
+  constructor(options: { debug?: boolean; security?: PluginSecurityConfig } = {}) {
     this.debug = options.debug ?? false;
+    // Convert PluginSecurityConfig to internal SecurityConfig format
+    // NOTE: skipVerification defaults to TRUE for backwards compatibility.
+    // To enable security verification, set skipVerification: false explicitly.
+    this.securityConfig = {
+      skipVerification: options.security?.skipVerification ?? true, // Default: skip for backwards compat
+      allowTrustedBuiltins: options.security?.allowTrustedBuiltins ?? true,
+      trustedBuiltins: options.security?.trustedBuiltins,
+      customVerifier: options.security?.customVerifier,
+      algorithm: options.security?.algorithm ?? 'hmac',
+      publicKey: options.security?.publicKey,
+      emitEvents: true,
+    };
+  }
+
+  /**
+   * Subscribe to security events
+   */
+  onSecurityEvent(listener: PluginSecurityEventListener): () => void {
+    this.securityListeners.add(listener);
+    return () => this.securityListeners.delete(listener);
+  }
+
+  /**
+   * Emit a security event to all listeners
+   */
+  private emitSecurityEvent(
+    type: PluginSecurityEventType,
+    pluginName: string,
+    result: VerificationResult
+  ): void {
+    const event: PluginSecurityEvent = {
+      type,
+      pluginName,
+      result,
+      timestamp: Date.now(),
+    };
+    for (const listener of this.securityListeners) {
+      try {
+        listener(event);
+      } catch (err) {
+        if (this.debug) {
+          console.error('[PluginManager] Security event listener error:', err);
+        }
+      }
+    }
+  }
+
+  /**
+   * Update security configuration
+   */
+  setSecurityConfig(config: Partial<PluginSecurityConfig>): void {
+    this.securityConfig = {
+      ...this.securityConfig,
+      skipVerification: config.skipVerification ?? this.securityConfig.skipVerification,
+      allowTrustedBuiltins: config.allowTrustedBuiltins ?? this.securityConfig.allowTrustedBuiltins,
+      trustedBuiltins: config.trustedBuiltins ?? this.securityConfig.trustedBuiltins,
+      customVerifier: config.customVerifier ?? this.securityConfig.customVerifier,
+      algorithm: config.algorithm ?? this.securityConfig.algorithm,
+      publicKey: config.publicKey ?? this.securityConfig.publicKey,
+    };
+  }
+
+  /**
+   * Get current security configuration
+   */
+  getSecurityConfig(): SecurityConfig {
+    return { ...this.securityConfig };
   }
 
   /**
    * Register a plugin with the manager.
-   * Validates the plugin and calls its onRegister hook.
+   * Validates the plugin, verifies its signature, and calls its onRegister hook.
+   *
+   * @throws Error if plugin validation fails
+   * @throws Error if plugin is already registered
+   * @throws Error if tool name conflicts with existing plugin
+   * @throws Error if signature verification fails (when security is enabled)
    */
   async register(plugin: HustlePlugin): Promise<void> {
     // Validate plugin structure
@@ -95,6 +194,38 @@ export class PluginManager {
     if (this.plugins.has(plugin.name)) {
       throw new Error(`Plugin "${plugin.name}" is already registered`);
     }
+
+    // =========================================================================
+    // Security: Verify plugin signature before registration
+    // =========================================================================
+    const serializedCode = serializePluginCode(plugin);
+    const verificationResult = await verifyPluginCode(
+      plugin.name,
+      serializedCode,
+      plugin.signature,
+      this.securityConfig
+    );
+
+    if (this.debug) {
+      console.log(
+        `[PluginManager] Security verification for "${plugin.name}": ${verificationResult.reason}`
+      );
+    }
+
+    // Emit security event
+    if (verificationResult.verified) {
+      if (verificationResult.reason === 'skip_verification') {
+        this.emitSecurityEvent('plugin_verification_skipped', plugin.name, verificationResult);
+      } else {
+        this.emitSecurityEvent('plugin_verification_success', plugin.name, verificationResult);
+      }
+    } else {
+      this.emitSecurityEvent('plugin_verification_failed', plugin.name, verificationResult);
+      throw new Error(
+        `Plugin "${plugin.name}" failed security verification: ${verificationResult.error || verificationResult.reason}`
+      );
+    }
+    // =========================================================================
 
     // Check for tool name conflicts
     if (plugin.tools) {
