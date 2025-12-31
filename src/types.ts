@@ -247,11 +247,7 @@ export interface PluginSecurityConfig {
    * Custom verifier function for advanced use cases.
    * If provided, this is called instead of the default signature verification.
    */
-  customVerifier?: (
-    pluginName: string,
-    code: string,
-    signature: string
-  ) => Promise<boolean>;
+  customVerifier?: (pluginName: string, code: string, signature: string) => Promise<boolean>;
 
   /**
    * Signing algorithm to use for verification.

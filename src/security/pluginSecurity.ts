@@ -39,11 +39,7 @@ export interface SecurityConfig {
    * Custom verifier function for advanced use cases.
    * If provided, this is called instead of the default signature verification.
    */
-  customVerifier?: (
-    pluginName: string,
-    code: string,
-    signature: string
-  ) => Promise<boolean>;
+  customVerifier?: (pluginName: string, code: string, signature: string) => Promise<boolean>;
 
   /**
    * Signing algorithm to use.
@@ -132,7 +128,7 @@ const DEV_HMAC_KEY = 'hustle-plugin-signing-key-v1';
  */
 function bufferToHex(buffer: ArrayBuffer): string {
   return Array.from(new Uint8Array(buffer))
-    .map((b) => b.toString(16).padStart(2, '0'))
+    .map(b => b.toString(16).padStart(2, '0'))
     .join('');
 }
 
@@ -144,7 +140,7 @@ function hexToBuffer(hex: string): Uint8Array {
   if (!matches) {
     return new Uint8Array(0);
   }
-  return new Uint8Array(matches.map((byte) => parseInt(byte, 16)));
+  return new Uint8Array(matches.map(byte => parseInt(byte, 16)));
 }
 
 /**
@@ -171,13 +167,10 @@ async function getHmacKey(): Promise<CryptoKey> {
   const crypto = getCrypto();
   const encoder = new TextEncoder();
   const keyMaterial = encoder.encode(DEV_HMAC_KEY);
-  return crypto.subtle.importKey(
-    'raw',
-    keyMaterial,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign', 'verify']
-  );
+  return crypto.subtle.importKey('raw', keyMaterial, { name: 'HMAC', hash: 'SHA-256' }, false, [
+    'sign',
+    'verify',
+  ]);
 }
 
 /**
@@ -200,10 +193,7 @@ export async function signCodeHmac(code: string): Promise<string> {
  * @param signature - Hex-encoded signature to verify
  * @returns True if signature is valid
  */
-export async function verifySignatureHmac(
-  code: string,
-  signature: string
-): Promise<boolean> {
+export async function verifySignatureHmac(code: string, signature: string): Promise<boolean> {
   try {
     const crypto = getCrypto();
     const key = await getHmacKey();
@@ -211,12 +201,7 @@ export async function verifySignatureHmac(
     const data = encoder.encode(code);
     const signatureBytes = hexToBuffer(signature);
     // Cast to satisfy TypeScript's strict BufferSource type
-    return crypto.subtle.verify(
-      'HMAC',
-      key,
-      signatureBytes.buffer as ArrayBuffer,
-      data
-    );
+    return crypto.subtle.verify('HMAC', key, signatureBytes.buffer as ArrayBuffer, data);
   } catch {
     return false;
   }
@@ -236,20 +221,13 @@ export async function generateEd25519Keypair(): Promise<{
 }> {
   const crypto = getCrypto();
   // Ed25519 is supported in modern runtimes but not in TS lib types yet
-  const keyPair = await (crypto.subtle.generateKey as Function)(
-    'Ed25519',
-    true,
-    ['sign', 'verify']
-  ) as CryptoKeyPair;
+  const keyPair = (await (crypto.subtle.generateKey as Function)('Ed25519', true, [
+    'sign',
+    'verify',
+  ])) as CryptoKeyPair;
 
-  const publicKeyBuffer = await crypto.subtle.exportKey(
-    'raw',
-    keyPair.publicKey
-  );
-  const privateKeyBuffer = await crypto.subtle.exportKey(
-    'pkcs8',
-    keyPair.privateKey
-  );
+  const publicKeyBuffer = await crypto.subtle.exportKey('raw', keyPair.publicKey);
+  const privateKeyBuffer = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
 
   return {
     publicKey: bufferToHex(publicKeyBuffer),
@@ -263,29 +241,26 @@ export async function generateEd25519Keypair(): Promise<{
  * @param privateKeyHex - Hex-encoded private key (PKCS8 format)
  * @returns Hex-encoded signature
  */
-export async function signCodeEd25519(
-  code: string,
-  privateKeyHex: string
-): Promise<string> {
+export async function signCodeEd25519(code: string, privateKeyHex: string): Promise<string> {
   const crypto = getCrypto();
   const privateKeyBuffer = hexToBuffer(privateKeyHex);
 
   // Ed25519 is supported in modern runtimes but not in TS lib types yet
-  const privateKey = await (crypto.subtle.importKey as Function)(
+  const privateKey = (await (crypto.subtle.importKey as Function)(
     'pkcs8',
     privateKeyBuffer,
     'Ed25519',
     false,
     ['sign']
-  ) as CryptoKey;
+  )) as CryptoKey;
 
   const encoder = new TextEncoder();
   const data = encoder.encode(code);
-  const signature = await (crypto.subtle.sign as Function)(
+  const signature = (await (crypto.subtle.sign as Function)(
     'Ed25519',
     privateKey,
     data
-  ) as ArrayBuffer;
+  )) as ArrayBuffer;
 
   return bufferToHex(signature);
 }
@@ -307,13 +282,13 @@ export async function verifySignatureEd25519(
     const publicKeyBuffer = hexToBuffer(publicKeyHex);
 
     // Ed25519 is supported in modern runtimes but not in TS lib types yet
-    const publicKey = await (crypto.subtle.importKey as Function)(
+    const publicKey = (await (crypto.subtle.importKey as Function)(
       'raw',
       publicKeyBuffer,
       'Ed25519',
       false,
       ['verify']
-    ) as CryptoKey;
+    )) as CryptoKey;
 
     const encoder = new TextEncoder();
     const data = encoder.encode(code);
@@ -347,9 +322,7 @@ let globalConfig: SecurityConfig = {
 /**
  * Configure global plugin security settings
  */
-export function configurePluginSecurity(
-  newConfig: Partial<SecurityConfig>
-): void {
+export function configurePluginSecurity(newConfig: Partial<SecurityConfig>): void {
   globalConfig = { ...globalConfig, ...newConfig };
 }
 
@@ -375,10 +348,7 @@ export function resetSecurityConfig(): void {
 /**
  * Check if a plugin name is in the trusted builtins list
  */
-export function isTrustedBuiltin(
-  pluginName: string,
-  config?: SecurityConfig
-): boolean {
+export function isTrustedBuiltin(pluginName: string, config?: SecurityConfig): boolean {
   const effectiveConfig = config || globalConfig;
   const trustedSet = effectiveConfig.trustedBuiltins
     ? new Set(effectiveConfig.trustedBuiltins)
@@ -401,7 +371,7 @@ export function serializePluginCode(plugin: {
   const codeObj = {
     name: plugin.name,
     version: plugin.version,
-    tools: plugin.tools?.map((t) => ({
+    tools: plugin.tools?.map(t => ({
       name: t.name,
       description: t.description,
     })),
@@ -412,8 +382,7 @@ export function serializePluginCode(plugin: {
             (acc, key) => {
               // Serialize executor functions to strings
               const executor = plugin.executors![key];
-              acc[key] =
-                typeof executor === 'function' ? executor.toString() : executor;
+              acc[key] = typeof executor === 'function' ? executor.toString() : executor;
               return acc;
             },
             {} as Record<string, unknown>
@@ -452,10 +421,7 @@ export async function verifyPluginCode(
   }
 
   // Check trusted builtins
-  if (
-    effectiveConfig.allowTrustedBuiltins &&
-    isTrustedBuiltin(pluginName, effectiveConfig)
-  ) {
+  if (effectiveConfig.allowTrustedBuiltins && isTrustedBuiltin(pluginName, effectiveConfig)) {
     return {
       verified: true,
       reason: 'trusted_builtin',
@@ -476,11 +442,7 @@ export async function verifyPluginCode(
   // Custom verifier
   if (effectiveConfig.customVerifier) {
     try {
-      const result = await effectiveConfig.customVerifier(
-        pluginName,
-        code,
-        signature
-      );
+      const result = await effectiveConfig.customVerifier(pluginName, code, signature);
       return {
         verified: result,
         reason: result ? 'custom_verifier' : 'signature_invalid',
@@ -510,11 +472,7 @@ export async function verifyPluginCode(
           error: 'Ed25519 verification requires publicKey in config',
         };
       }
-      isValid = await verifySignatureEd25519(
-        code,
-        signature,
-        effectiveConfig.publicKey
-      );
+      isValid = await verifySignatureEd25519(code, signature, effectiveConfig.publicKey);
     } else {
       // Default to HMAC
       isValid = await verifySignatureHmac(code, signature);
