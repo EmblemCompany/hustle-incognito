@@ -749,7 +749,6 @@ async function main() {
             // Capture intent context from response (for auto-tools mode)
             if (response.intentContext?.intentContext) {
               lastIntentContext = response.intentContext.intentContext;
-              console.log("🚀 ~ chat ~ lastIntentContext:", lastIntentContext)
               if (settings.debug) {
                 console.log('[DEBUG] Captured intent context:', 
                   `activeIntent="${lastIntentContext.activeIntent || 'general'}", ` +

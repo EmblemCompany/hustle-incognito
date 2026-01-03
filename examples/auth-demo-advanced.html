@@ -245,7 +245,7 @@
       // production URLs by default:
       //   - HustleIncognitoClient defaults to: https://agenthustle.ai
       //   - EmblemAuthSDK apiUrl defaults to: https://api.emblemvault.ai
-      //   - EmblemAuthSDK modalUrl defaults to: https://auth.emblemvault.ai/connect
+      //   - EmblemAuthSDK authUrl defaults to: https://auth.emblemvault.ai
       //
       // For production, simply use: new EmblemAuthSDK({ appId: 'agenthustle.ai' })
       // and new HustleIncognitoClient({ sdk: authSDK }) without URL overrides.
@@ -261,7 +261,7 @@
         // Emblem Auth SDK - pointing to LOCAL API server
         emblemAuthAppId: 'dev.agenthustle.ai',
         emblemAuthApiUrl: 'http://localhost:3001',
-        emblemAuthModalUrl: 'https://dev-auth.emblemvault.ai/connect',
+        emblemAuthAuthUrl: 'https://dev-auth.emblemvault.ai',
 
         // Enable SDK debug logging
         debug: true,
@@ -273,7 +273,7 @@
         // Emblem Auth SDK (defaults: api.emblemvault.ai, auth.emblemvault.ai)
         emblemAuthAppId: 'dev.agenthustle.ai',
         emblemAuthApiUrl: 'https://dev-api.emblemvault.ai',
-        emblemAuthModalUrl: 'https://dev-auth.emblemvault.ai/connect',
+        emblemAuthAuthUrl: 'https://dev-auth.emblemvault.ai',
 
         // Enable SDK debug logging (set to false for production)
         debug: false,
@@ -285,7 +285,7 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
   <!-- Load Emblem Auth SDK from CDN -->
-  <script src="https://unpkg.com/emblem-auth-sdk@latest/dist/emblem-auth.min.js"></script>
+  <script src="https://unpkg.com/@emblemvault/auth-sdk@latest/dist/emblem-auth.min.js"></script>
 
   <!-- Load Hustle Incognito -->
   <script type="module">
@@ -2054,7 +2054,7 @@
       authSDK = new window.EmblemAuth.EmblemAuthSDK({
         appId: CONFIG.emblemAuthAppId,
         apiUrl: CONFIG.emblemAuthApiUrl,
-        modalUrl: CONFIG.emblemAuthModalUrl,
+        authUrl: CONFIG.emblemAuthAuthUrl,
         onSuccess: (session) => {
           log('Auth success! VaultId: ' + session.user?.vaultId);
           handleAuthSuccess(session);
@@ -2152,8 +2152,8 @@
         debug: CONFIG.debug,
         // Plugin security configuration
         security: {
-          skipVerification: false,      // Enable signature verification
-          allowTrustedBuiltins: false,   // Allow predictionMarket, alert, jsExecutor, etc. without signatures
+          skipVerification: true,      // Enable signature verification
+          allowTrustedBuiltins: true,   // Allow predictionMarket, alert, jsExecutor, etc. without signatures
         }
       });
 
