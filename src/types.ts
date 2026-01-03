@@ -626,7 +626,12 @@ export interface StreamChunk {
     | 'dev_tools_info'
     | 'error'
     | 'finish'
-    | 'unknown';
+    | 'unknown'
+    | 'max_tools_reached'
+    | 'timeout_occurred'
+    | 'auto_retry'
+    | 'tool_validation_error'
+    | 'missing_tool';
   /** The value of the chunk. */
   value:
     | string
@@ -747,7 +752,16 @@ export interface Model {
 /**
  * Event types emitted by the HustleIncognitoClient.
  */
-export type HustleEventType = 'tool_start' | 'tool_end' | 'stream_start' | 'stream_end';
+export type HustleEventType =
+  | 'tool_start'
+  | 'tool_end'
+  | 'stream_start'
+  | 'stream_end'
+  | 'max_tools_reached'
+  | 'timeout'
+  | 'auto_retry'
+  | 'tool_validation_error'
+  | 'missing_tool';
 
 /**
  * Event data for tool_start event.
@@ -785,9 +799,71 @@ export interface StreamEndEvent {
 }
 
 /**
+ * Event data for max_tools_reached event.
+ * Emitted when the server hits its maximum tool execution limit.
+ */
+export interface MaxToolsReachedEvent {
+  type: 'max_tools_reached';
+  toolsExecuted: number;
+  maxSteps: number;
+}
+
+/**
+ * Event data for timeout event.
+ * Emitted when the request times out on the server.
+ */
+export interface TimeoutEvent {
+  type: 'timeout';
+  message: string;
+  timestamp: string;
+}
+
+/**
+ * Event data for auto_retry event.
+ * Emitted when the server automatically retries a tool call.
+ */
+export interface AutoRetryEvent {
+  type: 'auto_retry';
+  retryCount: number;
+  toolName: string;
+  addedCategory?: string;
+  message: string;
+}
+
+/**
+ * Event data for tool_validation_error event.
+ * Emitted when tool argument validation fails.
+ */
+export interface ToolValidationErrorEvent {
+  type: 'tool_validation_error';
+  toolName: string;
+  message: string;
+}
+
+/**
+ * Event data for missing_tool event.
+ * Emitted when the AI calls a tool that doesn't exist.
+ */
+export interface MissingToolEvent {
+  type: 'missing_tool';
+  toolName: string;
+  categoryId?: string;
+  message: string;
+}
+
+/**
  * Union type for all event data.
  */
-export type HustleEvent = ToolStartEvent | ToolEndEvent | StreamStartEvent | StreamEndEvent;
+export type HustleEvent =
+  | ToolStartEvent
+  | ToolEndEvent
+  | StreamStartEvent
+  | StreamEndEvent
+  | MaxToolsReachedEvent
+  | TimeoutEvent
+  | AutoRetryEvent
+  | ToolValidationErrorEvent
+  | MissingToolEvent;
 
 /**
  * Event listener callback type.

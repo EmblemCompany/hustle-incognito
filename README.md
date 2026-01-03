@@ -222,6 +222,101 @@ for await (const rawChunk of client.rawStream({
 }
 ```
 
+## 📡 Events
+
+The SDK emits events during streaming that you can subscribe to for real-time updates. This is useful for building reactive UIs that respond to tool activity, errors, and server-side conditions.
+
+### Event Types
+
+| Event | Description |
+|-------|-------------|
+| `stream_start` | Emitted when streaming begins |
+| `stream_end` | Emitted when streaming completes, includes the full response |
+| `tool_start` | Emitted when a tool call is initiated |
+| `tool_end` | Emitted when a tool call completes |
+| `max_tools_reached` | Emitted when the server hits its maximum tool execution limit |
+| `timeout` | Emitted when the request times out on the server |
+| `auto_retry` | Emitted when the server automatically retries a tool call |
+| `tool_validation_error` | Emitted when tool argument validation fails |
+| `missing_tool` | Emitted when the AI calls a tool that doesn't exist |
+
+### Subscribing to Events
+
+```typescript
+// Subscribe to max tools reached event
+client.on('max_tools_reached', (event) => {
+  console.log(`Max tools reached: ${event.toolsExecuted}/${event.maxSteps}`);
+  // Optionally trigger a "continue" to resume the conversation
+});
+
+// Subscribe to timeout event
+client.on('timeout', (event) => {
+  console.log(`Request timed out: ${event.message}`);
+  // Handle timeout - show UI to let user continue
+});
+
+// Subscribe to auto retry event
+client.on('auto_retry', (event) => {
+  console.log(`Retrying tool ${event.toolName}: ${event.message}`);
+});
+
+// Subscribe to tool validation errors
+client.on('tool_validation_error', (event) => {
+  console.log(`Tool ${event.toolName} failed validation: ${event.message}`);
+});
+
+// Subscribe to missing tool events
+client.on('missing_tool', (event) => {
+  console.log(`Tool ${event.toolName} not found in category ${event.categoryId}`);
+});
+
+// Unsubscribe when done
+const unsubscribe = client.on('timeout', handleTimeout);
+unsubscribe(); // Remove listener
+```
+
+### Event Payloads
+
+```typescript
+// MaxToolsReachedEvent
+{
+  type: 'max_tools_reached';
+  toolsExecuted: number;  // Number of tools executed
+  maxSteps: number;       // Maximum allowed steps
+}
+
+// TimeoutEvent
+{
+  type: 'timeout';
+  message: string;        // Timeout message
+  timestamp: string;      // ISO timestamp
+}
+
+// AutoRetryEvent
+{
+  type: 'auto_retry';
+  retryCount: number;     // Number of retries so far
+  toolName: string;       // Name of the tool being retried
+  addedCategory?: string; // Category that was loaded for retry
+  message: string;        // Retry message
+}
+
+// ToolValidationErrorEvent
+{
+  type: 'tool_validation_error';
+  toolName: string;       // Name of the tool that failed
+  message: string;        // Error message
+}
+
+// MissingToolEvent
+{
+  type: 'missing_tool';
+  toolName: string;       // Name of the missing tool
+  categoryId?: string;    // Category the tool belongs to
+  message: string;        // Error message
+}
+```
+
 ## 🛠 Tools
 
 The Agent Hustle API has access to 25+ powerful tool categories for comprehensive crypto trading, analysis, and DeFi operations.

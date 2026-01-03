@@ -1,6 +1,7 @@
 // src/client.ts
 import type {
   Attachment,
+  AutoRetryEvent,
   ChatMessage,
   ChatOptions,
   ClientToolDefinition,
@@ -12,6 +13,8 @@ import type {
   HustlePlugin,
   HustleRequest,
   IntentContext,
+  MaxToolsReachedEvent,
+  MissingToolEvent,
   Model,
   ProcessedResponse,
   RawChunk,
@@ -22,9 +25,11 @@ import type {
   StreamStartEvent,
   StreamWithResponse,
   SummarizationState,
+  TimeoutEvent,
   ToolCategory,
   ToolEndEvent,
   ToolStartEvent,
+  ToolValidationErrorEvent,
 } from './types';
 import { PluginManager } from './plugins';
 
@@ -479,6 +484,53 @@ export class HustleIncognitoClient {
                 });
               } else if (chunk.type === 'finish' && chunk.value) {
                 finishReason = (chunk.value as { reason?: string }).reason || 'stop';
+              } else if (chunk.type === 'max_tools_reached' && chunk.value) {
+                const data = chunk.value as { toolsExecuted?: number; maxSteps?: number };
+                emit({
+                  type: 'max_tools_reached',
+                  toolsExecuted: data.toolsExecuted ?? 0,
+                  maxSteps: data.maxSteps ?? 0,
+                });
+              } else if (chunk.type === 'timeout_occurred' && chunk.value) {
+                const data = chunk.value as { message?: string; timestamp?: string };
+                emit({
+                  type: 'timeout',
+                  message: data.message ?? 'Request timed out',
+                  timestamp: data.timestamp ?? new Date().toISOString(),
+                });
+              } else if (chunk.type === 'auto_retry' && chunk.value) {
+                const data = chunk.value as {
+                  retryCount?: number;
+                  toolName?: string;
+                  addedCategory?: string;
+                  message?: string;
+                };
+                emit({
+                  type: 'auto_retry',
+                  retryCount: data.retryCount ?? 0,
+                  toolName: data.toolName ?? '',
+                  addedCategory: data.addedCategory,
+                  message: data.message ?? 'Retrying tool call',
+                });
+              } else if (chunk.type === 'tool_validation_error' && chunk.value) {
+                const data = chunk.value as { toolName?: string; message?: string };
+                emit({
+                  type: 'tool_validation_error',
+                  toolName: data.toolName ?? '',
+                  message: data.message ?? 'Tool validation failed',
+                });
+              } else if (chunk.type === 'missing_tool' && chunk.value) {
+                const data = chunk.value as {
+                  toolName?: string;
+                  categoryId?: string;
+                  message?: string;
+                };
+                emit({
+                  type: 'missing_tool',
+                  toolName: data.toolName ?? '',
+                  categoryId: data.categoryId,
+                  message: data.message ?? 'Tool not found',
+                });
               }
             }
 
@@ -632,6 +684,14 @@ export class HustleIncognitoClient {
         emit({ type: 'stream_end', response });
         responseResolve!(response);
       } catch (error) {
+        // Check for timeout abort and emit timeout event
+        if (error instanceof Error && error.message === 'abort_timeout') {
+          emit({
+            type: 'timeout',
+            message: 'Request timed out',
+            timestamp: new Date().toISOString(),
+          });
+        }
         responseReject!(error);
         throw error;
       }
@@ -723,7 +783,7 @@ export class HustleIncognitoClient {
           };
           break;
 
-        case '2': // Metadata chunks (path_info, reasoning, intent_context, dev_tools_info, token_usage)
+        case '2': // Metadata chunks (path_info, reasoning, intent_context, dev_tools_info, token_usage, events)
           try {
             const data =
               Array.isArray(chunk.data) && chunk.data.length > 0 ? chunk.data[0] : chunk.data;
@@ -737,6 +797,10 @@ export class HustleIncognitoClient {
                 // token_usage contains summarization fields (thresholdReached, summary, etc.)
                 // Yield as path_info so StreamProcessor stores it for summarization handling
                 yield { type: 'path_info', value: data };
+                // Also check for max tools reached condition
+                if (data.maxToolsReached === true && !data.timedOut) {
+                  yield { type: 'max_tools_reached', value: data };
+                }
                 break;
               case 'reasoning':
                 yield { type: 'reasoning', value: data };
@@ -746,6 +810,18 @@ export class HustleIncognitoClient {
                 break;
               case 'dev_tools_info':
                 yield { type: 'dev_tools_info', value: data };
+                break;
+              case 'timeout_occurred':
+                yield { type: 'timeout_occurred', value: data };
+                break;
+              case 'auto_retry':
+                yield { type: 'auto_retry', value: data };
+                break;
+              case 'tool_validation_error':
+                yield { type: 'tool_validation_error', value: data };
+                break;
+              case 'missing_tool':
+                yield { type: 'missing_tool', value: data };
                 break;
               default:
                 // Fallback to path_info for backwards compatibility
@@ -1377,7 +1453,17 @@ export class HustleIncognitoClient {
           ? ToolEndEvent
           : T extends 'stream_start'
             ? StreamStartEvent
-            : StreamEndEvent
+            : T extends 'stream_end'
+              ? StreamEndEvent
+              : T extends 'max_tools_reached'
+                ? MaxToolsReachedEvent
+                : T extends 'timeout'
+                  ? TimeoutEvent
+                  : T extends 'auto_retry'
+                    ? AutoRetryEvent
+                    : T extends 'tool_validation_error'
+                      ? ToolValidationErrorEvent
+                      : MissingToolEvent
     >
   ): () => void {
     if (!this.eventListeners.has(event)) {
