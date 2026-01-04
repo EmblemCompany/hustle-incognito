@@ -125,6 +125,94 @@ describe('Stream Events', () => {
       expect(events).toHaveLength(0);
     });
 
+    test('should only emit max_tools_reached ONCE even when multiple rounds hit max tools (deduplication)', async () => {
+      // This test simulates a multi-round scenario where the server hits max tools in multiple rounds
+      // The SDK should accumulate the counts and emit only ONE event after all rounds complete
+      let requestCount = 0;
+
+      const mockRawStream = async function* () {
+        requestCount++;
+
+        if (requestCount === 1) {
+          // Round 1: Server hits max tools and requests client-side tool execution
+          yield { prefix: '0', data: 'Processing...', raw: '0:Processing...' };
+          yield {
+            prefix: '9',
+            data: { toolCallId: 'call1', toolName: 'client_tool_1', args: {} },
+            raw: '9:...',
+          };
+          yield {
+            prefix: '2',
+            data: [{
+              type: 'token_usage',
+              maxToolsReached: true,
+              timedOut: false,
+              toolsExecuted: 7,
+              maxSteps: 7,
+              timestamp: '2024-01-01T00:00:00Z',
+            }],
+            raw: '2:[...]',
+          };
+          yield {
+            prefix: 'e',
+            data: { finishReason: 'tool-calls' },
+            raw: 'e:{"finishReason":"tool-calls"}',
+          };
+        } else if (requestCount === 2) {
+          // Round 2: After client tool execution, server hits max tools again
+          yield { prefix: '0', data: 'More processing...', raw: '0:More processing...' };
+          yield {
+            prefix: '2',
+            data: [{
+              type: 'token_usage',
+              maxToolsReached: true,
+              timedOut: false,
+              toolsExecuted: 5,
+              maxSteps: 7,
+              timestamp: '2024-01-01T00:00:01Z',
+            }],
+            raw: '2:[...]',
+          };
+          yield {
+            prefix: 'e',
+            data: { finishReason: 'stop' },
+            raw: 'e:{"finishReason":"stop"}',
+          };
+        }
+      };
+
+      // @ts-ignore - Mocking private method
+      client.rawStream = mockRawStream;
+
+      // Register a client-side tool executor so the SDK will do multi-round execution
+      await client.use({
+        name: 'test-plugin',
+        version: '1.0.0',
+        tools: [{ name: 'client_tool_1', description: 'Test tool', parameters: { type: 'object', properties: {} } }],
+        executors: {
+          client_tool_1: async () => 'done',
+        },
+      });
+
+      const events: MaxToolsReachedEvent[] = [];
+      client.on('max_tools_reached', (event) => {
+        events.push(event);
+      });
+
+      for await (const _chunk of client.chatStream({
+        vaultId: 'test-vault',
+        messages: [{ role: 'user', content: 'Test' }],
+      })) {
+        // consume stream
+      }
+
+      // Should emit only ONE event with accumulated tool count (7 + 5 = 12)
+      expect(events).toHaveLength(1);
+      expect(events[0].type).toBe('max_tools_reached');
+      expect(events[0].toolsExecuted).toBe(12); // 7 from round 1 + 5 from round 2
+      expect(events[0].maxSteps).toBe(7);
+    });
+
     test('should NOT emit max_tools_reached when maxToolsReached=false', async () => {
       const mockRawStream = async function* () {
         yield { prefix: '0', data: 'Hello', raw: '0:Hello' };

@@ -432,6 +432,9 @@ export class HustleIncognitoClient {
         let currentMessages = [...options.messages];
         let round = 0;
 
+        // Track max_tools_reached across all rounds - only emit once at the end
+        let maxToolsReachedData: { toolsExecuted: number; maxSteps: number } | null = null;
+
         while (round < maxToolRounds || maxToolRounds === 0) {
           round++;
           if (debug && round > 1) {
@@ -485,12 +488,19 @@ export class HustleIncognitoClient {
               } else if (chunk.type === 'finish' && chunk.value) {
                 finishReason = (chunk.value as { reason?: string }).reason || 'stop';
               } else if (chunk.type === 'max_tools_reached' && chunk.value) {
+                // Defer max_tools_reached event until after all rounds complete
+                // This prevents emitting multiple times during multi-round tool execution
                 const data = chunk.value as { toolsExecuted?: number; maxSteps?: number };
-                emit({
-                  type: 'max_tools_reached',
-                  toolsExecuted: data.toolsExecuted ?? 0,
-                  maxSteps: data.maxSteps ?? 0,
-                });
+                if (!maxToolsReachedData) {
+                  // Store the first occurrence (accumulate toolsExecuted across rounds)
+                  maxToolsReachedData = {
+                    toolsExecuted: data.toolsExecuted ?? 0,
+                    maxSteps: data.maxSteps ?? 0,
+                  };
+                } else {
+                  // Accumulate tools executed from subsequent rounds
+                  maxToolsReachedData.toolsExecuted += data.toolsExecuted ?? 0;
+                }
               } else if (chunk.type === 'timeout_occurred' && chunk.value) {
                 const data = chunk.value as { message?: string; timestamp?: string };
                 emit({
@@ -669,6 +679,16 @@ export class HustleIncognitoClient {
           }
 
           // Continue to next round (loop will make new request with updated messages)
+        }
+
+        // Emit max_tools_reached event ONCE after all rounds complete
+        // This prevents the React component from seeing multiple events during multi-round tool execution
+        if (maxToolsReachedData) {
+          emit({
+            type: 'max_tools_reached',
+            toolsExecuted: maxToolsReachedData.toolsExecuted,
+            maxSteps: maxToolsReachedData.maxSteps,
+          });
         }
 
         const response = processor.getResponse();
