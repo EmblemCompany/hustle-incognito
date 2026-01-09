@@ -306,6 +306,24 @@ export interface ChatOptions {
    * @see {ToolCategory}
    */
   selectedToolCategories?: string[];
+  /**
+   * Exact tool names to make available (whitelist).
+   * Only used when ignoreOtherTools is true.
+   * @example ['swap', 'getBalance', 'searchTokens']
+   */
+  exactToolNames?: string[];
+  /**
+   * If true, only tools in exactToolNames are available.
+   * If false (default), exactToolNames is ignored and all qualified tools are available.
+   * @default false
+   */
+  ignoreOtherTools?: boolean;
+  /**
+   * Tool names to exclude from availability (blacklist).
+   * Applied after exactToolNames filtering.
+   * @example ['dangerousTool']
+   */
+  excludedTools?: string[];
   /** Optional attachments for the conversation */
   attachments?: Attachment[];
   /** Index to trim messages at for context management */
@@ -353,6 +371,24 @@ export interface StreamOptions {
    * @see {ToolCategory}
    */
   selectedToolCategories?: string[];
+  /**
+   * Exact tool names to make available (whitelist).
+   * Only used when ignoreOtherTools is true.
+   * @example ['swap', 'getBalance', 'searchTokens']
+   */
+  exactToolNames?: string[];
+  /**
+   * If true, only tools in exactToolNames are available.
+   * If false (default), exactToolNames is ignored and all qualified tools are available.
+   * @default false
+   */
+  ignoreOtherTools?: boolean;
+  /**
+   * Tool names to exclude from availability (blacklist).
+   * Applied after exactToolNames filtering.
+   * @example ['dangerousTool']
+   */
+  excludedTools?: string[];
   /** Optional attachments for the conversation */
   attachments?: Attachment[];
   /** Index to trim messages at for context management */
@@ -403,6 +439,24 @@ export interface RawStreamOptions {
    * @see {ToolCategory}
    */
   selectedToolCategories?: string[];
+  /**
+   * Exact tool names to make available (whitelist).
+   * Only used when ignoreOtherTools is true.
+   * @example ['swap', 'getBalance', 'searchTokens']
+   */
+  exactToolNames?: string[];
+  /**
+   * If true, only tools in exactToolNames are available.
+   * If false (default), exactToolNames is ignored and all qualified tools are available.
+   * @default false
+   */
+  ignoreOtherTools?: boolean;
+  /**
+   * Tool names to exclude from availability (blacklist).
+   * Applied after exactToolNames filtering.
+   * @example ['dangerousTool']
+   */
+  excludedTools?: string[];
   /** Optional attachments for the conversation */
   attachments?: Attachment[];
   /** Index to trim messages at for context management */
@@ -452,6 +506,24 @@ export interface HustleRequest {
    * @see {ToolCategory}
    */
   selectedToolCategories?: string[];
+  /**
+   * Exact tool names to make available (whitelist).
+   * Only used when ignoreOtherTools is true.
+   * @example ['swap', 'getBalance', 'searchTokens']
+   */
+  exactToolNames?: string[];
+  /**
+   * If true, only tools in exactToolNames are available.
+   * If false (default), exactToolNames is ignored and all qualified tools are available.
+   * @default false
+   */
+  ignoreOtherTools?: boolean;
+  /**
+   * Tool names to exclude from availability (blacklist).
+   * Applied after exactToolNames filtering.
+   * @example ['dangerousTool']
+   */
+  excludedTools?: string[];
   /**
    * Client-side tool definitions to register with the server.
    * Server will register these without execute functions.

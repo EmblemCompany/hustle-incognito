@@ -1276,6 +1276,67 @@ describe('HustleIncognitoClient', () => {
     });
   });
 
+  describe('tool filtering options', () => {
+    test('should include exactToolNames in prepareRequestBody when provided', () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      // @ts-ignore - Accessing private method for testing
+      const requestBody = client.prepareRequestBody({
+        vaultId: 'test-vault',
+        messages: [{ role: 'user', content: 'Hello' }],
+        exactToolNames: ['swap', 'getBalance', 'searchTokens'],
+        ignoreOtherTools: true,
+      });
+
+      expect(requestBody.exactToolNames).toEqual(['swap', 'getBalance', 'searchTokens']);
+      expect(requestBody.ignoreOtherTools).toBe(true);
+    });
+
+    test('should include excludedTools in prepareRequestBody when provided', () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      // @ts-ignore - Accessing private method for testing
+      const requestBody = client.prepareRequestBody({
+        vaultId: 'test-vault',
+        messages: [{ role: 'user', content: 'Hello' }],
+        excludedTools: ['dangerousTool', 'experimentalTool'],
+      });
+
+      expect(requestBody.excludedTools).toEqual(['dangerousTool', 'experimentalTool']);
+    });
+
+    test('should not include tool filtering options when not provided', () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      // @ts-ignore - Accessing private method for testing
+      const requestBody = client.prepareRequestBody({
+        vaultId: 'test-vault',
+        messages: [{ role: 'user', content: 'Hello' }],
+      });
+
+      expect(requestBody.exactToolNames).toBeUndefined();
+      expect(requestBody.ignoreOtherTools).toBeUndefined();
+      expect(requestBody.excludedTools).toBeUndefined();
+    });
+
+    test('should support combining exactToolNames with excludedTools', () => {
+      const client = new HustleIncognitoClient({ apiKey: 'test-key' });
+
+      // @ts-ignore - Accessing private method for testing
+      const requestBody = client.prepareRequestBody({
+        vaultId: 'test-vault',
+        messages: [{ role: 'user', content: 'Hello' }],
+        exactToolNames: ['swap', 'getBalance', 'searchTokens'],
+        ignoreOtherTools: true,
+        excludedTools: ['swap'], // Exclude swap from the whitelist
+      });
+
+      expect(requestBody.exactToolNames).toEqual(['swap', 'getBalance', 'searchTokens']);
+      expect(requestBody.ignoreOtherTools).toBe(true);
+      expect(requestBody.excludedTools).toEqual(['swap']);
+    });
+  });
+
   describe('intentContext support (auto-tools mode)', () => {
     test('should include intentContext in prepareRequestBody when provided', () => {
       const client = new HustleIncognitoClient({ apiKey: 'test-key' });

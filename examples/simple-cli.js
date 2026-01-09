@@ -55,6 +55,9 @@ async function main() {
       debug: initialDebugMode || ENV_DEBUG,
       stream: initialStreamMode,
       selectedTools: [],  // Array of selected tool category IDs
+      exactToolNames: [],  // Array of exact tool names to whitelist
+      ignoreOtherTools: false,  // If true, only exactToolNames are available
+      excludedTools: [],  // Array of tool names to exclude (blacklist)
       baseUrl: ENV_API_URL || 'https://agenthustle.ai',  // API base URL
       apiKey: ENV_API_KEY,  // API key for authentication
       vaultId: ENV_VAULT_ID,  // Vault ID for requests
@@ -147,6 +150,17 @@ async function main() {
           streamOptions.intentContext = lastIntentContext;
         }
 
+        // Add tool filtering options
+        if (settings.exactToolNames.length > 0) {
+          streamOptions.exactToolNames = settings.exactToolNames;
+        }
+        if (settings.ignoreOtherTools) {
+          streamOptions.ignoreOtherTools = true;
+        }
+        if (settings.excludedTools.length > 0) {
+          streamOptions.excludedTools = settings.excludedTools;
+        }
+
         // Add pending attachments if any
         if (pendingAttachments.length > 0) {
           streamOptions.attachments = [...pendingAttachments];
@@ -235,6 +249,18 @@ async function main() {
       console.log('  /tools add <id> - Add a tool category');
       console.log('  /tools remove <id> - Remove a tool category');
       console.log('  /tools clear - Enable auto-tools mode (API selects)');
+      console.log('');
+      console.log('  Tool Filtering (fine-grained control):');
+      console.log('  /exacttools           - Show current exact tool whitelist');
+      console.log('  /exacttools add <name> - Add a tool to exact whitelist');
+      console.log('  /exacttools remove <name> - Remove a tool from whitelist');
+      console.log('  /exacttools clear     - Clear the exact tool whitelist');
+      console.log('  /ignoreother on|off   - When ON, only exacttools are used');
+      console.log('  /exclude              - Show current excluded tools');
+      console.log('  /exclude add <name>   - Add a tool to exclusion list');
+      console.log('  /exclude remove <name> - Remove a tool from exclusion list');
+      console.log('  /exclude clear        - Clear the exclusion list');
+      console.log('');
       console.log('  /image <path> - Upload an image file for the next message');
       console.log('  /attachments  - Show pending attachments');
       console.log('  /clear-attachments - Clear all pending attachments');
@@ -260,6 +286,17 @@ async function main() {
       if (settings.selectedTools.length === 0 && lastIntentContext) {
         console.log(`  Intent Context: Active (${lastIntentContext.activeIntent || 'general'})`);
       }
+      console.log(`  Exact Tool Names: ${
+        settings.exactToolNames.length > 0
+          ? settings.exactToolNames.join(', ')
+          : 'None (all qualified tools available)'
+      }`);
+      console.log(`  Ignore Other Tools: ${settings.ignoreOtherTools ? 'ON (only exactToolNames used)' : 'OFF'}`);
+      console.log(`  Excluded Tools: ${
+        settings.excludedTools.length > 0
+          ? settings.excludedTools.join(', ')
+          : 'None'
+      }`);
       console.log(`  Pending Attachments: ${pendingAttachments.length > 0
         ? pendingAttachments.length + ' file(s)'
         : 'None'
@@ -493,6 +530,140 @@ async function main() {
         }
         
         console.log('Invalid tools command. Use /tools, /tools list, /tools add <id>, /tools remove <id>, or /tools clear');
+        return true;
+      }
+
+      // Exact tool names (whitelist)
+      if (command.startsWith('/exacttools')) {
+        const parts = command.split(' ');
+        
+        if (parts.length === 1) {
+          // Show current exact tools
+          console.log('\n=== Exact Tool Names (Whitelist) ===');
+          if (settings.exactToolNames.length === 0) {
+            console.log('No exact tools specified. All qualified tools are available.');
+          } else {
+            console.log('Current whitelist:', settings.exactToolNames.join(', '));
+          }
+          console.log(`Ignore other tools: ${settings.ignoreOtherTools ? 'ON' : 'OFF'}`);
+          console.log('\nNote: Set /ignoreother on to restrict to ONLY these tools.');
+          return true;
+        }
+        
+        const subCommand = parts[1];
+        const toolName = parts.slice(2).join(' ');
+        
+        if (subCommand === 'add' && toolName) {
+          if (!settings.exactToolNames.includes(toolName)) {
+            settings.exactToolNames.push(toolName);
+            console.log(`Added to whitelist: ${toolName}`);
+            console.log('Current whitelist:', settings.exactToolNames.join(', '));
+          } else {
+            console.log(`Tool ${toolName} is already in whitelist.`);
+          }
+          return true;
+        }
+        
+        if (subCommand === 'remove' && toolName) {
+          const index = settings.exactToolNames.indexOf(toolName);
+          if (index > -1) {
+            settings.exactToolNames.splice(index, 1);
+            console.log(`Removed from whitelist: ${toolName}`);
+            console.log('Current whitelist:', 
+              settings.exactToolNames.length > 0 
+                ? settings.exactToolNames.join(', ')
+                : 'Empty (all qualified tools available)');
+          } else {
+            console.log(`Tool ${toolName} is not in whitelist.`);
+          }
+          return true;
+        }
+        
+        if (subCommand === 'clear') {
+          settings.exactToolNames = [];
+          console.log('Exact tool whitelist cleared. All qualified tools are now available.');
+          return true;
+        }
+        
+        console.log('Invalid exacttools command. Use /exacttools, /exacttools add <name>, /exacttools remove <name>, or /exacttools clear');
+        return true;
+      }
+
+      // Ignore other tools toggle
+      if (command.startsWith('/ignoreother')) {
+        const parts = command.split(' ');
+        if (parts.length === 2) {
+          if (parts[1] === 'on') {
+            settings.ignoreOtherTools = true;
+            console.log('Ignore other tools: ON');
+            if (settings.exactToolNames.length === 0) {
+              console.log('Warning: No exact tool names specified. Add tools with /exacttools add <name>');
+            } else {
+              console.log(`Only these tools will be available: ${settings.exactToolNames.join(', ')}`);
+            }
+          } else if (parts[1] === 'off') {
+            settings.ignoreOtherTools = false;
+            console.log('Ignore other tools: OFF (all qualified tools available)');
+          } else {
+            console.log(`Invalid option: ${parts[1]}. Use 'on' or 'off'`);
+          }
+        } else {
+          console.log(`Ignore other tools is currently ${settings.ignoreOtherTools ? 'ON' : 'OFF'}`);
+        }
+        return true;
+      }
+
+      // Excluded tools (blacklist)
+      if (command.startsWith('/exclude')) {
+        const parts = command.split(' ');
+        
+        if (parts.length === 1) {
+          // Show current excluded tools
+          console.log('\n=== Excluded Tools (Blacklist) ===');
+          if (settings.excludedTools.length === 0) {
+            console.log('No tools excluded.');
+          } else {
+            console.log('Current blacklist:', settings.excludedTools.join(', '));
+          }
+          return true;
+        }
+        
+        const subCommand = parts[1];
+        const toolName = parts.slice(2).join(' ');
+        
+        if (subCommand === 'add' && toolName) {
+          if (!settings.excludedTools.includes(toolName)) {
+            settings.excludedTools.push(toolName);
+            console.log(`Added to blacklist: ${toolName}`);
+            console.log('Current blacklist:', settings.excludedTools.join(', '));
+          } else {
+            console.log(`Tool ${toolName} is already excluded.`);
+          }
+          return true;
+        }
+        
+        if (subCommand === 'remove' && toolName) {
+          const index = settings.excludedTools.indexOf(toolName);
+          if (index > -1) {
+            settings.excludedTools.splice(index, 1);
+            console.log(`Removed from blacklist: ${toolName}`);
+            console.log('Current blacklist:', 
+              settings.excludedTools.length > 0 
+                ? settings.excludedTools.join(', ')
+                : 'Empty');
+          } else {
+            console.log(`Tool ${toolName} is not in blacklist.`);
+          }
+          return true;
+        }
+        
+        if (subCommand === 'clear') {
+          settings.excludedTools = [];
+          console.log('Exclusion list cleared.');
+          return true;
+        }
+        
+        console.log('Invalid exclude command. Use /exclude, /exclude add <name>, /exclude remove <name>, or /exclude clear');
         return true;
       }
       
@@ -733,6 +904,16 @@ async function main() {
             } else if (lastIntentContext) {
               // Auto-tools mode: pass previous intent context for continuity
               chatOptions.intentContext = lastIntentContext;
+            }
+
+            if (settings.exactToolNames.length > 0) {
+              chatOptions.exactToolNames = settings.exactToolNames;
+            }
+            if (settings.ignoreOtherTools) {
+              chatOptions.ignoreOtherTools = true;
+            }
+            if (settings.excludedTools.length > 0) {
+              chatOptions.excludedTools = settings.excludedTools;
             }
 
             // Add attachments if any
