@@ -1279,6 +1279,9 @@ export class HustleIncognitoClient {
     safeMode?: boolean;
     currentPath?: string | null;
     selectedToolCategories?: string[];
+    exactToolNames?: string[];
+    ignoreOtherTools?: boolean;
+    excludedTools?: string[];
     attachments?: Attachment[];
     trimIndex?: number;
     summary?: string;
@@ -1364,6 +1367,10 @@ export class HustleIncognitoClient {
       currentPath: options.currentPath || null,
       attachments: options.attachments || [],
       selectedToolCategories: options.selectedToolCategories || [],
+      // Tool filtering options
+      exactToolNames: options.exactToolNames,
+      ignoreOtherTools: options.ignoreOtherTools,
+      excludedTools: options.excludedTools,
       // Include client-side tool definitions from plugins
       clientTools: clientTools.length > 0 ? clientTools : undefined,
       trimIndex,

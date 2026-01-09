@@ -502,6 +502,61 @@ const response2 = await client.chat([
 **Note**: When using `selectedToolCategories` explicitly, intent context is not needed as you're manually controlling tool selection.
 ```
 
+#### Tool Filtering Options
+
+For fine-grained control over which tools are available, you can use tool filtering options. These work in combination with `selectedToolCategories` or auto-tools mode.
+
+##### Whitelist Specific Tools (`exactToolNames` + `ignoreOtherTools`)
+
+When you need to restrict the AI to only use specific tools by name:
+
+```typescript
+// Only allow these exact tools (whitelist)
+const response = await client.chat([
+  { role: 'user', content: 'Swap 1 SOL for USDC' }
+], { 
+  vaultId: 'my-vault',
+  exactToolNames: ['swap', 'getBalance', 'searchTokens'],
+  ignoreOtherTools: true  // Required to enable the whitelist
+});
+```
+
+**Note**: `ignoreOtherTools` must be `true` for `exactToolNames` to take effect. When `false` (default), the `exactToolNames` option is ignored.
+
+##### Exclude Specific Tools (`excludedTools`)
+
+When you want to block specific tools while keeping all others available:
+
+```typescript
+// Block specific tools (blacklist)
+const response = await client.chat([
+  { role: 'user', content: 'Show me trading options' }
+], { 
+  vaultId: 'my-vault',
+  excludedTools: ['riskyTool', 'experimentalFeature']
+});
+```
+
+##### Combined Filtering
+
+You can combine whitelist and blacklist for maximum control:
+
+```typescript
+// Allow only specific tools, then exclude some from that list
+const response = await client.chat([
+  { role: 'user', content: 'Get my balance' }
+], { 
+  vaultId: 'my-vault',
+  exactToolNames: ['swap', 'getBalance', 'transfer'],
+  ignoreOtherTools: true,
+  excludedTools: ['transfer']  // Further restricts to: swap, getBalance only
+});
+```
+
+**Filtering Order:**
+1. If `ignoreOtherTools: true`, only tools in `exactToolNames` are available
+2. `excludedTools` are then removed from the remaining tools
+
 ### Multiple Tool Execution
 
 The API can execute multiple tools in a single conversation. For example, you can ask for trending tokens and a rugcheck in the same request:
