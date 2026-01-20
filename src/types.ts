@@ -339,6 +339,43 @@ export interface ChatOptions {
    * @see {IntentContextInfo}
    */
   intentContext?: IntentContext;
+  /**
+   * Stubbed tools for testing. Maps tool names to stub configurations.
+   * When a stubbed tool is called, it returns the mock response instead of executing.
+   * Only available in MCP mode for evaluation/testing purposes.
+   * @example
+   * ```typescript
+   * stubbedTools: {
+   *   'getTokenPrice': {
+   *     returns: { success: true, data: { price: 1.23 } }
+   *   },
+   *   'executeSwap': {
+   *     returns: { success: true, data: { txHash: 'stub_tx_123' } },
+   *     delay: 500  // Simulate 500ms latency
+   *   }
+   * }
+   * ```
+   */
+  stubbedTools?: Record<string, StubbedToolConfig>;
+  /**
+   * Skip session memory operations (read and write) for isolated testing.
+   * When true, the AI will not have access to or store conversation history.
+   * Only available in MCP mode.
+   * @default false
+   */
+  skipSessionMemory?: boolean;
+}
+
+/**
+ * Configuration for a stubbed tool response.
+ */
+export interface StubbedToolConfig {
+  /** The mock response to return instead of executing the real tool */
+  returns: unknown;
+  /** Only apply stub when args match this pattern (partial match) */
+  when?: Record<string, unknown>;
+  /** Delay in ms to simulate network latency */
+  delay?: number;
 }
 
 /**
@@ -418,6 +455,18 @@ export interface StreamOptions {
    * @see {IntentContextInfo}
    */
   intentContext?: IntentContext;
+  /**
+   * Stubbed tools for testing. Maps tool names to stub configurations.
+   * @see {StubbedToolConfig}
+   */
+  stubbedTools?: Record<string, StubbedToolConfig>;
+  /**
+   * Skip session memory operations (read and write) for isolated testing.
+   * When true, the AI will not have access to or store conversation history.
+   * Only available in MCP mode.
+   * @default false
+   */
+  skipSessionMemory?: boolean;
 }
 
 export interface RawStreamOptions {
@@ -472,6 +521,18 @@ export interface RawStreamOptions {
    * @see {IntentContextInfo}
    */
   intentContext?: IntentContext;
+  /**
+   * Stubbed tools for testing. Maps tool names to stub configurations.
+   * @see {StubbedToolConfig}
+   */
+  stubbedTools?: Record<string, StubbedToolConfig>;
+  /**
+   * Skip session memory operations (read and write) for isolated testing.
+   * When true, the AI will not have access to or store conversation history.
+   * Only available in MCP mode.
+   * @default false
+   */
+  skipSessionMemory?: boolean;
 }
 
 /**
@@ -543,6 +604,18 @@ export interface HustleRequest {
    * @see {IntentContextInfo}
    */
   intentContext?: IntentContext;
+  /**
+   * Stubbed tools for testing. Maps tool names to stub configurations.
+   * @see {StubbedToolConfig}
+   */
+  stubbedTools?: Record<string, StubbedToolConfig>;
+  /**
+   * Skip session memory operations (read and write) for isolated testing.
+   * When true, the AI will not have access to or store conversation history.
+   * Only available in MCP mode.
+   * @default false
+   */
+  skipSessionMemory?: boolean;
 }
 
 /**
