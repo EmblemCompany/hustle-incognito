@@ -980,7 +980,8 @@ describe('HustleIncognitoClient', () => {
 
       const response = await stream.response;
 
-      expect(response.content).toBe('Checking... Done!');
+      // Text after tool activity gets newline separator to prevent run-on sentences
+      expect(response.content).toBe('Checking...\n Done!');
       expect(response.toolCalls).toHaveLength(2);
       // Check both new and backward-compatible field names
       expect(response.toolCalls[0]).toEqual({
