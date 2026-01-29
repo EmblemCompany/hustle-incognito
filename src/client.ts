@@ -765,6 +765,8 @@ export class HustleIncognitoClient {
     // Track tool activity to add newline separators between text chunks
     let hadToolActivity = false;
     let hasYieldedText = false;
+    let charsSinceToolActivity = 0;
+    let inPostToolMode = false; // Track if we're still in "short response after tool" mode
 
     for await (const chunk of this.rawStream(resolvedOptions)) {
       if (this.debug)
@@ -772,13 +774,29 @@ export class HustleIncognitoClient {
 
       switch (chunk.prefix) {
         case '0': // Text chunk
-          // If we had tool activity and there's existing content, prepend newline separator
-          if (hadToolActivity && hasYieldedText) {
-            yield { type: 'text', value: '\n' + chunk.data };
+          const textData = chunk.data as string;
+          const startsWithCapital = /^[A-Z]/.test(textData);
+
+          // Add newline if:
+          // 1. We had tool activity and already yielded text (standard case)
+          // 2. OR we're in post-tool mode with short text so far, and this looks like a new sentence
+          const shouldAddNewline =
+            (hadToolActivity && hasYieldedText) ||
+            (inPostToolMode && charsSinceToolActivity < 20 && startsWithCapital);
+
+          if (shouldAddNewline) {
+            yield { type: 'text', value: '\n' + textData };
+            inPostToolMode = false;
           } else {
-            yield { type: 'text', value: chunk.data };
+            yield { type: 'text', value: textData };
           }
+
           hasYieldedText = true;
+          charsSinceToolActivity += textData.length;
+          // Exit post-tool mode if we've accumulated enough text
+          if (charsSinceToolActivity >= 20) {
+            inPostToolMode = false;
+          }
           hadToolActivity = false;
           break;
 
@@ -790,6 +808,8 @@ export class HustleIncognitoClient {
             );
           yield { type: 'tool_call', value: chunk.data };
           hadToolActivity = true;
+          inPostToolMode = true;
+          charsSinceToolActivity = 0;
           break;
 
         case 'a': // Tool result
@@ -800,6 +820,8 @@ export class HustleIncognitoClient {
             );
           yield { type: 'tool_result', value: chunk.data };
           hadToolActivity = true;
+          inPostToolMode = true;
+          charsSinceToolActivity = 0;
           break;
 
         case 'f': // Message ID
