@@ -86,21 +86,17 @@ class StreamProcessor {
   private reasoning: any | null = null;
   private intentContext: any | null = null;
   private devToolsInfo: any | null = null;
-  private hadToolActivity = false;
 
   /**
    * Process a single StreamChunk and accumulate its data.
+   * Note: Newline separators after tool activity are handled in the streaming code,
+   * so StreamProcessor just accumulates the text as-is.
    */
   processChunk(chunk: StreamChunk | RawChunk): void {
     if ('type' in chunk) {
       switch (chunk.type) {
         case 'text':
-          // If we had tool activity and there's existing content, add newline separator
-          if (this.hadToolActivity && this.content.length > 0) {
-            this.content += '\n';
-          }
           this.content += chunk.value as string;
-          this.hadToolActivity = false;
           break;
         case 'message_id':
           this.messageId = chunk.value as string;
@@ -121,7 +117,6 @@ class StreamProcessor {
             name: chunk.value.toolName,
             arguments: chunk.value.args,
           });
-          this.hadToolActivity = true;
           break;
         case 'tool_result':
           // Add backward-compatible aliases
@@ -130,7 +125,6 @@ class StreamProcessor {
             id: chunk.value.toolCallId,
             name: chunk.value.toolName,
           });
-          this.hadToolActivity = true;
           break;
         case 'reasoning':
           this.reasoning = chunk.value;
@@ -768,13 +762,24 @@ export class HustleIncognitoClient {
       console.log(`[${new Date().toISOString()}] Processing stream chunks into structured data`);
 
     // Otherwise, process chunks into structured data
+    // Track tool activity to add newline separators between text chunks
+    let hadToolActivity = false;
+    let hasYieldedText = false;
+
     for await (const chunk of this.rawStream(resolvedOptions)) {
       if (this.debug)
         console.log(`[${new Date().toISOString()}] Processing chunk:`, JSON.stringify(chunk));
 
       switch (chunk.prefix) {
         case '0': // Text chunk
-          yield { type: 'text', value: chunk.data };
+          // If we had tool activity and there's existing content, prepend newline separator
+          if (hadToolActivity && hasYieldedText) {
+            yield { type: 'text', value: '\n' + chunk.data };
+          } else {
+            yield { type: 'text', value: chunk.data };
+          }
+          hasYieldedText = true;
+          hadToolActivity = false;
           break;
 
         case '9': // Tool call
@@ -784,6 +789,7 @@ export class HustleIncognitoClient {
               JSON.stringify(chunk.data)
             );
           yield { type: 'tool_call', value: chunk.data };
+          hadToolActivity = true;
           break;
 
         case 'a': // Tool result
@@ -793,6 +799,7 @@ export class HustleIncognitoClient {
               JSON.stringify(chunk.data)
             );
           yield { type: 'tool_result', value: chunk.data };
+          hadToolActivity = true;
           break;
 
         case 'f': // Message ID
