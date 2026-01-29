@@ -77,4 +77,6 @@ export {
   JSONSchemaProperty,
   // Security types
   PluginSecurityConfig,
+  // Testing types
+  StubbedToolConfig,
 } from './types.js';

@@ -24,6 +24,7 @@ import type {
   StreamOptions,
   StreamStartEvent,
   StreamWithResponse,
+  StubbedToolConfig,
   SummarizationState,
   TimeoutEvent,
   ToolCategory,
@@ -1287,6 +1288,8 @@ export class HustleIncognitoClient {
     summary?: string;
     summaryEndIndex?: number;
     intentContext?: IntentContext;
+    stubbedTools?: Record<string, StubbedToolConfig>;
+    skipSessionMemory?: boolean;
   }): HustleRequest {
     // apiKey is optional when using JWT authentication (via Authorization header)
     const apiKey = options.userApiKey || this.apiKey;
@@ -1378,6 +1381,10 @@ export class HustleIncognitoClient {
       summaryEndIndex,
       // Pass intent context for auto-tools mode context persistence
       intentContext: options.intentContext,
+      // Pass stubbed tools for testing (only in MCP mode)
+      stubbedTools: options.stubbedTools,
+      // Pass skipSessionMemory for isolated testing (only in MCP mode)
+      skipSessionMemory: options.skipSessionMemory,
     };
   }
 
