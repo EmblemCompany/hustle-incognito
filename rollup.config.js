@@ -15,7 +15,8 @@ const external = [
   'fs',
   'path',
   'os',
-  'file-type'
+  'file-type',
+  '@emblemvault/auth-sdk'  // Peer dependency for headless auth
 ];
 
 // Plugin to replace dynamic imports with conditional code
@@ -109,7 +110,8 @@ export default [
       inlineDynamicImports: true
     },
     // Don't externalize anything for browser build - bundle everything except node builtins
-    external: ['fs', 'path', 'os', 'node:fs', 'node:path'],
+    // Note: @emblemvault/auth-sdk is external since it's a peer dependency for headless auth
+    external: ['fs', 'path', 'os', 'node:fs', 'node:path', '@emblemvault/auth-sdk'],
     plugins: [
       replace({
         preventAssignment: true,

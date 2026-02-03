@@ -1,14 +1,8 @@
 // src/types.ts
 
-/**
- * Vault information returned from the API.
- */
-export interface VaultInfo {
-  vaultId: string;
-  evmAddress?: string;
-  solanaAddress?: string;
-  address?: string;
-}
+// Re-export types from auth-sdk for consumers who want to use them
+// Type-only imports are stripped at runtime, so this works even if auth-sdk isn't installed
+export type { VaultInfo, BtcAddresses } from '@emblemvault/auth-sdk';
 
 /**
  * Token usage statistics from the API response.
@@ -281,6 +275,40 @@ export interface HustleIncognitoClientOptions extends EmblemAuthProvider {
   debug?: boolean;
   /** Optional cookie for authentication with Vercel. */
   cookie?: string;
+  /**
+   * Plugin security configuration.
+   * Controls how plugins are verified before registration.
+   */
+  security?: PluginSecurityConfig;
+}
+
+/**
+ * Options for creating a client with headless password authentication.
+ * Ideal for CLI tools, servers, and AI agents that don't have browser access.
+ */
+export interface HeadlessAuthOptions {
+  /**
+   * Password for headless authentication.
+   * Must be at least 16 characters. Use long random strings like API keys.
+   * Same password always produces the same vault (deterministic).
+   */
+  password: string;
+  /**
+   * App ID for authentication (e.g., 'dev.agenthustle.ai').
+   * The vault is scoped to this app - same password with different appId = different vault.
+   */
+  appId: string;
+  /**
+   * Auth API URL. Defaults to production 'https://api.emblemvault.ai'.
+   * Use 'https://dev-api.emblemvault.ai' for development.
+   */
+  authApiUrl?: string;
+  /** The base URL of the Agent Hustle API. Defaults to production API URL. */
+  hustleApiUrl?: string;
+  /** Enable debug logging. */
+  debug?: boolean;
+  /** Optional fetch implementation for environments without native fetch. */
+  fetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
   /**
    * Plugin security configuration.
    * Controls how plugins are verified before registration.

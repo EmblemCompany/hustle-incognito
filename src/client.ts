@@ -6,6 +6,7 @@ import type {
   ChatOptions,
   ClientToolDefinition,
   EmblemAuthProvider,
+  HeadlessAuthOptions,
   HustleEvent,
   HustleEventListener,
   HustleEventType,
@@ -174,6 +175,98 @@ export class HustleIncognitoClient {
   private eventListeners: Map<HustleEventType, Set<HustleEventListener>> = new Map();
   private summarizationState: SummarizationState = { thresholdReached: false };
   private readonly pluginManager: PluginManager;
+
+  /**
+   * Create a client using headless password authentication.
+   * Ideal for CLI tools, servers, and AI agents that don't have browser access.
+   *
+   * Requires `@emblemvault/auth-sdk` to be installed as a peer dependency.
+   *
+   * @param options - Headless authentication options
+   * @returns Promise resolving to an authenticated HustleIncognitoClient instance
+   *
+   * @example
+   * ```typescript
+   * // Basic usage with password
+   * const client = await HustleIncognitoClient.createWithPassword({
+   *   password: process.env.AGENT_PASSWORD!, // min 16 chars
+   *   appId: 'your-app.example.com',
+   * });
+   *
+   * // With custom API URLs
+   * const client = await HustleIncognitoClient.createWithPassword({
+   *   password: 'my-super-secret-agent-key-12345',
+   *   appId: 'dev.agenthustle.ai',
+   *   authApiUrl: 'https://dev-api.emblemvault.ai',
+   *   hustleApiUrl: 'https://dev.agenthustle.ai',
+   *   debug: true,
+   * });
+   *
+   * // Use the client as normal
+   * for await (const chunk of client.streamChat({
+   *   messages: [{ role: 'user', content: 'Hello!' }],
+   * })) {
+   *   process.stdout.write(chunk.value);
+   * }
+   * ```
+   */
+  static async createWithPassword(options: HeadlessAuthOptions): Promise<HustleIncognitoClient> {
+    // Validate password length
+    if (!options.password || options.password.length < 16) {
+      throw new Error('Password must be at least 16 characters for headless authentication');
+    }
+
+    if (!options.appId) {
+      throw new Error('appId is required for headless authentication');
+    }
+
+    // Dynamic import to keep auth-sdk as an optional peer dependency
+    let EmblemAuthSDK: any;
+    try {
+      const authSdkModule = await import('@emblemvault/auth-sdk');
+      EmblemAuthSDK = authSdkModule.EmblemAuthSDK;
+    } catch (error) {
+      throw new Error(
+        'Failed to import @emblemvault/auth-sdk. Please install it: npm install @emblemvault/auth-sdk'
+      );
+    }
+
+    const authApiUrl = options.authApiUrl || 'https://api.emblemvault.ai';
+
+    if (options.debug) {
+      console.log(`[${new Date().toISOString()}] Creating headless auth client...`);
+      console.log(`[${new Date().toISOString()}] Auth API: ${authApiUrl}`);
+      console.log(`[${new Date().toISOString()}] App ID: ${options.appId}`);
+    }
+
+    // Create auth SDK instance
+    const sdk = new EmblemAuthSDK({
+      appId: options.appId,
+      apiUrl: authApiUrl,
+      persistSession: false, // No localStorage in Node.js
+    });
+
+    // Authenticate with password
+    const session = await sdk.authenticatePassword({ password: options.password });
+
+    if (!session) {
+      throw new Error('Password authentication failed - no session returned');
+    }
+
+    if (options.debug) {
+      console.log(`[${new Date().toISOString()}] Authentication successful`);
+      console.log(`[${new Date().toISOString()}] Vault ID: ${session.user?.vaultId}`);
+    }
+
+    // Create and return the client with the authenticated SDK
+    return new HustleIncognitoClient({
+      sdk,
+      hustleApiUrl: options.hustleApiUrl,
+      debug: options.debug,
+      fetch: options.fetch,
+      security: options.security,
+    });
+  }
 
   /**
    * Creates an instance of HustleIncognitoClient.

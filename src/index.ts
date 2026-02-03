@@ -41,7 +41,9 @@ export {
 export {
   EmblemAuthProvider,
   HustleIncognitoClientOptions,
+  HeadlessAuthOptions,
   ChatMessage,
+  BtcAddresses,
   StreamChunk,
   StreamWithResponse,
   HustleRequest,
