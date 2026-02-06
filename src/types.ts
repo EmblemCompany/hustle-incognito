@@ -1209,14 +1209,7 @@ export interface PaygConfigureOptions {
   /** Payment mode. */
   mode?: 'pay_per_request' | 'debt_accumulation';
   /** Token to use for payments. */
-  payment_token?:
-    | 'SOL'
-    | 'SOL_USDC'
-    | 'HUSTLE'
-    | 'ETH'
-    | 'ETH_USDC'
-    | 'BASE_ETH'
-    | 'BASE_USDC';
+  payment_token?: 'SOL' | 'SOL_USDC' | 'HUSTLE' | 'ETH' | 'ETH_USDC' | 'BASE_ETH' | 'BASE_USDC';
 }
 
 /**
