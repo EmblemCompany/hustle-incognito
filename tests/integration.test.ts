@@ -14,7 +14,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { Wallet } from 'ethers';
 
 import { HustleIncognitoClient } from '../src';
-import type { ProcessedResponse, ChatMessage, StreamChunk } from '../src/types';
+import type { ProcessedResponse, ChatMessage, StreamChunk, PaygStatus } from '../src/types';
 
 
 
@@ -1105,5 +1105,185 @@ describe.skipIf(shouldSkipSignatureAuth)('Signature-based Authentication Tests',
     const claudeModels = models.filter(m => m.id.includes('claude') || m.name.toLowerCase().includes('claude'));
     expect(claudeModels.length).toBeGreaterThan(0);
     console.log(`Found ${claudeModels.length} Claude models`);
+  });
+});
+
+// PAYG Billing Management integration tests
+describe.skipIf(shouldSkip)('PAYG Billing Management', () => {
+  let client: HustleIncognitoClient;
+
+  beforeEach(() => {
+    client = new HustleIncognitoClient({
+      apiKey: process.env.HUSTLE_API_KEY || '',
+      vaultId: process.env.VAULT_ID,
+      hustleApiUrl: process.env.HUSTLE_API_URL,
+      debug: process.env.DEBUG === 'false' ? false : true,
+    });
+  });
+
+  afterEach(async () => {
+    await delay(2000);
+  });
+
+  test('should fetch PAYG status with apiKey auth', async () => {
+    const status = await client.getPaygStatus();
+
+    expect(status).toBeDefined();
+    expect(typeof status.enabled).toBe('boolean');
+    expect(typeof status.mode).toBe('string');
+    expect(['pay_per_request', 'debt_accumulation']).toContain(status.mode);
+    expect(typeof status.payment_token).toBe('string');
+    expect(typeof status.payment_chain).toBe('string');
+    expect(typeof status.is_blocked).toBe('boolean');
+    expect(typeof status.total_debt_usd).toBe('number');
+    expect(typeof status.total_paid_usd).toBe('number');
+    expect(typeof status.debt_ceiling_usd).toBe('number');
+    expect(typeof status.pending_charges).toBe('number');
+    expect(Array.isArray(status.available_tokens)).toBe(true);
+
+    console.log('PAYG Status:', JSON.stringify(status, null, 2));
+  });
+
+  test('should have valid available_tokens list', async () => {
+    const status = await client.getPaygStatus();
+
+    expect(status.available_tokens.length).toBeGreaterThan(0);
+
+    // All known tokens should be strings
+    for (const token of status.available_tokens) {
+      expect(typeof token).toBe('string');
+      expect(token.length).toBeGreaterThan(0);
+    }
+
+    console.log('Available tokens:', status.available_tokens);
+  });
+
+  test('should enable PAYG billing', async () => {
+    const result = await client.configurePayg({ enabled: true });
+
+    expect(result).toBeDefined();
+    expect(result.success).toBe(true);
+    expect(result.config).toBeDefined();
+
+    console.log('Enable PAYG result:', JSON.stringify(result, null, 2));
+
+    // Verify status reflects the change
+    const status = await client.getPaygStatus();
+    expect(status.enabled).toBe(true);
+  });
+
+  test('should change payment token', async () => {
+    const result = await client.configurePayg({ payment_token: 'SOL_USDC' });
+
+    expect(result).toBeDefined();
+    expect(result.success).toBe(true);
+
+    console.log('Change token result:', JSON.stringify(result, null, 2));
+
+    // Verify status reflects the change
+    const status = await client.getPaygStatus();
+    expect(status.payment_token).toBe('SOL_USDC');
+    expect(status.payment_chain).toBe('solana');
+  });
+
+  test('should change payment mode', async () => {
+    const result = await client.configurePayg({ mode: 'debt_accumulation' });
+
+    expect(result).toBeDefined();
+    expect(result.success).toBe(true);
+
+    console.log('Change mode result:', JSON.stringify(result, null, 2));
+
+    const status = await client.getPaygStatus();
+    expect(status.mode).toBe('debt_accumulation');
+  });
+
+  test('should configure multiple fields at once', async () => {
+    const result = await client.configurePayg({
+      enabled: true,
+      mode: 'pay_per_request',
+      payment_token: 'SOL',
+    });
+
+    expect(result).toBeDefined();
+    expect(result.success).toBe(true);
+
+    console.log('Multi-field configure result:', JSON.stringify(result, null, 2));
+
+    const status = await client.getPaygStatus();
+    expect(status.enabled).toBe(true);
+    expect(status.mode).toBe('pay_per_request');
+    expect(status.payment_token).toBe('SOL');
+    expect(status.payment_chain).toBe('solana');
+  });
+
+  test('should disable PAYG billing', async () => {
+    const result = await client.configurePayg({ enabled: false });
+
+    expect(result).toBeDefined();
+    expect(result.success).toBe(true);
+
+    console.log('Disable PAYG result:', JSON.stringify(result, null, 2));
+
+    const status = await client.getPaygStatus();
+    expect(status.enabled).toBe(false);
+  });
+});
+
+// PAYG with JWT auth (signature-based)
+describe.skipIf(shouldSkipSignatureAuth)('PAYG with JWT Auth', () => {
+  const AUTH_API_URL = process.env.AUTH_API_URL || 'https://api.emblemvault.ai';
+
+  async function getJwtClient(): Promise<HustleIncognitoClient> {
+    const privateKey = process.env.TEST_PRIVATE_KEY!;
+    const appId = process.env.TEST_APP_ID!;
+    const wallet = new Wallet(privateKey);
+    const address = wallet.address;
+
+    const message = `Sign in to ${appId}`;
+    const signature = await wallet.signMessage(message);
+
+    const authResponse = await fetch(`${AUTH_API_URL}/api/auth/wallet/verify-external`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appId, network: 'ethereum', message, signature, address }),
+    });
+
+    expect(authResponse.ok).toBe(true);
+    const authData = await authResponse.json();
+
+    return new HustleIncognitoClient({
+      jwt: authData.session.authToken,
+      hustleApiUrl: process.env.HUSTLE_API_URL,
+      debug: process.env.DEBUG === 'false' ? false : true,
+    });
+  }
+
+  test('should fetch PAYG status with JWT auth', async () => {
+    const client = await getJwtClient();
+    const status = await client.getPaygStatus();
+
+    expect(status).toBeDefined();
+    expect(typeof status.enabled).toBe('boolean');
+    expect(typeof status.mode).toBe('string');
+    expect(Array.isArray(status.available_tokens)).toBe(true);
+
+    console.log('PAYG Status (JWT auth):', JSON.stringify(status, null, 2));
+  });
+
+  test('should configure PAYG with JWT auth', async () => {
+    const client = await getJwtClient();
+
+    const result = await client.configurePayg({ enabled: true, payment_token: 'SOL' });
+
+    expect(result).toBeDefined();
+    expect(result.success).toBe(true);
+
+    console.log('Configure PAYG (JWT auth):', JSON.stringify(result, null, 2));
+
+    // Verify via status
+    const status = await client.getPaygStatus();
+    expect(status.enabled).toBe(true);
+    expect(status.payment_token).toBe('SOL');
   });
 });
