@@ -61,6 +61,10 @@ export {
   PathInfo,
   ToolCall,
   ToolResult,
+  // PAYG types
+  PaygStatus,
+  PaygConfigureOptions,
+  PaygConfigureResult,
   // Event types
   HustleEventType,
   HustleEvent,

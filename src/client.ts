@@ -17,6 +17,9 @@ import type {
   MaxToolsReachedEvent,
   MissingToolEvent,
   Model,
+  PaygConfigureOptions,
+  PaygConfigureResult,
+  PaygStatus,
   ProcessedResponse,
   RawChunk,
   RawStreamOptions,
@@ -1194,6 +1197,80 @@ export class HustleIncognitoClient {
 
     const parsedResponse = await response.json();
     return parsedResponse.data;
+  }
+
+  /**
+   * Get the current pay-as-you-go billing status.
+   * Returns enabled state, payment token, debt balance, and available tokens.
+   *
+   * @returns A promise resolving to the PAYG status
+   *
+   * @example
+   * ```typescript
+   * const status = await client.getPaygStatus();
+   * console.log(status.enabled, status.total_debt_usd);
+   * ```
+   */
+  public async getPaygStatus(): Promise<PaygStatus> {
+    const headers = await this.getHeaders();
+
+    if (this.apiKey && this.vaultId) {
+      headers['x-api-key'] = this.apiKey;
+      headers['x-vault-id'] = this.vaultId;
+    }
+
+    const response = await this.fetchImpl(`${this.baseUrl}/api/payg`, {
+      method: 'GET',
+      headers,
+      mode: 'cors',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch PAYG status: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Configure pay-as-you-go billing — enable/disable, set mode, or change payment token.
+   * All fields are optional; only the provided fields are updated.
+   *
+   * @param options - Configuration options
+   * @returns A promise resolving to the updated configuration
+   *
+   * @example
+   * ```typescript
+   * // Enable PAYG with SOL payments
+   * await client.configurePayg({ enabled: true, payment_token: 'SOL' });
+   *
+   * // Switch to debt accumulation mode
+   * await client.configurePayg({ mode: 'debt_accumulation' });
+   *
+   * // Disable PAYG
+   * await client.configurePayg({ enabled: false });
+   * ```
+   */
+  public async configurePayg(options: PaygConfigureOptions): Promise<PaygConfigureResult> {
+    const headers = await this.getHeaders();
+
+    if (this.apiKey && this.vaultId) {
+      headers['x-api-key'] = this.apiKey;
+      headers['x-vault-id'] = this.vaultId;
+    }
+
+    const response = await this.fetchImpl(`${this.baseUrl}/api/payg`, {
+      method: 'POST',
+      headers,
+      mode: 'cors',
+      body: JSON.stringify(options),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to configure PAYG: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
   }
 
   /**

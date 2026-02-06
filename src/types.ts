@@ -1183,6 +1183,50 @@ export interface HustlePlugin {
 /**
  * Options for client-side tool handling during chat.
  */
+/**
+ * PAYG billing status returned by `getPaygStatus()`.
+ */
+export interface PaygStatus {
+  enabled: boolean;
+  mode: 'pay_per_request' | 'debt_accumulation';
+  payment_token: string;
+  payment_chain: string;
+  is_blocked: boolean;
+  total_debt_usd: number;
+  total_paid_usd: number;
+  debt_ceiling_usd: number;
+  pending_charges: number;
+  available_tokens: string[];
+}
+
+/**
+ * Options for configuring PAYG billing via `configurePayg()`.
+ * All fields are optional — only provided fields are updated.
+ */
+export interface PaygConfigureOptions {
+  /** Enable or disable pay-as-you-go billing. */
+  enabled?: boolean;
+  /** Payment mode. */
+  mode?: 'pay_per_request' | 'debt_accumulation';
+  /** Token to use for payments. */
+  payment_token?:
+    | 'SOL'
+    | 'SOL_USDC'
+    | 'HUSTLE'
+    | 'ETH'
+    | 'ETH_USDC'
+    | 'BASE_ETH'
+    | 'BASE_USDC';
+}
+
+/**
+ * Response from `configurePayg()`.
+ */
+export interface PaygConfigureResult {
+  success: boolean;
+  config: Record<string, unknown>;
+}
+
 export interface ClientToolOptions {
   /**
    * Maximum automatic tool execution rounds.
