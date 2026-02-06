@@ -302,6 +302,61 @@
     .tool-type-header:first-child {
       margin-top: 0;
     }
+    .payg-panel {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    .payg-content {
+      display: none;
+    }
+    .payg-content.visible {
+      display: block;
+    }
+    .payg-status {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 15px;
+    }
+    .payg-stat {
+      padding: 12px;
+      background: #f9fafb;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+    }
+    .payg-stat-label {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+    .payg-stat-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1f2937;
+    }
+    .payg-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 15px;
+      margin-top: 15px;
+    }
+    @media (max-width: 768px) {
+      .payg-status, .payg-controls {
+        grid-template-columns: 1fr;
+      }
+    }
+    .payg-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .payg-toggle label {
+      margin: 0;
+    }
     .loading-tools {
       text-align: center;
       padding: 20px;
@@ -786,6 +841,41 @@
         <div id="toolsList" style="display: none;"></div>
       </div>
 
+    </div>
+
+    <!-- PAYG Billing Panel -->
+    <div class="payg-panel">
+      <div class="settings-toggle">
+        <button class="toggle-btn" onclick="togglePayg()">💳 Pay-As-You-Go Billing</button>
+      </div>
+      <div id="paygContent" class="payg-content">
+        <h2 style="margin-bottom: 15px;">PAYG Billing Management</h2>
+        <div id="paygLoader" style="text-align: center; padding: 20px; color: #6b7280;">Click to load billing status...</div>
+        <div id="paygStatusDisplay" style="display: none;">
+          <div class="payg-toggle">
+            <label for="paygEnabled">PAYG Enabled:</label>
+            <input type="checkbox" id="paygEnabled" onclick="togglePaygEnabled()">
+            <span id="paygEnabledLabel">Disabled</span>
+          </div>
+          <div class="payg-status" id="paygStatusGrid">
+            <!-- Populated by JS -->
+          </div>
+          <div class="payg-controls" id="paygControls" style="display: none;">
+            <div class="input-group">
+              <label for="paygToken">Payment Token</label>
+              <select id="paygToken" onchange="updatePaygToken()">
+              </select>
+            </div>
+            <div class="input-group">
+              <label for="paygMode">Payment Mode</label>
+              <select id="paygMode" onchange="updatePaygMode()">
+                <option value="pay_per_request">Pay Per Request</option>
+                <option value="debt_accumulation">Debt Accumulation</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="grid">
@@ -1440,6 +1530,141 @@
 
     // Load settings on page load
     loadSettings();
+
+    // PAYG Management
+    let paygStatus = null;
+
+    window.togglePayg = function togglePayg() {
+      const content = document.getElementById('paygContent');
+      const isVisible = content.classList.toggle('visible');
+      if (isVisible && !paygStatus) {
+        fetchPaygStatus();
+      }
+    }
+
+    async function fetchPaygStatus() {
+      const settings = getCurrentSettings();
+      if (!settings.apiKey) {
+        document.getElementById('paygLoader').innerHTML = '<div class="error">Please set an API key in Settings first</div>';
+        return;
+      }
+
+      document.getElementById('paygLoader').textContent = 'Loading billing status...';
+      document.getElementById('paygLoader').style.display = 'block';
+      document.getElementById('paygStatusDisplay').style.display = 'none';
+
+      try {
+        const baseUrl = settings.baseUrl || 'https://agenthustle.ai';
+        const response = await fetch(baseUrl + '/api/payg', {
+          method: 'GET',
+          headers: {
+            'x-api-key': settings.apiKey,
+            'x-vault-id': settings.vaultId || 'default'
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch PAYG status: ' + response.status);
+
+        paygStatus = await response.json();
+        renderPaygStatus();
+      } catch (error) {
+        document.getElementById('paygLoader').innerHTML = '<div class="error">Error: ' + error.message + '</div>';
+      }
+    }
+
+    function renderPaygStatus() {
+      document.getElementById('paygLoader').style.display = 'none';
+      document.getElementById('paygStatusDisplay').style.display = 'block';
+
+      const enabled = paygStatus.enabled;
+      document.getElementById('paygEnabled').checked = enabled;
+      document.getElementById('paygEnabledLabel').textContent = enabled ? 'Enabled' : 'Disabled';
+      document.getElementById('paygControls').style.display = enabled ? 'grid' : 'none';
+
+      // Populate token dropdown
+      const tokenSelect = document.getElementById('paygToken');
+      tokenSelect.innerHTML = '';
+      (paygStatus.available_tokens || ['SOL', 'SOL_USDC', 'HUSTLE', 'ETH', 'ETH_USDC', 'BASE_ETH', 'BASE_USDC']).forEach(token => {
+        const option = document.createElement('option');
+        option.value = token;
+        option.textContent = token;
+        if (token === paygStatus.payment_token) option.selected = true;
+        tokenSelect.appendChild(option);
+      });
+
+      // Set mode
+      document.getElementById('paygMode').value = paygStatus.mode || 'pay_per_request';
+
+      // Render status grid
+      const statusItems = [
+        { label: 'Payment Token', value: paygStatus.payment_token || 'N/A' },
+        { label: 'Payment Chain', value: paygStatus.payment_chain || 'N/A' },
+        { label: 'Total Debt', value: '$' + (paygStatus.total_debt_usd || 0).toFixed(4) },
+        { label: 'Total Paid', value: '$' + (paygStatus.total_paid_usd || 0).toFixed(4) },
+        { label: 'Debt Ceiling', value: '$' + (paygStatus.debt_ceiling_usd || 0).toFixed(2) },
+        { label: 'Pending Charges', value: String(paygStatus.pending_charges || 0) },
+        { label: 'Mode', value: (paygStatus.mode || 'N/A').replace('_', ' ') },
+        { label: 'Status', value: paygStatus.is_blocked ? 'Blocked' : 'Active' }
+      ];
+      const gridEl = document.getElementById('paygStatusGrid');
+      gridEl.innerHTML = '';
+      statusItems.forEach(s => {
+        const stat = document.createElement('div');
+        stat.className = 'payg-stat';
+        const lbl = document.createElement('div');
+        lbl.className = 'payg-stat-label';
+        lbl.textContent = s.label;
+        const val = document.createElement('div');
+        val.className = 'payg-stat-value';
+        val.textContent = s.value;
+        stat.appendChild(lbl);
+        stat.appendChild(val);
+        gridEl.appendChild(stat);
+      });
+    }
+
+    async function configurePayg(options) {
+      const settings = getCurrentSettings();
+      if (!settings.apiKey) return;
+
+      try {
+        const baseUrl = settings.baseUrl || 'https://agenthustle.ai';
+        const response = await fetch(baseUrl + '/api/payg', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': settings.apiKey,
+            'x-vault-id': settings.vaultId || 'default'
+          },
+          body: JSON.stringify(options)
+        });
+
+        if (!response.ok) throw new Error('Failed to configure PAYG: ' + response.status);
+
+        const result = await response.json();
+        if (result.success) {
+          showToast('PAYG configuration updated', 'success');
+          await fetchPaygStatus();
+        }
+      } catch (error) {
+        showToast('Error: ' + error.message, 'error');
+      }
+    }
+
+    window.togglePaygEnabled = function() {
+      const enabled = document.getElementById('paygEnabled').checked;
+      configurePayg({ enabled });
+    }
+
+    window.updatePaygToken = function() {
+      const token = document.getElementById('paygToken').value;
+      configurePayg({ payment_token: token });
+    }
+
+    window.updatePaygMode = function() {
+      const mode = document.getElementById('paygMode').value;
+      configurePayg({ mode });
+    }
 
     // Check for shared agent in URL
     function checkForSharedAgent() {

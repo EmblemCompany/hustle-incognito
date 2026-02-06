@@ -261,6 +261,12 @@ async function main() {
       console.log('  /exclude remove <name> - Remove a tool from exclusion list');
       console.log('  /exclude clear        - Clear the exclusion list');
       console.log('');
+      console.log('  /payment            - Show PAYG billing status');
+      console.log('  /payment enable     - Enable pay-as-you-go billing');
+      console.log('  /payment disable    - Disable pay-as-you-go billing');
+      console.log('  /payment token <T>  - Set payment token (SOL, ETH, HUSTLE, etc.)');
+      console.log('  /payment mode <M>   - Set payment mode (pay_per_request, debt_accumulation)');
+      console.log('');
       console.log('  /image <path> - Upload an image file for the next message');
       console.log('  /attachments  - Show pending attachments');
       console.log('  /clear-attachments - Clear all pending attachments');
@@ -301,6 +307,7 @@ async function main() {
         ? pendingAttachments.length + ' file(s)'
         : 'None'
       }`);
+      console.log('  PAYG:      Use /payment to view billing status');
     }
     
     // Manage tool categories
@@ -359,6 +366,42 @@ async function main() {
         
       } catch (error) {
         console.error('Error fetching tools:', error.message);
+      }
+    }
+
+    // Show PAYG billing status
+    async function showPaygStatus() {
+      console.log('\nFetching PAYG billing status...');
+      try {
+        const status = await client.getPaygStatus();
+        console.log('\n========================================');
+        console.log('         PAYG Billing Status');
+        console.log('========================================');
+        console.log('');
+        console.log(`  Enabled:         ${status.enabled ? 'YES' : 'NO'}`);
+        console.log(`  Mode:            ${status.mode || 'N/A'}`);
+        console.log(`  Payment Token:   ${status.payment_token || 'N/A'}`);
+        console.log(`  Payment Chain:   ${status.payment_chain || 'N/A'}`);
+        console.log(`  Blocked:         ${status.is_blocked ? 'YES' : 'NO'}`);
+        console.log(`  Total Debt:      $${(status.total_debt_usd || 0).toFixed(4)}`);
+        console.log(`  Total Paid:      $${(status.total_paid_usd || 0).toFixed(4)}`);
+        console.log(`  Debt Ceiling:    $${(status.debt_ceiling_usd || 0).toFixed(2)}`);
+        console.log(`  Pending Charges: ${status.pending_charges || 0}`);
+        console.log('');
+        if (status.available_tokens && status.available_tokens.length > 0) {
+          console.log('  Available Tokens:');
+          status.available_tokens.forEach(t => console.log(`    - ${t}`));
+        }
+        console.log('');
+        console.log('========================================');
+        console.log('');
+        console.log('Commands:');
+        console.log('  /payment enable          - Enable PAYG billing');
+        console.log('  /payment disable         - Disable PAYG billing');
+        console.log('  /payment token <TOKEN>   - Set payment token');
+        console.log('  /payment mode <MODE>     - Set payment mode');
+      } catch (error) {
+        console.error('Error fetching PAYG status:', error.message);
       }
     }
 
@@ -809,6 +852,66 @@ async function main() {
         return true;
       }
       
+      if (command.startsWith('/payment')) {
+        const parts = command.split(' ');
+
+        if (parts.length === 1) {
+          await showPaygStatus();
+          return true;
+        }
+
+        const subCommand = parts[1];
+
+        if (subCommand === 'enable') {
+          try {
+            const result = await client.configurePayg({ enabled: true });
+            console.log(result.success ? 'PAYG billing enabled.' : 'Failed to enable PAYG.');
+          } catch (error) {
+            console.error('Error enabling PAYG:', error.message);
+          }
+          return true;
+        }
+
+        if (subCommand === 'disable') {
+          try {
+            const result = await client.configurePayg({ enabled: false });
+            console.log(result.success ? 'PAYG billing disabled.' : 'Failed to disable PAYG.');
+          } catch (error) {
+            console.error('Error disabling PAYG:', error.message);
+          }
+          return true;
+        }
+
+        if (subCommand === 'token' && parts[2]) {
+          const token = parts[2].toUpperCase();
+          try {
+            const result = await client.configurePayg({ payment_token: token });
+            console.log(result.success ? `Payment token set to: ${token}` : 'Failed to set payment token.');
+          } catch (error) {
+            console.error('Error setting payment token:', error.message);
+          }
+          return true;
+        }
+
+        if (subCommand === 'mode' && parts[2]) {
+          const mode = parts[2];
+          if (mode !== 'pay_per_request' && mode !== 'debt_accumulation') {
+            console.log('Invalid mode. Use: pay_per_request or debt_accumulation');
+            return true;
+          }
+          try {
+            const result = await client.configurePayg({ mode });
+            console.log(result.success ? `Payment mode set to: ${mode}` : 'Failed to set payment mode.');
+          } catch (error) {
+            console.error('Error setting payment mode:', error.message);
+          }
+          return true;
+        }
+
+        console.log('Invalid /payment command. Use /payment for status, or /payment enable|disable|token|mode');
+        return true;
+      }
+
       if (command.startsWith('/image ')) {
         const imagePath = command.substring(7).trim();
         if (!imagePath) {

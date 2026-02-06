@@ -5,6 +5,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hustle Incognito + Emblem Auth Demo</title>
   <link rel="stylesheet" href="auth-demo-advanced.css">
+  <style>
+    .payg-stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+    .payg-stat-item {
+      padding: 8px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 6px;
+    }
+    .payg-stat-item .label {
+      color: #6b7280;
+      font-size: 11px;
+      margin-bottom: 2px;
+    }
+    .payg-stat-item .value {
+      color: #e6eef8;
+      font-weight: 500;
+    }
+    .payg-blocked {
+      color: #ef4444;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
@@ -98,6 +125,18 @@
             <label class="setting-label">Custom System Prompt</label>
             <p class="setting-description">Provide instructions for how the AI should behave</p>
             <textarea id="systemPromptModal" class="setting-textarea" placeholder="You are a helpful assistant..."></textarea>
+          </div>
+
+          <!-- Divider -->
+          <div class="setting-divider"></div>
+
+          <!-- PAYG Billing -->
+          <div class="setting-group">
+            <label class="setting-label">Pay-As-You-Go Billing</label>
+            <p class="setting-description">Manage your PAYG billing configuration</p>
+            <div id="paygSection">
+              <p class="setting-description" style="font-style: italic;">Loading billing status...</p>
+            </div>
           </div>
 
           <!-- Divider -->
@@ -1232,6 +1271,7 @@
       // Render plugin lists
       renderPluginList();
       renderAvailablePlugins();
+      fetchPaygStatus();
     }
 
     function closeSettings() {
@@ -2287,6 +2327,9 @@
       // Load models for settings
       loadModels();
 
+      // Pre-fetch PAYG billing status
+      fetchPaygStatus();
+
       log(`Connected: vault #${vaultId}, wallet ${truncateAddress(walletAddress)}`);
     }
 
@@ -2794,6 +2837,103 @@
     }
 
     fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+    // =========================================================================
+    // PAYG Management
+    // =========================================================================
+    let paygStatusData = null;
+    let paygLoading = false;
+
+    async function fetchPaygStatus() {
+      if (!hustleClient || paygLoading) return;
+      paygLoading = true;
+      const section = document.getElementById('paygSection');
+      section.textContent = '';
+      const loadingP = document.createElement('p');
+      loadingP.className = 'setting-description';
+      loadingP.style.fontStyle = 'italic';
+      loadingP.textContent = 'Loading billing status...';
+      section.appendChild(loadingP);
+
+      try {
+        paygStatusData = await hustleClient.getPaygStatus();
+        renderPaygUI();
+      } catch (err) {
+        section.textContent = '';
+        const errP = document.createElement('p');
+        errP.className = 'setting-description';
+        errP.style.color = '#ef4444';
+        errP.textContent = err.message;
+        section.appendChild(errP);
+      } finally {
+        paygLoading = false;
+      }
+    }
+
+    function renderPaygUI() {
+      const section = document.getElementById('paygSection');
+      if (!paygStatusData) return;
+
+      const s = paygStatusData;
+      const tokens = (s.available_tokens || ['SOL', 'SOL_USDC', 'HUSTLE', 'ETH', 'ETH_USDC', 'BASE_ETH', 'BASE_USDC']);
+      const tokenOptions = tokens.map(t => '<option value="' + t + '"' + (t === s.payment_token ? ' selected' : '') + '>' + t + '</option>').join('');
+
+      section.innerHTML = `
+        <div class="setting-toggle">
+          <span class="toggle-label">${s.enabled ? 'PAYG Enabled' : 'PAYG Disabled'}</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="paygToggle" ${s.enabled ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        ${s.enabled ? `
+          <div style="margin-top: 12px;">
+            <label class="setting-description" style="display: block; margin-bottom: 4px;">Payment Token</label>
+            <select id="paygTokenSelect" class="setting-select">${tokenOptions}</select>
+          </div>
+          <div style="margin-top: 8px;">
+            <label class="setting-description" style="display: block; margin-bottom: 4px;">Payment Mode</label>
+            <select id="paygModeSelect" class="setting-select">
+              <option value="pay_per_request" ${s.mode === 'pay_per_request' ? 'selected' : ''}>Pay Per Request</option>
+              <option value="debt_accumulation" ${s.mode === 'debt_accumulation' ? 'selected' : ''}>Debt Accumulation</option>
+            </select>
+          </div>
+          <div class="payg-stat-grid">
+            <div class="payg-stat-item"><div class="label">Chain</div><div class="value">${s.payment_chain || 'N/A'}</div></div>
+            <div class="payg-stat-item"><div class="label">Total Debt</div><div class="value">$${(s.total_debt_usd || 0).toFixed(4)}</div></div>
+            <div class="payg-stat-item"><div class="label">Total Paid</div><div class="value">$${(s.total_paid_usd || 0).toFixed(4)}</div></div>
+            <div class="payg-stat-item"><div class="label">Debt Ceiling</div><div class="value">$${(s.debt_ceiling_usd || 0).toFixed(2)}</div></div>
+            <div class="payg-stat-item"><div class="label">Pending</div><div class="value">${s.pending_charges || 0}</div></div>
+            <div class="payg-stat-item"><div class="label">Status</div><div class="value">${s.is_blocked ? '<span class="payg-blocked">Blocked</span>' : 'Active'}</div></div>
+          </div>
+        ` : ''}
+      `;
+
+      // Attach event listeners
+      document.getElementById('paygToggle').addEventListener('change', async (e) => {
+        await configurePaygOption({ enabled: e.target.checked });
+      });
+
+      if (s.enabled) {
+        document.getElementById('paygTokenSelect').addEventListener('change', async (e) => {
+          await configurePaygOption({ payment_token: e.target.value });
+        });
+        document.getElementById('paygModeSelect').addEventListener('change', async (e) => {
+          await configurePaygOption({ mode: e.target.value });
+        });
+      }
+    }
+
+    async function configurePaygOption(options) {
+      if (!hustleClient) return;
+      try {
+        await hustleClient.configurePayg(options);
+        log('PAYG configured: ' + JSON.stringify(options));
+        await fetchPaygStatus();
+      } catch (err) {
+        log('PAYG error: ' + err.message);
+      }
+    }
 
     // Initialize on load
     log('Page loaded, initializing...');
