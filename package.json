@@ -62,7 +62,7 @@
   },
   "homepage": "https://github.com/EmblemCompany/hustle-incognito#readme",
   "devDependencies": {
-    "@emblemvault/auth-sdk": "2.3.16",
+    "@emblemvault/auth-sdk": "^2.3.17",
     "@rollup/plugin-commonjs": "^29.0.0",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
