@@ -186,18 +186,14 @@ for await (const chunk of client.chatStream({
 
 ### 3️⃣ Raw API Streaming (maximum control)
 
-Direct access to the raw API stream format:
+Direct access to the raw stream. `rawStream()` auto-detects the server format — both the AI SDK stream protocol (prefix-based lines like `0:"Hello"`) and standard SSE format (`data: {"type":"text-delta",...}`) are handled transparently. You always receive the same `RawChunk` objects regardless of which format the server uses:
 
 ```typescript
-// For maximum control and custom processing
 for await (const rawChunk of client.rawStream({
   messages: [{ role: 'user', content: 'Find transactions for address 0x123...' }],
   vaultId: 'my-vault'
 })) {
-  // Raw chunks have prefix character and data
-  console.log(`Received ${rawChunk.prefix}: ${rawChunk.raw}`);
-  
-  // Process different prefix types
+  // Raw chunks always have a prefix and data, regardless of server format
   switch (rawChunk.prefix) {
     case '0': // Text chunk
       console.log('Text:', rawChunk.data);
@@ -221,6 +217,8 @@ for await (const rawChunk of client.rawStream({
   }
 }
 ```
+
+For advanced users handling raw SSE events directly, the `mapSSEEventToRawChunk()` helper is exported to normalize SSE events into `RawChunk` objects.
 
 ## 📡 Events
 

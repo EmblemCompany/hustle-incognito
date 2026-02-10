@@ -40,6 +40,52 @@ import { PluginManager } from './plugins';
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
+/**
+ * Maps a new SSE-format event to an old-style RawChunk.
+ * Returns null for events that should be skipped (boundary markers, streaming reasoning, etc.)
+ * @internal Exported for testing only.
+ */
+export function mapSSEEventToRawChunk(event: any, rawLine: string): RawChunk | null {
+  switch (event.type) {
+    case 'text-delta':
+      return { prefix: '0', data: event.delta, raw: rawLine };
+    case 'start':
+      return { prefix: 'f', data: { messageId: event.messageId }, raw: rawLine };
+    case 'data-custom':
+      // data-custom wraps the same inner payloads as old prefix 2 (path_info, reasoning, etc.)
+      return { prefix: '2', data: event.data, raw: rawLine };
+    case 'finish':
+      return {
+        prefix: 'e',
+        data: { finishReason: event.finishReason, usage: event.usage, isContinued: event.isContinued },
+        raw: rawLine,
+      };
+    case 'tool-call':
+      return {
+        prefix: '9',
+        data: { toolCallId: event.toolCallId, toolName: event.toolName, args: event.args },
+        raw: rawLine,
+      };
+    case 'tool-result':
+      return {
+        prefix: 'a',
+        data: { toolCallId: event.toolCallId, toolName: event.toolName, result: event.result },
+        raw: rawLine,
+      };
+    // Boundary markers and streaming reasoning — skip silently
+    case 'text-start':
+    case 'text-end':
+    case 'reasoning-start':
+    case 'reasoning-delta':
+    case 'reasoning-end':
+    case 'start-step':
+    case 'finish-step':
+      return null;
+    default:
+      return null;
+  }
+}
+
 // Injected at build time by rollup-plugin-replace from package.json version
 declare const __SDK_VERSION__: string;
 const SDK_VERSION = __SDK_VERSION__;
@@ -1055,25 +1101,45 @@ export class HustleIncognitoClient {
           if (lineBuffer.trim()) {
             if (this.debug)
               console.log(`[${new Date().toISOString()}] Processing final buffered line`);
-            const prefix = lineBuffer.charAt(0);
-            const data = lineBuffer.substring(2);
-            let parsedData;
-            try {
-              parsedData = JSON.parse(data);
-              if (
-                typeof parsedData === 'string' &&
-                (parsedData.startsWith('{') || parsedData.startsWith('['))
-              ) {
+
+            // Check for new SSE format in final buffer
+            if (lineBuffer.startsWith('data: ')) {
+              const payload = lineBuffer.substring(6);
+              if (payload !== '[DONE]') {
                 try {
-                  parsedData = JSON.parse(parsedData);
+                  const parsed = JSON.parse(payload);
+                  const mapped = mapSSEEventToRawChunk(parsed, lineBuffer);
+                  if (mapped) yield mapped;
                 } catch (e) {
-                  /* keep single-decoded version */
+                  if (this.debug)
+                    console.error(
+                      `[${new Date().toISOString()}] Error parsing final SSE buffer:`,
+                      e
+                    );
                 }
               }
-            } catch (e) {
-              parsedData = data;
+            } else {
+              // Old format
+              const prefix = lineBuffer.charAt(0);
+              const data = lineBuffer.substring(2);
+              let parsedData;
+              try {
+                parsedData = JSON.parse(data);
+                if (
+                  typeof parsedData === 'string' &&
+                  (parsedData.startsWith('{') || parsedData.startsWith('['))
+                ) {
+                  try {
+                    parsedData = JSON.parse(parsedData);
+                  } catch (e) {
+                    /* keep single-decoded version */
+                  }
+                }
+              } catch (e) {
+                parsedData = data;
+              }
+              yield { prefix, data: parsedData, raw: lineBuffer };
             }
-            yield { prefix, data: parsedData, raw: lineBuffer };
           }
           break;
         }
@@ -1093,6 +1159,40 @@ export class HustleIncognitoClient {
           if (!line.trim()) continue;
 
           try {
+            // === NEW SSE FORMAT DETECTION ===
+            // Lines starting with "data: " come from the new standard SSE format
+            if (line.startsWith('data: ')) {
+              const payload = line.substring(6); // strip "data: " prefix
+              if (payload === '[DONE]') continue; // terminal marker
+
+              try {
+                const parsed = JSON.parse(payload);
+                if (this.debug)
+                  console.log(
+                    `[${new Date().toISOString()}] SSE event type=${parsed.type}:`,
+                    JSON.stringify(parsed)
+                  );
+
+                const mapped = mapSSEEventToRawChunk(parsed, line);
+                if (mapped) {
+                  yield mapped;
+                } else if (this.debug) {
+                  console.log(
+                    `[${new Date().toISOString()}] Skipped SSE event type: ${parsed.type}`
+                  );
+                }
+              } catch (e) {
+                if (this.debug)
+                  console.error(
+                    `[${new Date().toISOString()}] Error parsing SSE JSON payload:`,
+                    e
+                  );
+                yield { prefix: 'error', data: payload, raw: line };
+              }
+              continue;
+            }
+
+            // === OLD AI SDK FORMAT (unchanged) ===
             const prefix = line.charAt(0);
             const data = line.substring(2);
 

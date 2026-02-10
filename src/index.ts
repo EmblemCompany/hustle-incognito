@@ -1,7 +1,7 @@
 // src/index.ts
 
-// Export the client class
-export { HustleIncognitoClient } from './client.js';
+// Export the client class and SSE helpers
+export { HustleIncognitoClient, mapSSEEventToRawChunk } from './client.js';
 
 // Export plugin manager
 export {
