@@ -57,7 +57,11 @@ export function mapSSEEventToRawChunk(event: any, rawLine: string): RawChunk | n
     case 'finish':
       return {
         prefix: 'e',
-        data: { finishReason: event.finishReason, usage: event.usage, isContinued: event.isContinued },
+        data: {
+          finishReason: event.finishReason,
+          usage: event.usage,
+          isContinued: event.isContinued,
+        },
         raw: rawLine,
       };
     case 'tool-call':
@@ -1183,10 +1187,7 @@ export class HustleIncognitoClient {
                 }
               } catch (e) {
                 if (this.debug)
-                  console.error(
-                    `[${new Date().toISOString()}] Error parsing SSE JSON payload:`,
-                    e
-                  );
+                  console.error(`[${new Date().toISOString()}] Error parsing SSE JSON payload:`, e);
                 yield { prefix: 'error', data: payload, raw: line };
               }
               continue;
