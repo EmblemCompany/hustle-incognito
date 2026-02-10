@@ -76,7 +76,13 @@ export function mapSSEEventToRawChunk(event: any, rawLine: string): RawChunk | n
         data: { toolCallId: event.toolCallId, toolName: event.toolName, result: event.result },
         raw: rawLine,
       };
-    // Boundary markers and streaming reasoning — skip silently
+    case 'tool-input-available':
+      return {
+        prefix: '9',
+        data: { toolCallId: event.toolCallId, toolName: event.toolName, args: event.input },
+        raw: rawLine,
+      };
+    // Boundary markers, streaming reasoning, and streaming tool input — skip silently
     case 'text-start':
     case 'text-end':
     case 'reasoning-start':
@@ -84,6 +90,7 @@ export function mapSSEEventToRawChunk(event: any, rawLine: string): RawChunk | n
     case 'reasoning-end':
     case 'start-step':
     case 'finish-step':
+    case 'tool-input-delta':
       return null;
     default:
       return null;
@@ -801,23 +808,26 @@ export class HustleIncognitoClient {
           }
 
           // Append tool results to messages for next round
-          // Format follows Hustle v2 / AI SDK UI pattern with toolInvocations
-          const toolInvocations = toolResults.map((tr, idx) => ({
-            state: 'result' as const,
-            step: idx,
+          // Build parts array with tool invocations in AI SDK v6 UIMessage format
+          const toolParts = toolResults.map((tr) => ({
+            type: 'tool-invocation' as const,
             toolCallId: tr.toolCallId,
             toolName: tr.toolName,
-            args: pendingClientToolCalls.find(tc => tc.toolCallId === tr.toolCallId)?.args || {},
-            result: typeof tr.result === 'string' ? tr.result : JSON.stringify(tr.result),
+            state: 'output-available' as const,
+            input: pendingClientToolCalls.find(tc => tc.toolCallId === tr.toolCallId)?.args || {},
+            output: tr.result,
           }));
 
           currentMessages = [
             ...currentMessages,
-            // Assistant message with toolInvocations (Hustle v2 format)
+            // Assistant message with parts (AI SDK v6 UIMessage format)
             {
               role: 'assistant' as const,
               content: '',
-              toolInvocations,
+              parts: [
+                { type: 'text' as const, text: '' },
+                ...toolParts,
+              ],
             },
           ];
 

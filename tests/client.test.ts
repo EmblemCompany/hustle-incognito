@@ -1484,9 +1484,9 @@ describe('HustleIncognitoClient', () => {
   });
 
   describe('client-side tool execution loop', () => {
-    test('should format toolInvocations correctly for Hustle v2', async () => {
-      // This test verifies the toolInvocations format matches Hustle v2 expectations
-      // The format should be: { state: 'result', step, toolCallId, toolName, args, result }
+    test('should format tool parts correctly for AI SDK v6 UIMessage', async () => {
+      // This test verifies the parts format matches AI SDK v6 UIMessage expectations
+      // The format should be: { type: 'tool-invocation', toolCallId, toolName, state: 'output-available', input, output }
 
       const toolResults = [
         { toolCallId: 'call-1', toolName: 'test_tool', result: { data: 'value' } },
@@ -1498,49 +1498,49 @@ describe('HustleIncognitoClient', () => {
         { toolCallId: 'call-2', toolName: 'another_tool', args: {} },
       ];
 
-      // Simulate the toolInvocations creation logic from chatStream
-      const toolInvocations = toolResults.map((tr, idx) => ({
-        state: 'result' as const,
-        step: idx,
+      // Simulate the toolParts creation logic from chatStream
+      const toolParts = toolResults.map((tr) => ({
+        type: 'tool-invocation' as const,
         toolCallId: tr.toolCallId,
         toolName: tr.toolName,
-        args: pendingToolCalls.find((tc) => tc.toolCallId === tr.toolCallId)?.args || {},
-        result: typeof tr.result === 'string' ? tr.result : JSON.stringify(tr.result),
+        state: 'output-available' as const,
+        input: pendingToolCalls.find((tc) => tc.toolCallId === tr.toolCallId)?.args || {},
+        output: tr.result,
       }));
 
       // Verify structure
-      expect(toolInvocations).toHaveLength(2);
+      expect(toolParts).toHaveLength(2);
 
       // First invocation
-      expect(toolInvocations[0]).toEqual({
-        state: 'result',
-        step: 0,
+      expect(toolParts[0]).toEqual({
+        type: 'tool-invocation',
         toolCallId: 'call-1',
         toolName: 'test_tool',
-        args: { input: 'test' },
-        result: '{"data":"value"}', // Objects get stringified
+        state: 'output-available',
+        input: { input: 'test' },
+        output: { data: 'value' }, // Objects stay as raw objects (NOT stringified)
       });
 
       // Second invocation
-      expect(toolInvocations[1]).toEqual({
-        state: 'result',
-        step: 1,
+      expect(toolParts[1]).toEqual({
+        type: 'tool-invocation',
         toolCallId: 'call-2',
         toolName: 'another_tool',
-        args: {},
-        result: 'string result', // Strings stay as-is
+        state: 'output-available',
+        input: {},
+        output: 'string result', // Strings stay as-is
       });
     });
 
-    test('should create assistant message with toolInvocations', async () => {
-      const toolInvocations = [
+    test('should create assistant message with parts in AI SDK v6 format', async () => {
+      const toolParts = [
         {
-          state: 'result' as const,
-          step: 0,
+          type: 'tool-invocation' as const,
           toolCallId: 'call-123',
           toolName: 'get_time',
-          args: { timezone: 'UTC' },
-          result: '2025-01-15T10:30:00Z',
+          state: 'output-available' as const,
+          input: { timezone: 'UTC' },
+          output: '2025-01-15T10:30:00Z',
         },
       ];
 
@@ -1548,17 +1548,22 @@ describe('HustleIncognitoClient', () => {
       const assistantMessage = {
         role: 'assistant' as const,
         content: '',
-        toolInvocations,
+        parts: [
+          { type: 'text' as const, text: '' },
+          ...toolParts,
+        ],
       };
 
-      // Verify structure matches Hustle v2 expectations
+      // Verify structure matches AI SDK v6 UIMessage expectations
       expect(assistantMessage.role).toBe('assistant');
       expect(assistantMessage.content).toBe('');
-      expect(assistantMessage.toolInvocations).toBeDefined();
-      expect(assistantMessage.toolInvocations).toHaveLength(1);
-      expect(assistantMessage.toolInvocations[0].state).toBe('result');
-      expect(assistantMessage.toolInvocations[0].toolCallId).toBe('call-123');
-      expect(assistantMessage.toolInvocations[0].toolName).toBe('get_time');
+      expect(assistantMessage.parts).toBeDefined();
+      expect(assistantMessage.parts).toHaveLength(2); // 1 text part + 1 tool-invocation part
+      expect(assistantMessage.parts[0]).toEqual({ type: 'text', text: '' });
+      expect(assistantMessage.parts[1].type).toBe('tool-invocation');
+      expect((assistantMessage.parts[1] as any).state).toBe('output-available');
+      expect((assistantMessage.parts[1] as any).toolCallId).toBe('call-123');
+      expect((assistantMessage.parts[1] as any).toolName).toBe('get_time');
     });
 
     test('should detect client-side tool calls via hasExecutor', async () => {

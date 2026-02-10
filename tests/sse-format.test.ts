@@ -175,6 +175,36 @@ describe('mapSSEEventToRawChunk', () => {
     });
   });
 
+  test('tool-input-available → prefix 9 with input mapped to args', () => {
+    const event = {
+      type: 'tool-input-available',
+      toolCallId: 'ask_user:0',
+      toolName: 'ask_user',
+      input: { question: 'What color?', choices: ['red', 'blue'] },
+      providerMetadata: { some: 'meta' },
+    };
+    const result = mapSSEEventToRawChunk(event, RAW);
+    expect(result).toEqual({
+      prefix: '9',
+      data: {
+        toolCallId: 'ask_user:0',
+        toolName: 'ask_user',
+        args: { question: 'What color?', choices: ['red', 'blue'] },
+      },
+      raw: RAW,
+    });
+  });
+
+  test('tool-input-delta → null (skipped)', () => {
+    const event = {
+      type: 'tool-input-delta',
+      toolCallId: 'ask_user:0',
+      delta: '{',
+    };
+    const result = mapSSEEventToRawChunk(event, RAW);
+    expect(result).toBeNull();
+  });
+
   describe('skipped events return null', () => {
     const skippedTypes = [
       'text-start',
@@ -184,6 +214,7 @@ describe('mapSSEEventToRawChunk', () => {
       'reasoning-end',
       'start-step',
       'finish-step',
+      'tool-input-delta',
     ];
 
     for (const eventType of skippedTypes) {
