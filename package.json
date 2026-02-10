@@ -1,6 +1,6 @@
 {
   "name": "hustle-incognito",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "SDK for interacting with the Emblem Vault Hustle Incognito Agent API",
   "author": "Emblem Vault",
   "license": "MIT",
