@@ -82,6 +82,12 @@ export function mapSSEEventToRawChunk(event: any, rawLine: string): RawChunk | n
         data: { toolCallId: event.toolCallId, toolName: event.toolName, args: event.input },
         raw: rawLine,
       };
+    case 'error':
+      return {
+        prefix: 'error',
+        data: { message: event.message || event.detail || event.error || 'Unknown SSE error' },
+        raw: rawLine,
+      };
     // Boundary markers, streaming reasoning, and streaming tool input — skip silently
     case 'text-start':
     case 'text-end':
@@ -628,11 +634,18 @@ export class HustleIncognitoClient {
 
                 // Check if this is a client-side tool (we have an executor)
                 if (toolCall.toolName && pluginManager.hasExecutor(toolCall.toolName)) {
-                  pendingClientToolCalls.push({
-                    toolCallId: toolCall.toolCallId || '',
-                    toolName: toolCall.toolName,
-                    args: toolCall.args || {},
-                  });
+                  // Deduplicate by toolCallId to prevent duplicate execution
+                  // (server may send both 'tool-call' and 'tool-input-available' for the same call)
+                  const alreadyExists = pendingClientToolCalls.some(
+                    tc => tc.toolCallId === (toolCall.toolCallId || '')
+                  );
+                  if (!alreadyExists) {
+                    pendingClientToolCalls.push({
+                      toolCallId: toolCall.toolCallId || '',
+                      toolName: toolCall.toolName,
+                      args: toolCall.args || {},
+                    });
+                  }
                 }
               } else if (chunk.type === 'tool_result' && chunk.value) {
                 emit({
@@ -1047,6 +1060,10 @@ export class HustleIncognitoClient {
           }
           break;
 
+        case 'error':
+          yield { type: 'error', value: chunk.data };
+          break;
+
         default:
           // Unknown chunk type, just pass it through
           yield { type: 'unknown', value: chunk };
@@ -1106,12 +1123,14 @@ export class HustleIncognitoClient {
 
       // Buffer for incomplete lines that span chunk boundaries
       let lineBuffer = '';
+      const decoder = new TextDecoder('utf-8');
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
           if (this.debug) console.log(`[${new Date().toISOString()}] Stream complete`);
           // Process any remaining buffered line
+          lineBuffer = lineBuffer.replace(/\r/g, '');
           if (lineBuffer.trim()) {
             if (this.debug)
               console.log(`[${new Date().toISOString()}] Processing final buffered line`);
@@ -1158,16 +1177,16 @@ export class HustleIncognitoClient {
           break;
         }
 
-        const text = new TextDecoder().decode(value);
+        const text = decoder.decode(value, { stream: true });
         if (this.debug) console.log(`[${new Date().toISOString()}] Raw stream data:`, text);
 
         // Prepend any buffered content from previous chunk
         const fullText = lineBuffer + text;
-        const lines = fullText.split('\n');
+        const lines = fullText.split(/\r?\n/);
 
         // The last element might be incomplete if it doesn't end with \n
         // Save it for the next iteration
-        lineBuffer = text.endsWith('\n') ? '' : lines.pop() || '';
+        lineBuffer = (text.endsWith('\n') || text.endsWith('\r\n')) ? '' : lines.pop() || '';
 
         for (const line of lines) {
           if (!line.trim()) continue;

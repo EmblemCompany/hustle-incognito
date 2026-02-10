@@ -83,6 +83,11 @@ export {
   JSONSchemaProperty,
   // Security types
   PluginSecurityConfig,
+  // Message types
+  MessagePart,
+  TextMessagePart,
+  ToolInvocationMessagePart,
+  Attachment,
   // Testing types
   StubbedToolConfig,
 } from './types.js';

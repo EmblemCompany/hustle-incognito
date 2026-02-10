@@ -1,8 +1,11 @@
 // src/types.ts
 
+// Import types from auth-sdk for local use within this file
+import type { VaultInfo, BtcAddresses } from '@emblemvault/auth-sdk';
+
 // Re-export types from auth-sdk for consumers who want to use them
 // Type-only imports are stripped at runtime, so this works even if auth-sdk isn't installed
-export type { VaultInfo, BtcAddresses } from '@emblemvault/auth-sdk';
+export type { VaultInfo, BtcAddresses };
 
 /**
  * Token usage statistics from the API response.
@@ -703,9 +706,9 @@ export interface ChatMessage {
 }
 
 /**
- * A part of a structured message.
+ * A part of a structured message (text, image, file).
  */
-export interface MessagePart {
+export interface TextMessagePart {
   /** The type of message part. */
   type: 'text' | 'image' | 'file';
   /** The text content if type is 'text'. */
@@ -715,6 +718,29 @@ export interface MessagePart {
   /** The attachment ID if type is 'image' (for experimental_attachments). */
   id?: string;
 }
+
+/**
+ * A tool invocation part of a structured message.
+ */
+export interface ToolInvocationMessagePart {
+  /** The type of message part. */
+  type: 'tool-invocation';
+  /** The unique ID for this tool call. */
+  toolCallId: string;
+  /** The name of the tool being invoked. */
+  toolName: string;
+  /** The state of the tool invocation (e.g., 'call', 'result', 'partial-call', 'output-available'). */
+  state: string;
+  /** The input arguments passed to the tool. */
+  input: unknown;
+  /** The output of the tool execution (present when state is 'output-available' or 'result'). */
+  output?: unknown;
+}
+
+/**
+ * A part of a structured message.
+ */
+export type MessagePart = TextMessagePart | ToolInvocationMessagePart;
 
 /**
  * A request to the chat API.

@@ -229,6 +229,82 @@ describe('mapSSEEventToRawChunk', () => {
     const result = mapSSEEventToRawChunk({ type: 'some-future-event' }, RAW);
     expect(result).toBeNull();
   });
+
+  test('error → prefix error with message', () => {
+    const event = { type: 'error', message: 'Something went wrong', code: 'RATE_LIMIT' };
+    const rawLine = 'data: {"type":"error","message":"Something went wrong","code":"RATE_LIMIT"}';
+    const result = mapSSEEventToRawChunk(event, rawLine);
+    expect(result).toEqual({
+      prefix: 'error',
+      data: { message: 'Something went wrong' },
+      raw: rawLine,
+    });
+  });
+
+  test('error without message falls back to detail field', () => {
+    const event = { type: 'error', detail: 'Rate limit exceeded' };
+    const result = mapSSEEventToRawChunk(event, RAW);
+    expect(result).toEqual({
+      prefix: 'error',
+      data: { message: 'Rate limit exceeded' },
+      raw: RAW,
+    });
+  });
+
+  test('error without message or detail falls back to error field', () => {
+    const event = { type: 'error', error: 'Internal failure' };
+    const result = mapSSEEventToRawChunk(event, RAW);
+    expect(result).toEqual({
+      prefix: 'error',
+      data: { message: 'Internal failure' },
+      raw: RAW,
+    });
+  });
+
+  test('error with no message fields falls back to Unknown SSE error', () => {
+    const event = { type: 'error' };
+    const result = mapSSEEventToRawChunk(event, RAW);
+    expect(result).toEqual({
+      prefix: 'error',
+      data: { message: 'Unknown SSE error' },
+      raw: RAW,
+    });
+  });
+
+  test('both tool-call and tool-input-available map to prefix 9', () => {
+    const toolCallEvent = {
+      type: 'tool-call',
+      toolCallId: 'tc-dedup',
+      toolName: 'get_price',
+      args: { symbol: 'ETH' },
+    };
+    const toolInputEvent = {
+      type: 'tool-input-available',
+      toolCallId: 'tc-dedup',
+      toolName: 'get_price',
+      input: { symbol: 'ETH' },
+      providerMetadata: {},
+    };
+
+    const toolCallResult = mapSSEEventToRawChunk(toolCallEvent, RAW);
+    const toolInputResult = mapSSEEventToRawChunk(toolInputEvent, RAW);
+
+    // Both should produce prefix '9'
+    expect(toolCallResult!.prefix).toBe('9');
+    expect(toolInputResult!.prefix).toBe('9');
+
+    // Both should produce the same data shape with args (input mapped to args)
+    expect(toolCallResult!.data).toEqual({
+      toolCallId: 'tc-dedup',
+      toolName: 'get_price',
+      args: { symbol: 'ETH' },
+    });
+    expect(toolInputResult!.data).toEqual({
+      toolCallId: 'tc-dedup',
+      toolName: 'get_price',
+      args: { symbol: 'ETH' },
+    });
+  });
 });
 
 // ============================================================================
@@ -494,6 +570,102 @@ describe('SSE format auto-detection in rawStream', () => {
     expect(chunks).toHaveLength(2);
     expect(chunks[0]).toEqual({ prefix: '0', data: 'Hello', raw: expect.any(String) });
     expect(chunks[1].prefix).toBe('e');
+  });
+
+  test('lines with \\r\\n endings parse the same as lines with \\n', async () => {
+    // Simulate \r\n line endings as some servers (e.g., Windows-based) may send them
+    const bodyWithCRLF =
+      'data: {"type":"start","messageId":"msg-crlf"}\r\n' +
+      'data: {"type":"text-delta","delta":"hello"}\r\n' +
+      'data: {"type":"finish","finishReason":"stop","usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}\r\n' +
+      'data: [DONE]\r\n';
+    const encoder = new TextEncoder();
+    const encoded = encoder.encode(bodyWithCRLF);
+
+    let read = false;
+    const mockReader = {
+      read: async () => {
+        if (!read) {
+          read = true;
+          return { done: false, value: encoded };
+        }
+        return { done: true, value: undefined };
+      },
+    };
+
+    const mockResponse = {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      body: { getReader: () => mockReader },
+    };
+
+    const mockFetch = vi.fn().mockResolvedValue(mockResponse);
+    // @ts-ignore - Accessing private property for testing
+    client.fetchImpl = mockFetch;
+
+    const crlfChunks: RawChunk[] = [];
+    for await (const chunk of client.rawStream({
+      vaultId: 'test-vault',
+      messages: [{ role: 'user', content: 'Test' }],
+    })) {
+      crlfChunks.push(chunk as RawChunk);
+    }
+
+    // Now do the same with plain \n endings
+    const bodyWithLF =
+      'data: {"type":"start","messageId":"msg-crlf"}\n' +
+      'data: {"type":"text-delta","delta":"hello"}\n' +
+      'data: {"type":"finish","finishReason":"stop","usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}\n' +
+      'data: [DONE]\n';
+    const encodedLF = encoder.encode(bodyWithLF);
+
+    let readLF = false;
+    const mockReaderLF = {
+      read: async () => {
+        if (!readLF) {
+          readLF = true;
+          return { done: false, value: encodedLF };
+        }
+        return { done: true, value: undefined };
+      },
+    };
+
+    const mockResponseLF = {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      body: { getReader: () => mockReaderLF },
+    };
+
+    const mockFetchLF = vi.fn().mockResolvedValue(mockResponseLF);
+    // @ts-ignore - Accessing private property for testing
+    client.fetchImpl = mockFetchLF;
+
+    const lfChunks: RawChunk[] = [];
+    for await (const chunk of client.rawStream({
+      vaultId: 'test-vault',
+      messages: [{ role: 'user', content: 'Test' }],
+    })) {
+      lfChunks.push(chunk as RawChunk);
+    }
+
+    // Both should produce the same number of chunks
+    expect(crlfChunks).toHaveLength(lfChunks.length);
+
+    // Both should have the same prefixes and data
+    for (let i = 0; i < crlfChunks.length; i++) {
+      expect(crlfChunks[i].prefix).toBe(lfChunks[i].prefix);
+      expect(crlfChunks[i].data).toEqual(lfChunks[i].data);
+    }
+
+    // Verify actual content: start, text-delta, finish (3 chunks)
+    expect(crlfChunks).toHaveLength(3);
+    expect(crlfChunks[0].prefix).toBe('f');
+    expect(crlfChunks[0].data).toEqual({ messageId: 'msg-crlf' });
+    expect(crlfChunks[1].prefix).toBe('0');
+    expect(crlfChunks[1].data).toBe('hello');
+    expect(crlfChunks[2].prefix).toBe('e');
   });
 
   test('tool-call and tool-result SSE events map correctly', async () => {

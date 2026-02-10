@@ -1,0 +1,5 @@
+[     624ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://pulse.walletconnect.org/e?projectId=e899c82be21d4acca2c8aec45e893598&st=appkit&sv=html-core-1.7.8:0
+[     625ms] [ERROR] Origin https://emblemvault.dev not found on Allowlist - update configuration on cloud.reown.com @ https://emblemvault.dev/_next/static/chunks/4691.7e66e8ec252e3479.js:884
+[   35605ms] [ERROR] Failed to load resource: the server responded with a status of 403 () @ https://pulse.walletconnect.org/e?projectId=e899c82be21d4acca2c8aec45e893598&st=appkit&sv=html-core-1.7.8:0
+[   35606ms] [ERROR] Origin https://auth.emblemvault.ai not found on Allowlist - update configuration on cloud.reown.com @ https://auth.emblemvault.ai/_next/static/chunks/4691.7e66e8ec252e3479.js:884
+[   37958ms] [WARNING] The AudioContext was not allowed to start. It must be resumed (or created) after a user gesture on the page. https://developer.chrome.com/blog/autoplay/#web_audio @ https://vaultfingerprintsystem-production.up.railway.app/dist/vault-fp.min.js:0
