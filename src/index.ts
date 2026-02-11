@@ -90,4 +90,10 @@ export {
   Attachment,
   // Testing types
   StubbedToolConfig,
+  // Discovery types
+  DiscoverableToolSchema,
+  PeerDescriptor,
+  DiscoveryCategorySummary,
+  DiscoveryManifest,
+  DiscoverToolsOptions,
 } from './types.js';

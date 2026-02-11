@@ -14,7 +14,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { Wallet } from 'ethers';
 
 import { HustleIncognitoClient } from '../src';
-import type { ProcessedResponse, ChatMessage, StreamChunk, PaygStatus } from '../src/types';
+import type { ProcessedResponse, ChatMessage, StreamChunk, PaygStatus, DiscoveryManifest } from '../src/types';
 
 
 
@@ -1296,4 +1296,194 @@ describe.skipIf(shouldSkipSignatureAuth)('PAYG with JWT Auth', () => {
     expect(status.enabled).toBe(true);
     expect(status.payment_token).toBe('SOL');
   });
+});
+
+// ---------------------------------------------------------------------------
+// Tool Discovery Integration Tests
+// ---------------------------------------------------------------------------
+
+describe.skipIf(shouldSkip)('Tool Discovery Integration Tests', () => {
+  let client: HustleIncognitoClient;
+
+  beforeEach(() => {
+    client = new HustleIncognitoClient({
+      apiKey: process.env.HUSTLE_API_KEY || '',
+      vaultId: process.env.VAULT_ID,
+      hustleApiUrl: process.env.HUSTLE_API_URL,
+      debug: process.env.DEBUG === 'false' ? false : true,
+    });
+  });
+
+  afterEach(async () => {
+    await delay(2000);
+  });
+
+  test('should discover all tools and return a valid manifest', async () => {
+    const manifest = await client.discoverTools();
+
+    expect(manifest).toBeDefined();
+    expect(manifest.peer).toBeDefined();
+    expect(manifest.tools).toBeDefined();
+    expect(manifest.categories).toBeDefined();
+    expect(typeof manifest.timestamp).toBe('string');
+
+    console.log(`Discovered ${manifest.tools.length} tools across ${manifest.categories.length} categories`);
+    console.log(`Peer: ${manifest.peer.name} (${manifest.peer.id})`);
+  }, 30000);
+
+  test('should return peer descriptor with expected fields', async () => {
+    const manifest = await client.discoverTools();
+    const { peer } = manifest;
+
+    expect(typeof peer.id).toBe('string');
+    expect(typeof peer.name).toBe('string');
+    expect(typeof peer.protocol).toBe('string');
+    expect(typeof peer.version).toBe('string');
+    expect(typeof peer.discoveryUrl).toBe('string');
+    expect(typeof peer.executionUrl).toBe('string');
+    expect(Array.isArray(peer.authMethods)).toBe(true);
+    expect(peer.capabilities).toBeDefined();
+    expect(typeof peer.capabilities.toolCount).toBe('number');
+    expect(Array.isArray(peer.capabilities.categories)).toBe(true);
+
+    console.log('Peer descriptor:', JSON.stringify(peer, null, 2));
+  }, 30000);
+
+  test('should return tools with full JSON Schema parameters (authenticated)', async () => {
+    const manifest = await client.discoverTools();
+
+    // Authenticated requests should get full schemas (non-empty properties)
+    expect(manifest.tools.length).toBeGreaterThan(0);
+
+    // Check that at least some tools have populated parameter schemas
+    const toolsWithParams = manifest.tools.filter(
+      (t) => Object.keys(t.parameters.properties).length > 0,
+    );
+
+    expect(toolsWithParams.length).toBeGreaterThan(0);
+    console.log(`${toolsWithParams.length} / ${manifest.tools.length} tools have full parameter schemas`);
+
+    // Inspect the first tool with params
+    const sample = toolsWithParams[0];
+    console.log(`Sample tool: ${sample.name} (${sample.category})`);
+    console.log(`  Description: ${sample.description}`);
+    console.log(`  Parameters: ${JSON.stringify(sample.parameters, null, 2).slice(0, 500)}`);
+
+    // Validate schema structure
+    expect(sample.parameters.type).toBe('object');
+    expect(typeof sample.parameters.properties).toBe('object');
+  }, 30000);
+
+  test('should return valid category summaries', async () => {
+    const manifest = await client.discoverTools();
+
+    expect(manifest.categories.length).toBeGreaterThan(0);
+
+    for (const cat of manifest.categories) {
+      expect(typeof cat.id).toBe('string');
+      expect(typeof cat.name).toBe('string');
+      expect(typeof cat.description).toBe('string');
+      expect(typeof cat.toolCount).toBe('number');
+      expect(cat.toolCount).toBeGreaterThanOrEqual(0);
+    }
+
+    console.log('Categories:');
+    for (const cat of manifest.categories) {
+      console.log(`  ${cat.id}: ${cat.name} (${cat.toolCount} tools)`);
+    }
+  }, 30000);
+
+  test('should filter tools by single category', async () => {
+    // First get all tools to know which categories exist
+    const fullManifest = await client.discoverTools();
+    if (fullManifest.categories.length === 0) {
+      console.log('No categories found, skipping filter test');
+      return;
+    }
+
+    const targetCategory = fullManifest.categories[0].id;
+    console.log(`Filtering by category: ${targetCategory}`);
+
+    await delay(1000);
+
+    const filtered = await client.discoverTools({ categories: [targetCategory] });
+
+    expect(filtered.tools.length).toBeGreaterThan(0);
+    expect(filtered.tools.length).toBeLessThanOrEqual(fullManifest.tools.length);
+
+    // All returned tools should belong to the requested category
+    for (const tool of filtered.tools) {
+      expect(tool.category).toBe(targetCategory);
+    }
+
+    console.log(`Filtered: ${filtered.tools.length} tools in "${targetCategory}" (of ${fullManifest.tools.length} total)`);
+  }, 60000);
+
+  test('should filter tools by multiple categories', async () => {
+    const fullManifest = await client.discoverTools();
+    if (fullManifest.categories.length < 2) {
+      console.log('Fewer than 2 categories, skipping multi-category filter test');
+      return;
+    }
+
+    const targetCategories = fullManifest.categories.slice(0, 2).map((c) => c.id);
+    console.log(`Filtering by categories: ${targetCategories.join(', ')}`);
+
+    await delay(1000);
+
+    const filtered = await client.discoverTools({ categories: targetCategories });
+
+    expect(filtered.tools.length).toBeGreaterThan(0);
+
+    // All returned tools should belong to one of the requested categories
+    for (const tool of filtered.tools) {
+      expect(targetCategories).toContain(tool.category);
+    }
+
+    console.log(`Filtered: ${filtered.tools.length} tools in [${targetCategories.join(', ')}]`);
+  }, 60000);
+
+  test('should return consistent results across calls', async () => {
+    const manifest1 = await client.discoverTools();
+    await delay(1000);
+    const manifest2 = await client.discoverTools();
+
+    // Tool count should be stable
+    expect(manifest1.tools.length).toBe(manifest2.tools.length);
+
+    // Tool names should match
+    const names1 = manifest1.tools.map((t) => t.name).sort();
+    const names2 = manifest2.tools.map((t) => t.name).sort();
+    expect(names1).toEqual(names2);
+
+    console.log(`Consistency check: ${manifest1.tools.length} tools returned both times`);
+  }, 60000);
+
+  test('every tool should have name, description, and parameters', async () => {
+    const manifest = await client.discoverTools();
+
+    for (const tool of manifest.tools) {
+      expect(typeof tool.name).toBe('string');
+      expect(tool.name.length).toBeGreaterThan(0);
+
+      expect(typeof tool.description).toBe('string');
+      expect(tool.description.length).toBeGreaterThan(0);
+
+      expect(tool.parameters).toBeDefined();
+      expect(tool.parameters.type).toBe('object');
+      expect(typeof tool.parameters.properties).toBe('object');
+    }
+
+    console.log(`Validated schema structure for all ${manifest.tools.length} tools`);
+  }, 30000);
+
+  test('tool count should match peer capabilities', async () => {
+    const manifest = await client.discoverTools();
+
+    // The peer's advertised tool count should be close to or equal to actual tools
+    // (may differ slightly if some tools are filtered)
+    expect(manifest.peer.capabilities.toolCount).toBeGreaterThanOrEqual(manifest.tools.length);
+
+    console.log(`Peer advertises ${manifest.peer.capabilities.toolCount} tools, manifest contains ${manifest.tools.length}`);
+  }, 30000);
 });

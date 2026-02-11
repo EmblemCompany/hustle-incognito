@@ -902,6 +902,64 @@ export interface ToolCategory {
   premium?: boolean;
 }
 
+// ---------------------------------------------------------------------------
+// Tool Discovery types (from /api/tools/discover)
+// ---------------------------------------------------------------------------
+
+/** A single tool from the discovery manifest with its JSON Schema parameters */
+export interface DiscoverableToolSchema {
+  /** Unique tool name (e.g., "swapSolana", "getBalance") */
+  name: string;
+  /** Human-readable description shown to the AI model */
+  description: string;
+  /** Category this tool belongs to */
+  category?: string;
+  /** JSON Schema for tool parameters (empty properties = unauthenticated) */
+  parameters: {
+    type: 'object';
+    properties: Record<string, unknown>;
+    required?: string[];
+  };
+}
+
+/** Peer descriptor from the discovery manifest */
+export interface PeerDescriptor {
+  id: string;
+  name: string;
+  protocol: string;
+  version: string;
+  type: string;
+  discoveryUrl: string;
+  executionUrl: string;
+  authMethods: string[];
+  capabilities: {
+    toolCount: number;
+    categories: string[];
+  };
+}
+
+/** Category summary in the discovery manifest */
+export interface DiscoveryCategorySummary {
+  id: string;
+  name: string;
+  description: string;
+  toolCount: number;
+}
+
+/** Full discovery manifest returned by /api/tools/discover */
+export interface DiscoveryManifest {
+  peer: PeerDescriptor;
+  tools: DiscoverableToolSchema[];
+  categories: DiscoveryCategorySummary[];
+  timestamp: string;
+}
+
+/** Options for the discoverTools method */
+export interface DiscoverToolsOptions {
+  /** Filter tools to specific categories */
+  categories?: string[];
+}
+
 /**
  * Model pricing information from OpenRouter.
  */

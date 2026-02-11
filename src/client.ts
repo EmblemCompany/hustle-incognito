@@ -35,6 +35,8 @@ import type {
   ToolEndEvent,
   ToolStartEvent,
   ToolValidationErrorEvent,
+  DiscoveryManifest,
+  DiscoverToolsOptions,
 } from './types';
 import { PluginManager } from './plugins';
 
@@ -1297,6 +1299,52 @@ export class HustleIncognitoClient {
 
     const parsedResponse = await response.json();
     return parsedResponse.data;
+  }
+
+  /**
+   * Discover available tools with their full JSON Schema parameter definitions.
+   *
+   * Calls the /api/tools/discover endpoint. Authenticated requests (via SDK auth
+   * or API key) receive full parameter schemas; unauthenticated requests receive
+   * tool names and descriptions only.
+   *
+   * @param options - Optional category filter
+   * @returns A promise resolving to the full DiscoveryManifest
+   *
+   * @example
+   * ```typescript
+   * // Discover all tools
+   * const manifest = await client.discoverTools();
+   * console.log(`Found ${manifest.tools.length} tools`);
+   *
+   * // Discover tools in specific categories
+   * const solanaTools = await client.discoverTools({ categories: ['solana'] });
+   * ```
+   */
+  public async discoverTools(options?: DiscoverToolsOptions): Promise<DiscoveryManifest> {
+    let url = `${this.baseUrl}/api/tools/discover`;
+    if (options?.categories?.length) {
+      url += `?categories=${options.categories.join(',')}`;
+    }
+
+    const headers = await this.getHeaders();
+
+    if (this.apiKey && this.vaultId) {
+      headers['x-api-key'] = this.apiKey;
+      headers['x-vault-id'] = this.vaultId;
+    }
+
+    const response = await this.fetchImpl(url, {
+      method: 'GET',
+      headers,
+      mode: 'cors',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to discover tools: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
   }
 
   /**
