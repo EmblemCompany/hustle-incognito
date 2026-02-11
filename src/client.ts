@@ -504,6 +504,9 @@ export class HustleIncognitoClient {
         safeMode: options.safeMode,
         selectedToolCategories: options.selectedToolCategories || [],
         intentContext: options.intentContext,
+        exactToolNames: options.exactToolNames,
+        ignoreOtherTools: options.ignoreOtherTools,
+        excludedTools: options.excludedTools,
       })) {
         if (this.debug)
           console.log(`[${new Date().toISOString()}] Raw chunk:`, JSON.stringify(chunk));
@@ -525,6 +528,9 @@ export class HustleIncognitoClient {
       selectedToolCategories: options.selectedToolCategories || [],
       attachments: options.attachments || [],
       intentContext: options.intentContext,
+      exactToolNames: options.exactToolNames,
+      ignoreOtherTools: options.ignoreOtherTools,
+      excludedTools: options.excludedTools,
     });
 
     // Consume the stream to trigger processing (response promise resolves when stream completes)
@@ -824,7 +830,7 @@ export class HustleIncognitoClient {
 
           // Append tool results to messages for next round
           // Build parts array with tool invocations in AI SDK v6 UIMessage format
-          const toolParts = toolResults.map((tr) => ({
+          const toolParts = toolResults.map(tr => ({
             type: 'tool-invocation' as const,
             toolCallId: tr.toolCallId,
             toolName: tr.toolName,
@@ -839,10 +845,7 @@ export class HustleIncognitoClient {
             {
               role: 'assistant' as const,
               content: '',
-              parts: [
-                { type: 'text' as const, text: '' },
-                ...toolParts,
-              ],
+              parts: [{ type: 'text' as const, text: '' }, ...toolParts],
             },
           ];
 
@@ -1188,7 +1191,7 @@ export class HustleIncognitoClient {
 
         // The last element might be incomplete if it doesn't end with \n
         // Save it for the next iteration
-        lineBuffer = (text.endsWith('\n') || text.endsWith('\r\n')) ? '' : lines.pop() || '';
+        lineBuffer = text.endsWith('\n') || text.endsWith('\r\n') ? '' : lines.pop() || '';
 
         for (const line of lines) {
           if (!line.trim()) continue;
