@@ -468,6 +468,16 @@ export class HustleIncognitoClient {
    */
   public async chat(
     messages: ChatMessage[],
+    options: ChatOptions & { rawResponse: true },
+    overrideFunc?: Function | null
+  ): Promise<RawChunk[]>;
+  public async chat(
+    messages: ChatMessage[],
+    options?: ChatOptions & { rawResponse?: false },
+    overrideFunc?: Function | null
+  ): Promise<ProcessedResponse>;
+  public async chat(
+    messages: ChatMessage[],
     options: ChatOptions = {},
     overrideFunc: Function | null = null
   ): Promise<ProcessedResponse | RawChunk[]> {
