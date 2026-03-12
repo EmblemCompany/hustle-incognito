@@ -715,6 +715,8 @@ export interface TextMessagePart {
   text?: string;
   /** The file URL if type is 'image' or 'file'. */
   url?: string;
+  /** The MIME type of the file (e.g., 'image/png'). Required for 'file' type parts. */
+  mediaType?: string;
   /** The attachment ID if type is 'image' (for experimental_attachments). */
   id?: string;
 }

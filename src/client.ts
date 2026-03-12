@@ -1708,9 +1708,14 @@ export class HustleIncognitoClient {
           url: attachment.url || '',
         }));
 
-        // Create parts array with just the text content (no image parts)
+        // Create parts array with text content and file parts for each attachment
         const parts: import('./types').MessagePart[] = [
           { type: 'text' as const, text: lastUserMessage.content || '' },
+          ...options.attachments.map(attachment => ({
+            type: 'file' as const,
+            mediaType: attachment.contentType || 'image/png',
+            url: attachment.url || '',
+          })),
         ];
 
         // Update the message with experimental_attachments and parts
