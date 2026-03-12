@@ -37,3 +37,5 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 /examples/agent-hustle-mcp-server
 
 .npm-cache
+.playwright-mcp
+railway.md
