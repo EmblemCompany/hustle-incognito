@@ -508,6 +508,7 @@ export class HustleIncognitoClient {
         vaultId,
         messages,
         model: options.model,
+        overrideSystemPrompt: options.overrideSystemPrompt,
         userApiKey: options.userApiKey,
         externalWalletAddress: options.externalWalletAddress,
         slippageSettings: options.slippageSettings,
@@ -517,6 +518,8 @@ export class HustleIncognitoClient {
         exactToolNames: options.exactToolNames,
         ignoreOtherTools: options.ignoreOtherTools,
         excludedTools: options.excludedTools,
+        stubbedTools: options.stubbedTools,
+        skipSessionMemory: options.skipSessionMemory,
       })) {
         if (this.debug)
           console.log(`[${new Date().toISOString()}] Raw chunk:`, JSON.stringify(chunk));
@@ -530,6 +533,7 @@ export class HustleIncognitoClient {
       vaultId,
       messages,
       model: options.model,
+      overrideSystemPrompt: options.overrideSystemPrompt,
       userApiKey: options.userApiKey,
       externalWalletAddress: options.externalWalletAddress,
       slippageSettings: options.slippageSettings,
@@ -541,6 +545,8 @@ export class HustleIncognitoClient {
       exactToolNames: options.exactToolNames,
       ignoreOtherTools: options.ignoreOtherTools,
       excludedTools: options.excludedTools,
+      stubbedTools: options.stubbedTools,
+      skipSessionMemory: options.skipSessionMemory,
     });
 
     // Consume the stream to trigger processing (response promise resolves when stream completes)
