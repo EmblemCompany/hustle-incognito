@@ -1,6 +1,7 @@
 import { describe, test, expect, vi } from 'vitest';
 import { HustleIncognitoClient } from '../src';
 import type { DiscoveryManifest, DiscoverableToolSchema, PeerDescriptor, DiscoveryCategorySummary } from '../src/types';
+import { TEST_API_URL, TEST_DEV_API_URL } from './test-urls';
 
 // Mock Node.js modules at the top level
 vi.mock('node:fs', () => ({
@@ -35,8 +36,8 @@ const MOCK_PEER: PeerDescriptor = {
   protocol: 'hustle',
   version: '2.0.0',
   type: 'defi-agent',
-  discoveryUrl: 'https://agenthustle.ai/api/tools/discover',
-  executionUrl: 'https://agenthustle.ai/api/chat',
+  discoveryUrl: `${TEST_API_URL}/api/tools/discover`,
+  executionUrl: `${TEST_API_URL}/api/chat`,
   authMethods: ['apiKey', 'jwt'],
   capabilities: {
     toolCount: 256,
@@ -137,7 +138,7 @@ describe('discoverTools', () => {
 
       expect(mockFetch).toHaveBeenCalledOnce();
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://agenthustle.ai/api/tools/discover',
+        `${TEST_API_URL}/api/tools/discover`,
         expect.objectContaining({
           method: 'GET',
           mode: 'cors',
@@ -148,14 +149,14 @@ describe('discoverTools', () => {
     test('should use custom base URL', async () => {
       const mockFetch = createMockFetch(MOCK_MANIFEST);
       const client = createClient(
-        { apiKey: 'test-key', hustleApiUrl: 'https://dev.agenthustle.ai' },
+        { apiKey: 'test-key', hustleApiUrl: TEST_DEV_API_URL },
         mockFetch,
       );
 
       await client.discoverTools();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://dev.agenthustle.ai/api/tools/discover',
+        `${TEST_DEV_API_URL}/api/tools/discover`,
         expect.anything(),
       );
     });
@@ -167,7 +168,7 @@ describe('discoverTools', () => {
       await client.discoverTools({ categories: ['solana'] });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://agenthustle.ai/api/tools/discover?categories=solana',
+        `${TEST_API_URL}/api/tools/discover?categories=solana`,
         expect.anything(),
       );
     });
@@ -179,7 +180,7 @@ describe('discoverTools', () => {
       await client.discoverTools({ categories: ['solana', 'ethereum', 'cross-chain-trading'] });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://agenthustle.ai/api/tools/discover?categories=solana,ethereum,cross-chain-trading',
+        `${TEST_API_URL}/api/tools/discover?categories=solana,ethereum,cross-chain-trading`,
         expect.anything(),
       );
     });
@@ -191,7 +192,7 @@ describe('discoverTools', () => {
       await client.discoverTools({ categories: [] });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://agenthustle.ai/api/tools/discover',
+        `${TEST_API_URL}/api/tools/discover`,
         expect.anything(),
       );
     });
@@ -203,7 +204,7 @@ describe('discoverTools', () => {
       await client.discoverTools();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://agenthustle.ai/api/tools/discover',
+        `${TEST_API_URL}/api/tools/discover`,
         expect.anything(),
       );
     });

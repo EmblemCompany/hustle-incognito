@@ -297,7 +297,7 @@ export interface HeadlessAuthOptions {
    */
   password: string;
   /**
-   * App ID for authentication (e.g., 'dev.agenthustle.ai').
+   * App ID for authentication (e.g., 'dev.emblemvault.ai').
    * The vault is scoped to this app - same password with different appId = different vault.
    */
   appId: string;

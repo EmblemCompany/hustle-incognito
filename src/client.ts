@@ -111,7 +111,7 @@ const SDK_VERSION = __SDK_VERSION__;
 
 // Default API endpoints
 const API_ENDPOINTS = {
-  PRODUCTION: 'https://agenthustle.ai',
+  PRODUCTION: 'https://emblemvault.ai',
 };
 
 /**
@@ -264,9 +264,9 @@ export class HustleIncognitoClient {
    * // With custom API URLs
    * const client = await HustleIncognitoClient.createWithPassword({
    *   password: 'my-super-secret-agent-key-12345',
-   *   appId: 'dev.agenthustle.ai',
+   *   appId: 'dev.emblemvault.ai',
    *   authApiUrl: 'https://dev-api.emblemvault.ai',
-   *   hustleApiUrl: 'https://dev.agenthustle.ai',
+   *   hustleApiUrl: 'https://dev.emblemvault.ai',
    *   debug: true,
    * });
    *

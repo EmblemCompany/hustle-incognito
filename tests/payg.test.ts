@@ -1,6 +1,7 @@
 import { describe, test, expect, vi } from 'vitest';
 import { HustleIncognitoClient } from '../src';
 import type { PaygStatus } from '../src/types';
+import { TEST_API_URL, TEST_DEV_API_URL, TEST_STAGING_API_URL } from './test-urls';
 
 const MOCK_PAYG_STATUS: PaygStatus = {
   enabled: true,
@@ -56,7 +57,7 @@ describe('PAYG Billing', () => {
 
       expect(status).toEqual(MOCK_PAYG_STATUS);
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://agenthustle.ai/api/payg',
+        `${TEST_API_URL}/api/payg`,
         expect.objectContaining({
           method: 'GET',
           mode: 'cors',
@@ -142,14 +143,14 @@ describe('PAYG Billing', () => {
     test('should use custom base URL', async () => {
       const mockFetch = createMockFetch(MOCK_PAYG_STATUS);
       const client = createClient(
-        { apiKey: 'k', hustleApiUrl: 'https://dev.agenthustle.ai' },
+        { apiKey: 'k', hustleApiUrl: TEST_DEV_API_URL },
         mockFetch
       );
 
       await client.getPaygStatus();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://dev.agenthustle.ai/api/payg',
+        `${TEST_DEV_API_URL}/api/payg`,
         expect.anything()
       );
     });
@@ -177,7 +178,7 @@ describe('PAYG Billing', () => {
 
       expect(result).toEqual(MOCK_CONFIGURE_RESULT);
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://agenthustle.ai/api/payg',
+        `${TEST_API_URL}/api/payg`,
         expect.objectContaining({
           method: 'POST',
           mode: 'cors',
@@ -242,14 +243,14 @@ describe('PAYG Billing', () => {
     test('should use custom base URL', async () => {
       const mockFetch = createMockFetch(MOCK_CONFIGURE_RESULT);
       const client = createClient(
-        { apiKey: 'k', hustleApiUrl: 'https://staging.agenthustle.ai' },
+        { apiKey: 'k', hustleApiUrl: TEST_STAGING_API_URL },
         mockFetch
       );
 
       await client.configurePayg({ enabled: true });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://staging.agenthustle.ai/api/payg',
+        `${TEST_STAGING_API_URL}/api/payg`,
         expect.anything()
       );
     });
