@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import { HustleIncognitoClient } from '../src';
 import type { ProcessedResponse, StreamChunk, RawChunk, IntentContext } from '../src/types';
+import { TEST_API_URL } from './test-urls';
 
 // Mock Node.js modules at the top level
 vi.mock('node:fs', () => ({
@@ -41,7 +42,7 @@ describe('HustleIncognitoClient', () => {
   test('should use default production URL when not specified', () => {
     const client = new HustleIncognitoClient({ apiKey: 'test-key' });
     // @ts-ignore - Accessing private property for testing
-    expect(client.baseUrl).toBe('https://agenthustle.ai');
+    expect(client.baseUrl).toBe(TEST_API_URL);
   });
 
   test('should use custom URL when specified', () => {
@@ -389,7 +390,7 @@ describe('HustleIncognitoClient', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://agenthustle.ai/api/files/upload',
+        `${TEST_API_URL}/api/files/upload`,
         expect.objectContaining({
           method: 'POST',
           body: expect.any(FormData)

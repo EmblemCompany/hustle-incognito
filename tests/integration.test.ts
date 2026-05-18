@@ -14,6 +14,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { Wallet } from 'ethers';
 
 import { HustleIncognitoClient } from '../src';
+import { TEST_API_URL } from './test-urls';
 import type { ProcessedResponse, ChatMessage, StreamChunk, PaygStatus, DiscoveryManifest } from '../src/types';
 
 
@@ -1048,7 +1049,7 @@ describe.skipIf(shouldSkipSignatureAuth)('Signature-based Authentication Tests',
     // Create client with JWT auth and send chat
     const client = new HustleIncognitoClient({
       jwt,
-      hustleApiUrl: process.env.HUSTLE_API_URL || 'https://agenthustle.ai',
+      hustleApiUrl: process.env.HUSTLE_API_URL || TEST_API_URL,
       debug: true  // Always enable debug for this test
     });
 
